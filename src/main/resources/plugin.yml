@@ -1,0 +1,17 @@
+name: MineFarm
+version: '${version}'
+
+main: Hez.MineFarm.Main
+api-version: '26.2'
+load: POSTWORLD
+
+commands:
+  money:
+    description: 돈 관련 op명령어입니다.
+    aliases: [money, balance]
+  job:
+    description: 직업 관련 op명령어입니다.
+  house:
+    description: 집 관련 op명령어.
+
+softdepend: [PlaceholderAPI]
