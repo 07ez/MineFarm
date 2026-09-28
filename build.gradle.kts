@@ -10,7 +10,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:26.2.build.+")
+    compileOnly("io.papermc.paper:paper-api:26.3.build.+")
     compileOnly("me.clip:placeholderapi:2.11.5")
 }
 
@@ -19,5 +19,5 @@ java {
 }
 
 tasks.jar {
-    destinationDirectory.set(file("D:/01Work/03 MineCraftPlugin/Plugin"))
+    destinationDirectory.set(file("D:/01Work/03 MineCraftPlugin/MineFarm/plugin"))
 }

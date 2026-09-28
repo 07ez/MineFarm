@@ -18,6 +18,8 @@ public class DisplayManager {
     // UUID별로 띄운 Textdisplay
     private final Map<UUID, List<TextDisplay>> activeTexts = new HashMap<>();
 
+    BlockDisplay previousDisplay = null;
+    BlockDisplay currentDisplay = null;
     public DisplayManager (JavaPlugin plugin) {
         this.plugin = plugin;
     }
@@ -38,8 +40,6 @@ public class DisplayManager {
     }
 
     private void checkPlayerLook(Player player) {
-        BlockDisplay previousTarget = null;
-        BlockDisplay currentTarget = null;
         // 플레이어 눈 위치에서 최대 5블록 거리까지 엔티티 레이트레이스 (비대면 처리)
         RayTraceResult result = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
@@ -51,9 +51,9 @@ public class DisplayManager {
 
         // 바라보고 있는 target 엔티티가 있는 경우
         if (result != null && result.getHitEntity() != null) {
-            if (currentTarget != null) previousTarget = currentTarget;
-            currentTarget = (BlockDisplay) result.getHitEntity();
-            Set<String> tags = currentTarget.getScoreboardTags();
+            if (previousDisplay != currentDisplay) previousDisplay = currentDisplay;
+            currentDisplay = (BlockDisplay) result.getHitEntity();
+            Set<String> tags = currentDisplay.getScoreboardTags();
             DisplayTextInfo texts;
 
             if (tags.contains("tree")) {
@@ -65,13 +65,13 @@ public class DisplayManager {
 
             // 아직 이 플레이어에게 텍스트가 안 떠 있다면 생성
             if (!activeTexts.containsKey(player.getUniqueId())) {
-                activeTexts.put(player.getUniqueId(), shopTexts(currentTarget.getLocation(), texts));
-                currentTarget.setGlowing(true); // 발광
+                activeTexts.put(player.getUniqueId(), shopTexts(currentDisplay.getLocation(), texts));
+                currentDisplay.setGlowing(true); // 발광
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 0.8f);
             }
         } else {
             // 바라보지 않고 있다면 텍스트 제거
-            removeTextDisplay(player, previousTarget);
+            removeTextDisplay(player, previousDisplay);
         }
     }
 

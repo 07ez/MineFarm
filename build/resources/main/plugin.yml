@@ -1,8 +1,8 @@
 name: MineFarm
-version: '${version}'
+version: '0.5.2'
 
 main: Hez.MineFarm.Main
-api-version: '26.2'
+api-version: '26.3'
 load: POSTWORLD
 
 commands:
