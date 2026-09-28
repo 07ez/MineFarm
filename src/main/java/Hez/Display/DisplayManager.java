@@ -74,7 +74,7 @@ public class DisplayManager {
             }
         } else {
             // 바라보지 않고 있다면 텍스트 제거
-            removeTextDisplay(player, previousDisplay);
+            removeTextDisplay(player, currentDisplay);
         }
     }
 
