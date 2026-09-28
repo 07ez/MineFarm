@@ -108,6 +108,7 @@ public class DisplayManager {
                 }
             }
         }
-        target.setGlowing(false); // 발광 삭제
+        if (target != null)
+            target.setGlowing(false); // 발광 삭제
     }
 }
