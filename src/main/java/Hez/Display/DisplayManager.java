@@ -51,7 +51,7 @@ public class DisplayManager {
 
         // 바라보고 있는 target 엔티티가 있는 경우
         if (result != null && result.getHitEntity() != null) {
-            if (previousDisplay != currentDisplay) {
+            if (currentDisplay != (BlockDisplay) result.getHitEntity()) {
                 previousDisplay = currentDisplay;
                 removeTextDisplay(player, previousDisplay);
             }
