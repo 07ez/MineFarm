@@ -23,6 +23,8 @@ public class SellCropTextDisplay {
         texts.put("wheatSeeds", new DisplayTextInfo("100원", "100원", 180));
         texts.put("pitcherPod", new DisplayTextInfo("100원", "100원", 180));
         texts.put("torchflowerSeeds", new DisplayTextInfo("100원", "100원", 180));
+        texts.put("melonSeeds", new DisplayTextInfo("100원", "100원", 180));
+        texts.put("pumpkinSeeds", new DisplayTextInfo("100원", "100원", 180));
 
         // [2] 기본 수확물 및 열매
         texts.put("carrot", new DisplayTextInfo("100원", "100원", 180));
@@ -40,9 +42,7 @@ public class SellCropTextDisplay {
         // [4] 가공품 및 특수 작물
         texts.put("honeycomb", new DisplayTextInfo("100원", "100원", 180));
         texts.put("honeyBottle", new DisplayTextInfo("100원", "100원", 180));
-        texts.put("goldenCarrot", new DisplayTextInfo("100원", "100원", 180));
-        texts.put("poisonousPotato", new DisplayTextInfo("100원", "100원", 180));
-        texts.put("pumpkin", new DisplayTextInfo("100원", "100원", 180));
-        texts.put("beetroot", new DisplayTextInfo("100원", "100원", 180));
+        texts.put("honeyBlock", new DisplayTextInfo("100원", "100원", 180));
+        texts.put("honeyCombBlock", new DisplayTextInfo("100원", "100원", 180));
     }
 }
