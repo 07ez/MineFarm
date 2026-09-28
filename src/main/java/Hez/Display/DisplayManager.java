@@ -1,10 +1,9 @@
 package Hez.Display;
 
+import Hez.Display.Crop.BuyCropTextDisplay;
+import Hez.Display.Crop.SellCropTextDisplay;
 import Hez.Display.Tree.TreeTextDisplay;
-import org.bukkit.Bukkit;
-import org.bukkit.Color;
-import org.bukkit.Location;
-import org.bukkit.Sound;
+import org.bukkit.*;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -20,14 +19,16 @@ public class DisplayManager {
 
     BlockDisplay previousDisplay = null;
     BlockDisplay currentDisplay = null;
-    public DisplayManager (JavaPlugin plugin) {
-        this.plugin = plugin;
-    }
+    public DisplayManager (JavaPlugin plugin) { this.plugin = plugin; }
 
     // 각 디스플레이
     TreeTextDisplay treeTextDisplay = new TreeTextDisplay();
+    BuyCropTextDisplay buyCropTextDisplay = new BuyCropTextDisplay();
+    SellCropTextDisplay sellCropTextDisplay = new SellCropTextDisplay();
     public void InitDisplay() {
         treeTextDisplay.Init();
+        buyCropTextDisplay.Init();
+        sellCropTextDisplay.Init();
     }
 
     public void startRaytraceTask() {
@@ -49,26 +50,57 @@ public class DisplayManager {
                 entity -> entity instanceof BlockDisplay
         );
 
+        RayTraceResult blockResult = player.getWorld().rayTraceBlocks(
+                player.getEyeLocation(),
+                player.getEyeLocation().getDirection(),
+                5.0, // 최대 감지 거리 (필요시 조절)
+                FluidCollisionMode.NEVER,
+                true
+        );
+
         // 바라보고 있는 target 엔티티가 있는 경우
         if (result != null && result.getHitEntity() != null) {
+            // 블럭에 막혀있는지 확인
+            if (blockResult != null && blockResult.getHitBlock() != null) {
+                double blockDistance = player.getEyeLocation().distance(blockResult.getHitPosition().toLocation(player.getWorld()));
+                double entityDistance = player.getEyeLocation().distance(result.getHitPosition().toLocation(player.getWorld()));
+                if (blockDistance < entityDistance) return;
+            }
+
+            // 바라보는 블럭디스플레이가 다르다면 발광 및 텍스트 삭제
             if (currentDisplay != (BlockDisplay) result.getHitEntity()) {
                 previousDisplay = currentDisplay;
                 removeTextDisplay(player, previousDisplay);
             }
+
+            // 텍스트 넣기 및 발광효과
             currentDisplay = (BlockDisplay) result.getHitEntity();
             Set<String> tags = currentDisplay.getScoreboardTags();
             DisplayTextInfo texts;
-
+            float textYPos;
             if (tags.contains("tree")) {
                 texts = treeTextDisplay.getTexts(tags);
+                textYPos = 0.6f;
+            }
+            else if (tags.contains("sellCrop")) {
+                texts = sellCropTextDisplay.getTexts(tags);
+                textYPos = 0.3f;
+            }
+            else if (tags.contains("buyCrop")) {
+                texts = buyCropTextDisplay.getTexts(tags);
+                textYPos = 0.3f;
+            }
+            else if(tags.contains("none")) {
+                return;
             }
             else {
                 texts = new DisplayTextInfo("오류", "개발자에게 문의하세요", 0);
+                textYPos = 0.6f;
             }
 
             // 아직 이 플레이어에게 텍스트가 안 떠 있다면 생성
             if (!activeTexts.containsKey(player.getUniqueId())) {
-                activeTexts.put(player.getUniqueId(), shopTexts(currentDisplay.getLocation(), texts));
+                activeTexts.put(player.getUniqueId(), shopTexts(currentDisplay.getLocation(), texts, textYPos));
                 currentDisplay.setGlowing(true); // 발광
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 0.8f);
             }
@@ -91,10 +123,10 @@ public class DisplayManager {
         });
     }
 
-    private List <TextDisplay> shopTexts(Location baseLoc, DisplayTextInfo info) {
+    private List <TextDisplay> shopTexts(Location baseLoc, DisplayTextInfo info, float textYPos) {
         return List.of(
-                spawnTextDisplay(baseLoc.clone().add(0, 0.6f, 0), "판매: " + info.sale(), info.yaw()),
-                spawnTextDisplay(baseLoc.clone().add(0, 0.9f, 0), "구매: " + info.purchase(), info.yaw())
+                spawnTextDisplay(baseLoc.clone().add(0, textYPos, 0), "판매: " + info.sale(), info.yaw()),
+                spawnTextDisplay(baseLoc.clone().add(0, textYPos + 0.3f, 0), "구매: " + info.purchase(), info.yaw())
         );
     }
 

@@ -38,7 +38,8 @@ public class TreeTextDisplay {
         texts.put("darkOak", new DisplayTextInfo("100원", "100원", 180));
         // [10] 정글나무
         texts.put("jungle", new DisplayTextInfo("100원", "100원", 225));
-        // [11] ??나무
+        // [11] 포플러나무
+        texts.put("poplar", new DisplayTextInfo("100원", "100원", 270));
         // [12] 대나무
         texts.put("bamboo", new DisplayTextInfo("100원", "100원", 270));
         // [13] 꽃핀 아젤리아
