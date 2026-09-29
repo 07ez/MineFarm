@@ -46,7 +46,7 @@ public class DisplayManager {
                 player.getEyeLocation().getDirection(),
                 5.0, // 최대 감지 거리 (필요시 조절)
                 0.25, // 감지 오차 범위(마우스 조준 보정)
-                entity -> entity instanceof Display
+                entity -> (entity instanceof Display) && entity.getType() != EntityType.TEXT_DISPLAY
         );
 
         RayTraceResult blockResult = player.getWorld().rayTraceBlocks(
