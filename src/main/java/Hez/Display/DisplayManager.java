@@ -4,9 +4,7 @@ import Hez.Display.Crop.BuyCropTextDisplay;
 import Hez.Display.Crop.SellCropTextDisplay;
 import Hez.Display.Tree.TreeTextDisplay;
 import org.bukkit.*;
-import org.bukkit.entity.BlockDisplay;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
+import org.bukkit.entity.*;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
@@ -14,11 +12,12 @@ import java.util.*;
 
 public class DisplayManager {
     private final JavaPlugin plugin;
-    // UUID별로 띄운 Textdisplay
+    // UUID별로 띄운 TextDisplay
     private final Map<UUID, List<TextDisplay>> activeTexts = new HashMap<>();
 
-    BlockDisplay previousDisplay = null;
-    BlockDisplay currentDisplay = null;
+    Display previousDisplay = null;
+    Display currentDisplay = null;
+
     public DisplayManager (JavaPlugin plugin) { this.plugin = plugin; }
 
     // 각 디스플레이
@@ -45,9 +44,9 @@ public class DisplayManager {
         RayTraceResult result = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
-                7.0, // 최대 감지 거리 (필요시 조절)
+                5.0, // 최대 감지 거리 (필요시 조절)
                 0.25, // 감지 오차 범위(마우스 조준 보정)
-                entity -> entity instanceof BlockDisplay
+                entity -> entity instanceof Display
         );
 
         RayTraceResult blockResult = player.getWorld().rayTraceBlocks(
@@ -68,13 +67,13 @@ public class DisplayManager {
             }
 
             // 바라보는 블럭디스플레이가 다르다면 발광 및 텍스트 삭제
-            if (currentDisplay != (BlockDisplay) result.getHitEntity()) {
+            if (currentDisplay != (Display) result.getHitEntity()) {
                 previousDisplay = currentDisplay;
                 removeTextDisplay(player, previousDisplay);
             }
 
             // 텍스트 넣기 및 발광효과
-            currentDisplay = (BlockDisplay) result.getHitEntity();
+            currentDisplay = (Display) result.getHitEntity();
             Set<String> tags = currentDisplay.getScoreboardTags();
             DisplayTextInfo texts;
             float textYPos;
@@ -130,7 +129,7 @@ public class DisplayManager {
         );
     }
 
-    private void removeTextDisplay(Player player, BlockDisplay target) {
+    private void removeTextDisplay(Player player, Display target) {
         List<TextDisplay> displays = activeTexts.remove(player.getUniqueId());
 
         if (displays != null) {

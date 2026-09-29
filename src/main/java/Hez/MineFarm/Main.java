@@ -135,5 +135,6 @@ public class Main extends JavaPlugin {
     }
     public JobManager getJobManager() { return jobManager; }
     public FishManager getFishManager() { return fishManager; }
-    public HouseManager getHouseManager() {return houseManager; }
+    public HouseManager getHouseManager() { return houseManager; }
+    public DisplayManager getDisplayManager() { return displayManager; }
 }
