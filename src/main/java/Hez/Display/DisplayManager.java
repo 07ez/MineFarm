@@ -2,6 +2,8 @@ package Hez.Display;
 
 import Hez.Display.Crop.BuyCropTextDisplay;
 import Hez.Display.Crop.SellCropTextDisplay;
+import Hez.Display.Fish.FishTextDisplay;
+import Hez.Display.Ore.OreTextDisplay;
 import Hez.Display.Tree.TreeTextDisplay;
 import org.bukkit.*;
 import org.bukkit.entity.*;
@@ -24,10 +26,14 @@ public class DisplayManager {
     TreeTextDisplay treeTextDisplay = new TreeTextDisplay();
     BuyCropTextDisplay buyCropTextDisplay = new BuyCropTextDisplay();
     SellCropTextDisplay sellCropTextDisplay = new SellCropTextDisplay();
+    FishTextDisplay fishTextDisplay = new FishTextDisplay();
+    OreTextDisplay oreTextDisplay = new OreTextDisplay();
     public void InitDisplay() {
         treeTextDisplay.Init();
         buyCropTextDisplay.Init();
         sellCropTextDisplay.Init();
+        fishTextDisplay.Init();
+        oreTextDisplay.Init();
     }
 
     public void startRaytraceTask() {
@@ -79,7 +85,7 @@ public class DisplayManager {
             float textYPos;
             if (tags.contains("tree")) {
                 texts = treeTextDisplay.getTexts(tags);
-                textYPos = 0.6f;
+                textYPos = 0.7f;
             }
             else if (tags.contains("sellCrop")) {
                 texts = sellCropTextDisplay.getTexts(tags);
@@ -89,11 +95,19 @@ public class DisplayManager {
                 texts = buyCropTextDisplay.getTexts(tags);
                 textYPos = 0.3f;
             }
+            else if (tags.contains("fish")) {
+                texts = buyCropTextDisplay.getTexts(tags);
+                textYPos = 0.7f;
+            }
+            else if (tags.contains("ore")) {
+                texts = buyCropTextDisplay.getTexts(tags);
+                textYPos = 0.7f;
+            }
             else if(tags.contains("none")) {
                 return;
             }
             else {
-                texts = new DisplayTextInfo("오류", "개발자에게 문의하세요", 0);
+                texts = new DisplayTextInfo(0, 0, 0);
                 textYPos = 0.6f;
             }
 
@@ -124,8 +138,8 @@ public class DisplayManager {
 
     private List <TextDisplay> shopTexts(Location baseLoc, DisplayTextInfo info, float textYPos) {
         return List.of(
-                spawnTextDisplay(baseLoc.clone().add(0, textYPos, 0), "판매: " + info.sale(), info.yaw()),
-                spawnTextDisplay(baseLoc.clone().add(0, textYPos + 0.3f, 0), "구매: " + info.purchase(), info.yaw())
+                spawnTextDisplay(baseLoc.clone().add(0, textYPos, 0), "판매: " + info.sale() + "원", info.yaw()),
+                spawnTextDisplay(baseLoc.clone().add(0, textYPos + 0.3f, 0), "구매: " + info.purchase() + "원", info.yaw())
         );
     }
 
