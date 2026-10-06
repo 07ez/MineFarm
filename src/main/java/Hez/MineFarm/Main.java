@@ -10,6 +10,7 @@ import Hez.Money.MoneyManager;
 import Hez.Command.CommandManager;
 import Hez.Placeholder.JobExpansion;
 import Hez.Placeholder.MoneyExpansion;
+import Hez.Player.PlayerManager;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -27,22 +28,22 @@ public class Main extends JavaPlugin {
     private FishManager fishManager;
     private HouseManager houseManager;
     private DisplayManager displayManager;
+    private PlayerManager playerManager;
 
     // 파일들
-    private File moneyFile;
-    private File jobFile;
+    private File playerDataFile;
     private File itemFile;
-    private File houseFile;
-    private FileConfiguration moneyConfig;
-    private FileConfiguration jobConfig;
     private FileConfiguration itemConfig;
-    private FileConfiguration houseConfig;
+    private FileConfiguration playerDataFileConfig;
+
     @Override
     public void onEnable() {
         instance = this;
 
         // 파일 초기화
         InitFiles();
+
+        InitManager();
 
         // 데이터 로딩
         LoadData();
@@ -64,16 +65,30 @@ public class Main extends JavaPlugin {
         if (!getDataFolder().exists()) {
             getDataFolder().mkdirs();
         }
-
-        moneyFile = new File(getDataFolder(), "PlayerMoney.yml");
-        jobFile = new File(getDataFolder(), "PlayerJobs.yml");
+        playerDataFile = new File(getDataFolder(), "playerData.yml");
         itemFile = new File(getDataFolder(), "Item.yml");
-        houseFile = new File(getDataFolder(), "house.yml");
-
-        moneyConfig = YamlConfiguration.loadConfiguration(moneyFile);
-        jobConfig = YamlConfiguration.loadConfiguration(jobFile);
+        playerDataFileConfig = YamlConfiguration.loadConfiguration(playerDataFile);
         itemConfig = YamlConfiguration.loadConfiguration(itemFile);
-        houseConfig = YamlConfiguration.loadConfiguration(houseFile);
+    }
+
+    private void InitManager() {
+        // 돈 관리 시스템
+        this.moneyManager = new MoneyManager();
+
+        // 직업 관리 시스템
+        this.jobManager = new JobManager();
+
+        // 물고기 관리 시스템
+        this.fishManager = new FishManager();
+
+        // 청크 관리 시스템
+        this.houseManager = new HouseManager();
+
+        // 디스플레이 시스템
+        this.displayManager = new DisplayManager(this);
+
+        // 플레이어 데이터 관리 시스템
+        this.playerManager = new PlayerManager();
     }
 
     private void LoadPapi(){
@@ -85,29 +100,16 @@ public class Main extends JavaPlugin {
     }
 
     private void LoadData(){
-
-        // 돈 관리 시스템
-        this.moneyManager = new MoneyManager();
-        this.moneyManager.LoadData(moneyConfig);
-
-        // 직업 관리 시스템
-        this.jobManager = new JobManager();
-        this.jobManager.LoadData(jobConfig);
-
-        // 물고기 관리 시스템
-        this.fishManager = new FishManager();
+        // 물고기 등록
         this.fishManager.Init();
         getServer().getPluginManager().registerEvents(new FishingListener(), this);
 
-        // 청크 관리 시스템
-        this.houseManager = new HouseManager();
-        this.houseManager.LoadData(houseConfig);
-
-        // 디스플레이 시스템
-        this.displayManager = new DisplayManager(this);
+        // 디스플레이 등록
         this.displayManager.InitDisplay();
         this.displayManager.startRaytraceTask();
 
+        // 플레이어 데이터 파일 로딩
+        this.playerManager.LoadData(playerDataFileConfig);
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();
@@ -115,15 +117,10 @@ public class Main extends JavaPlugin {
 
     public void SaveData() {
         // 각 메니저에 옮기기
-        moneyManager.saveData(moneyConfig);
-        jobManager.SaveData(jobConfig);
-        houseManager.SaveData(houseConfig);
-
+        playerManager.saveData(playerDataFileConfig);
         // 실제 파일로 덮어쓰기
         try {
-            moneyConfig.save(moneyFile);
-            jobConfig.save(jobFile);
-            houseConfig.save(houseFile);
+            playerDataFileConfig.save(playerDataFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -137,4 +134,5 @@ public class Main extends JavaPlugin {
     public FishManager getFishManager() { return fishManager; }
     public HouseManager getHouseManager() { return houseManager; }
     public DisplayManager getDisplayManager() { return displayManager; }
+    public PlayerManager getPlayerManager() { return playerManager; }
 }

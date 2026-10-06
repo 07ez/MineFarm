@@ -1,8 +1,6 @@
 package Hez.Money;
 
 import Hez.MineFarm.OpGetMassage;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.Map;
 import java.util.UUID;
@@ -66,33 +64,7 @@ public class MoneyManager {
         }
     }
 
-    // 돈 저장
-    public void saveData(FileConfiguration config){
-        for (Map.Entry<UUID, Integer> entry : moneyData.entrySet()) {
-            config.set("money. " + entry.getKey().toString(), entry.getValue());
-        }
-    }
-
-    // 돈 불러오기
-    public void LoadData(FileConfiguration config) {
-        // 예외처리
-        if (!config.contains("money")) return;
-
-        moneyData.clear();
-
-        // "data" 하위 섹션이 존재하는지 확인
-        ConfigurationSection section = config.getConfigurationSection("data");
-        if (section == null) return;
-
-        for (String key : section.getKeys(false)) {
-            try {
-                UUID uuid = UUID.fromString(key); // UUID 규격 검증
-                int amount = section.getInt(key);
-                moneyData.put(uuid, amount);
-            } catch (IllegalArgumentException e) {
-                // UUID 문자열이 아닌 Key는 무시하고 로그 남김 (에러로 인한 플러그인 멈춤 방지)
-                System.err.println("[MineFarm] 올바르지 않은 UUID 키 무시됨: " + key);
-            }
-        }
+    public void LoadPlayerMoney(UUID uuid, int money) {
+        moneyData.put(uuid, money);
     }
 }
