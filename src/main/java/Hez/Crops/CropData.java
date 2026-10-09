@@ -96,4 +96,19 @@ public class CropData {
         int calculatedAge = (int) ((elapsed * maxAge) / effectiveDuration);
         return Math.clamp(calculatedAge, 0, maxAge);
     }
+
+    /**
+     * 남은 시간을 00:00:00 (시:분:초) 형태로 반환하거나,
+     * 다 자랐을 경우 "수확가능!" 반환
+     */
+    public String getFormattedRemainingTime() {
+        if (isHarvestable()) {
+            return "수확가능!";
+        }
+        long remainingSec = getRemainingTimeMillis() / 1000L;
+        long hours = remainingSec / 3600L;
+        long minutes = (remainingSec % 3600L) / 60L;
+        long seconds = remainingSec % 60L;
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+    }
 }

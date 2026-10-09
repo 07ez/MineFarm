@@ -61,6 +61,9 @@ public class Main extends JavaPlugin {
     @Override
     public void onDisable() {
         SaveData();
+        if (this.cropsManager != null) {
+            this.cropsManager.clearAllDisplays();
+        }
     }
 
     private void InitFiles() {
@@ -118,6 +121,7 @@ public class Main extends JavaPlugin {
 
         // 농사 데이터 로딩 및 리스너 등록
         this.cropsManager.loadData(cropsDataConfig);
+        this.cropsManager.startDisplayWatcherTask(this);
         getServer().getPluginManager().registerEvents(new Hez.Crops.CropListener(this.cropsManager), this);
 
         // 플레이어 데이터 파일 로딩

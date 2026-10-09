@@ -90,9 +90,11 @@ public class CropListener implements Listener {
     }
 
     /**
-     * 작물 우클릭 시 남은 시간 안내 및 시각 동기화
+     * 작물 우클릭 상호작용:
+     * - 웅크리기(Shift) + 우클릭: 작물 위에 실시간 TextDisplay 소환 (00:00:00 / 수확가능!)
+     *   (크로스헤어가 벗어나면 자동 해제)
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block clickedBlock = event.getClickedBlock();
@@ -103,14 +105,29 @@ public class CropListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // 웅크리지 않고 빈손 또는 일반 도구 등으로 우클릭했을 때 정보 출력
-        if (data.isHarvestable()) {
-            player.sendMessage("§a[농사] §f작물이 완전히 자라 수확할 수 있습니다! (좌클릭으로 수확)");
+        // 웅크리기 + 우클릭 시 TextDisplay 띄우기
+        if (player.isSneaking()) {
+            event.setCancelled(true);
+            cropsManager.showCropDisplay(player, clickedBlock, data);
         } else {
-            long remainingSec = data.getRemainingTimeMillis() / 1000L;
-            long minutes = remainingSec / 60;
-            long seconds = remainingSec % 60;
-            player.sendMessage(String.format("§e[농사] §f수확까지 §a%d분 %d초§f 남았습니다.", minutes, seconds));
+            // 일반 우클릭 시 채팅 안내
+            if (data.isHarvestable()) {
+                player.sendMessage("§a[농사] §f작물이 완전히 자라 수확할 수 있습니다! (좌클릭으로 수확)");
+            } else {
+                long remainingSec = data.getRemainingTimeMillis() / 1000L;
+                long hours = remainingSec / 3600L;
+                long minutes = (remainingSec % 3600L) / 60L;
+                long seconds = remainingSec % 60L;
+                player.sendMessage(String.format("§e[농사] §f수확까지 §a%02d:%02d:%02d§f 남았습니다.", hours, minutes, seconds));
+            }
         }
+    }
+
+    /**
+     * 플레이어 퇴장 시 떠 있는 작물 TextDisplay 정리
+     */
+    @EventHandler
+    public void onPlayerQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        cropsManager.removeCropDisplay(event.getPlayer());
     }
 }
