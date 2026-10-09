@@ -29,12 +29,15 @@ public class Main extends JavaPlugin {
     private HouseManager houseManager;
     private DisplayManager displayManager;
     private PlayerManager playerManager;
+    private Hez.Crops.CropsManager cropsManager;
 
     // 파일들
     private File playerDataFile;
+    private File cropsDataFile;
     private File itemFile;
     private FileConfiguration itemConfig;
     private FileConfiguration playerDataFileConfig;
+    private FileConfiguration cropsDataConfig;
 
     @Override
     public void onEnable() {
@@ -66,8 +69,10 @@ public class Main extends JavaPlugin {
             getDataFolder().mkdirs();
         }
         playerDataFile = new File(getDataFolder(), "playerData.yml");
+        cropsDataFile = new File(getDataFolder(), "cropsData.yml");
         itemFile = new File(getDataFolder(), "Item.yml");
         playerDataFileConfig = YamlConfiguration.loadConfiguration(playerDataFile);
+        cropsDataConfig = YamlConfiguration.loadConfiguration(cropsDataFile);
         itemConfig = YamlConfiguration.loadConfiguration(itemFile);
     }
 
@@ -89,6 +94,9 @@ public class Main extends JavaPlugin {
 
         // 플레이어 데이터 관리 시스템
         this.playerManager = new PlayerManager();
+
+        // 농사 관리 시스템
+        this.cropsManager = new Hez.Crops.CropsManager();
     }
 
     private void LoadPapi(){
@@ -108,6 +116,10 @@ public class Main extends JavaPlugin {
         this.displayManager.InitDisplay();
         this.displayManager.startRaytraceTask();
 
+        // 농사 데이터 로딩 및 리스너 등록
+        this.cropsManager.loadData(cropsDataConfig);
+        getServer().getPluginManager().registerEvents(new Hez.Crops.CropListener(this.cropsManager), this);
+
         // 플레이어 데이터 파일 로딩
         this.playerManager.LoadData(playerDataFileConfig);
 
@@ -118,9 +130,11 @@ public class Main extends JavaPlugin {
     public void SaveData() {
         // 각 메니저에 옮기기
         playerManager.saveData(playerDataFileConfig);
+        cropsManager.saveData(cropsDataConfig);
         // 실제 파일로 덮어쓰기
         try {
             playerDataFileConfig.save(playerDataFile);
+            cropsDataConfig.save(cropsDataFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -135,4 +149,5 @@ public class Main extends JavaPlugin {
     public HouseManager getHouseManager() { return houseManager; }
     public DisplayManager getDisplayManager() { return displayManager; }
     public PlayerManager getPlayerManager() { return playerManager; }
+    public Hez.Crops.CropsManager getCropsManager() { return cropsManager; }
 }
