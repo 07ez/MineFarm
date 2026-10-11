@@ -72,19 +72,6 @@ public class CropListener implements Listener {
         // 최신 시간 기준으로 동기화 및 수확 가능 여부 판정
         cropsManager.updateBlockVisual(block, data);
 
-        Player player = event.getPlayer();
-
-        if (data.isHarvestable()) {
-            // 다 자란 상태: 정상 수확
-            // 플레이어 통계 연동 (추후 PlayerManager 연계)
-        } else {
-            // 아직 덜 자란 상태
-            long remainingSec = data.getRemainingTimeMillis() / 1000L;
-            long minutes = remainingSec / 60;
-            long seconds = remainingSec % 60;
-            player.sendMessage(String.format("§c[농사] §f아직 덜 자란 작물입니다. (남은 시간: §e%d분 %d초§f)", minutes, seconds));
-        }
-
         // 작물 데이터 삭제
         cropsManager.removeCrop(block.getLocation());
     }
@@ -105,21 +92,10 @@ public class CropListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // 웅크리기 + 우클릭 시 TextDisplay 띄우기
+        // 웅크리기 + 우클릭 시에만 TextDisplay 띄우기
         if (player.isSneaking()) {
             event.setCancelled(true);
             cropsManager.showCropDisplay(player, clickedBlock, data);
-        } else {
-            // 일반 우클릭 시 채팅 안내
-            if (data.isHarvestable()) {
-                player.sendMessage("§a[농사] §f작물이 완전히 자라 수확할 수 있습니다! (좌클릭으로 수확)");
-            } else {
-                long remainingSec = data.getRemainingTimeMillis() / 1000L;
-                long hours = remainingSec / 3600L;
-                long minutes = (remainingSec % 3600L) / 60L;
-                long seconds = remainingSec % 60L;
-                player.sendMessage(String.format("§e[농사] §f수확까지 §a%02d:%02d:%02d§f 남았습니다.", hours, minutes, seconds));
-            }
         }
     }
 

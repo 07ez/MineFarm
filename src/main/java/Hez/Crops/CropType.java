@@ -11,7 +11,7 @@ import java.util.Map;
 public enum CropType {
     WHEAT(Material.WHEAT, Material.WHEAT_SEEDS, 5 * 60 * 1000L, "밀"),
     CARROT(Material.CARROTS, Material.CARROT, 7 * 60 * 1000L, "당근"),
-    POTATO(Material.POTATOES, Material.POTATO, 7 * 60 * 1000L, "감자"),
+    POTATO(Material.POTATOES, Material.POTATO, 10 * 1000L, "감자"), // 테스트용 10초
     BEETROOT(Material.BEETROOTS, Material.BEETROOT_SEEDS, 10 * 60 * 1000L, "비트"),
     NETHER_WART(Material.NETHER_WART, Material.NETHER_WART, 12 * 60 * 1000L, "네더 와트");
 
