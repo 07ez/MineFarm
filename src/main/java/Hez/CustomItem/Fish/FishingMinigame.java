@@ -3,113 +3,175 @@ package Hez.CustomItem.Fish;
 import Hez.MineFarm.Main;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
-import org.bukkit.Color;
+import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 낚시 리듬게임 미니게임 시스템
- * 게이지 바가 우측으로 이동하면서 초록색 구간에 들어왔을 때 클릭하면 낚시 성공!
+ * 체스트 GUI 기반 낚시 미니게임 (에임 트래킹 / 두더지 잡기 스타일)
  */
 public class FishingMinigame {
 
+    public static final String GUI_TITLE = "§1§l🎣 낚시 미니게임!";
+
     private static final Map<UUID, GameSession> activeSessions = new ConcurrentHashMap<>();
 
-    // 게이지 바 총 길이
-    public static final int BAR_LENGTH = 30;
+    public static class GameSession {
+        private final Player player;
+        private final ItemStack rewardItem;
+        private final Inventory inventory;
+        private final int targetHits;       // 목표 성공 횟수
+        private final double totalSeconds;   // 총 제한 시간(초)
+        private int currentHits = 0;         // 현재 성공 횟수
+        private int currentFishSlot = -1;    // 현재 물고기가 위치한 슬롯
+        private double remainingSeconds;     // 남은 시간
+        private BukkitTask timerTask;
+        private boolean finished = false;
 
-    public record GameSession(
-            Player player,
-            ItemStack rewardItem,
-            int greenStart,
-            int greenEnd,
-            int cursorPosition,
-            BukkitTask task
-    ) {}
+        public GameSession(Player player, ItemStack rewardItem, int targetHits, double totalSeconds, Inventory inventory) {
+            this.player = player;
+            this.rewardItem = rewardItem;
+            this.targetHits = targetHits;
+            this.totalSeconds = totalSeconds;
+            this.remainingSeconds = totalSeconds;
+            this.inventory = inventory;
+        }
 
-    /**
-     * 미니게임 시작
-     * @param player 낚시 중인 플레이어
-     * @param rewardItem 낚았을 때 지급할 보상 아이템 (물고기 또는 쓰레기)
-     */
-    public static void start(Player player, ItemStack rewardItem) {
-        // 이미 진행 중인 세션이 있다면 취소
-        stop(player.getUniqueId());
+        public Player getPlayer() { return player; }
+        public ItemStack getRewardItem() { return rewardItem; }
+        public Inventory getInventory() { return inventory; }
+        public int getTargetHits() { return targetHits; }
+        public int getCurrentHits() { return currentHits; }
+        public int getCurrentFishSlot() { return currentFishSlot; }
+        public double getRemainingSeconds() { return remainingSeconds; }
+        public boolean isFinished() { return finished; }
 
-        // 초록색 목표 구간 설정 (난이도: 중간 12~18 사이 약 7칸)
-        int greenLength = 7;
-        int greenStart = 11;
-        int greenEnd = greenStart + greenLength - 1;
+        public void setFinished(boolean finished) { this.finished = finished; }
+        public void setTimerTask(BukkitTask timerTask) { this.timerTask = timerTask; }
+        public void incrementHits() { this.currentHits++; }
+        public void decrementTime(double dt) { this.remainingSeconds = Math.max(0, this.remainingSeconds - dt); }
+        public void setCurrentFishSlot(int slot) { this.currentFishSlot = slot; }
 
-        final int[] cursor = {0};
-
-        BukkitTask task = new BukkitRunnable() {
-            @Override
-            public void run() {
-                if (!player.isOnline()) {
-                    stop(player.getUniqueId());
-                    cancel();
-                    return;
-                }
-
-                // 끝까지 도달할 때까지 클릭하지 못하면 실패!
-                if (cursor[0] >= BAR_LENGTH) {
-                    onFail(player);
-                    cancel();
-                    return;
-                }
-
-                // 타이틀 렌더링
-                renderTitle(player, cursor[0], greenStart, greenEnd);
-
-                // 커서 1칸 전진
-                cursor[0]++;
+        public void cancelTask() {
+            if (timerTask != null) {
+                timerTask.cancel();
             }
-        }.runTaskTimer(Main.getInstance(), 0L, 2L); // 2틱(0.1초)마다 1칸씩 전진
-
-        activeSessions.put(player.getUniqueId(), new GameSession(player, rewardItem, greenStart, greenEnd, 0, task));
+        }
     }
 
     /**
-     * 플레이어 클릭 시 판정
-     * @return 미니게임이 진행 중이었는지 여부
+     * 미니게임 시작
      */
-    public static boolean handleClick(Player player) {
-        GameSession session = activeSessions.remove(player.getUniqueId());
-        if (session == null) return false;
+    public static void start(Player player, ItemStack rewardItem) {
+        stop(player.getUniqueId(), false);
 
-        // 태스크 중지
-        session.task().cancel();
+        // 희귀도에 따른 난이도 계산
+        int targetHits = 3;
+        double totalSeconds = 6.0;
 
-        // 클릭 시점의 커서 위치는 세션의 렌더링 기준 위치
-        // (현재 커서 위치 확인을 위해 직전 렌더링 시점의 위치 계산)
-        int cursor = session.cursorPosition();
+        String displayName = rewardItem.getItemMeta() != null && rewardItem.getItemMeta().hasDisplayName()
+                ? rewardItem.getItemMeta().getDisplayName()
+                : "";
 
-        if (cursor >= session.greenStart() && cursor <= session.greenEnd()) {
-            onSuccess(player, session.rewardItem());
-        } else {
-            onFail(player);
+        if (displayName.contains("전설") || displayName.contains("용암장어") || displayName.contains("크림슨피쉬")) {
+            targetHits = 5;
+            totalSeconds = 4.0;
+        } else if (displayName.contains("아귀") || displayName.contains("장어") || displayName.contains("참치") || displayName.contains("가오리")) {
+            targetHits = 4;
+            totalSeconds = 5.0;
         }
-        return true;
+
+        // 3줄(27칸) 체스트 인벤토리 생성
+        Inventory inv = Bukkit.createInventory(player, 27, Component.text(GUI_TITLE));
+
+        GameSession session = new GameSession(player, rewardItem, targetHits, totalSeconds, inv);
+        activeSessions.put(player.getUniqueId(), session);
+
+        // 초기 인벤토리 배경 구성
+        renderBackground(session);
+
+        // 첫 물고기 스폰
+        spawnFishAtRandomSlot(session);
+
+        // 인벤토리 열기
+        player.openInventory(inv);
+
+        // 1틱(0.05초)마다 남은 시간 타이머 갱신 태스크
+        BukkitTask task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!player.isOnline() || session.isFinished()) {
+                    cancel();
+                    return;
+                }
+
+                session.decrementTime(0.05);
+
+                // 상단 타이머 아이템 갱신
+                updateTopStatus(session);
+
+                // 시간 초과 시 실패
+                if (session.getRemainingSeconds() <= 0) {
+                    onFail(player, "시간이 초과되어 물고기가 도망쳤습니다!");
+                    cancel();
+                }
+            }
+        }.runTaskTimer(Main.getInstance(), 1L, 1L);
+
+        session.setTimerTask(task);
+    }
+
+    /**
+     * 물고기 클릭 시 처리
+     */
+    public static void onFishClicked(Player player) {
+        GameSession session = activeSessions.get(player.getUniqueId());
+        if (session == null || session.isFinished()) return;
+
+        session.incrementHits();
+
+        // 띵! 효과음 (성공 횟수에 따라 피치 상승)
+        float pitch = 1.0f + (session.getCurrentHits() * 0.25f);
+        player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, pitch);
+
+        // 목표 달성 시 성공!
+        if (session.getCurrentHits() >= session.getTargetHits()) {
+            onSuccess(player);
+        } else {
+            // 다른 랜덤 위치로 물고기 이동
+            spawnFishAtRandomSlot(session);
+            updateTopStatus(session);
+        }
     }
 
     /**
      * 성공 처리
      */
-    private static void onSuccess(Player player, ItemStack reward) {
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+    private static void onSuccess(Player player) {
+        GameSession session = activeSessions.remove(player.getUniqueId());
+        if (session == null) return;
 
+        session.setFinished(true);
+        session.cancelTask();
+        player.closeInventory();
+
+        ItemStack reward = session.getRewardItem();
         String itemName = reward.getItemMeta() != null && reward.getItemMeta().hasDisplayName()
                 ? reward.getItemMeta().getDisplayName()
                 : reward.getType().name();
+
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
 
         Title successTitle = Title.title(
                 Component.text("§a§l성공!"),
@@ -118,7 +180,7 @@ public class FishingMinigame {
         );
         player.showTitle(successTitle);
 
-        // 아이템 인벤토리에 추가 (가득 찬 경우 드롭)
+        // 아이템 지급
         Map<Integer, ItemStack> leftover = player.getInventory().addItem(reward);
         for (ItemStack drop : leftover.values()) {
             player.getWorld().dropItemNaturally(player.getLocation(), drop);
@@ -130,68 +192,133 @@ public class FishingMinigame {
     /**
      * 실패 처리
      */
-    private static void onFail(Player player) {
+    public static void onFail(Player player, String reason) {
+        GameSession session = activeSessions.remove(player.getUniqueId());
+        if (session == null) return;
+
+        session.setFinished(true);
+        session.cancelTask();
+        player.closeInventory();
+
         player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1.0f, 0.8f);
-        player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_SPLASH, 1.0f, 0.7f);
+        player.playSound(player.getLocation(), Sound.ENTITY_FISHING_BOBBER_SPLASH, 1.0f, 0.8f);
 
         Title failTitle = Title.title(
                 Component.text("§c§l놓쳤습니다!"),
-                Component.text("§7물고기가 도망쳤습니다."),
+                Component.text("§7" + reason),
                 Title.Times.times(Duration.ZERO, Duration.ofMillis(1200), Duration.ofMillis(500))
         );
         player.showTitle(failTitle);
-        player.sendMessage("§c[낚시] §7타이밍을 맞추지 못해 물고기를 놓쳤습니다...");
+        player.sendMessage("§c[낚시] §7" + reason);
     }
 
     /**
-     * 화면에 게이지 바 타이틀 표시
+     * 물고기를 2~3번째 줄(9~26번 슬롯) 중 랜덤 빈 위치로 이동
      */
-    private static void renderTitle(Player player, int cursor, int greenStart, int greenEnd) {
-        StringBuilder bar = new StringBuilder();
+    private static void spawnFishAtRandomSlot(GameSession session) {
+        Inventory inv = session.getInventory();
 
-        for (int i = 0; i < BAR_LENGTH; i++) {
-            if (i == cursor) {
-                // 현재 검은색 커서 바
-                bar.append("§0§l█");
-            } else if (i >= greenStart && i <= greenEnd) {
-                // 초록색 목표 구간
-                bar.append("§a§l|");
-            } else {
-                // 일반 배경 구간
-                bar.append("§7|");
+        // 기존 물고기 슬롯을 검은 유리판으로 복원
+        if (session.getCurrentFishSlot() != -1) {
+            inv.setItem(session.getCurrentFishSlot(), createGlassPane());
+        }
+
+        // 9 ~ 26번 슬롯 중 기존과 다른 랜덤 슬롯 선택
+        List<Integer> availableSlots = new ArrayList<>();
+        for (int i = 9; i < 27; i++) {
+            if (i != session.getCurrentFishSlot()) {
+                availableSlots.add(i);
             }
         }
 
-        Title title = Title.title(
-                Component.text(bar.toString()),
-                Component.text("§e[클릭!] §f검은색 바가 §a초록색 구간§f에 왔을 때 클릭하세요!"),
-                Title.Times.times(Duration.ZERO, Duration.ofMillis(300), Duration.ZERO)
-        );
-        player.showTitle(title);
+        int nextSlot = availableSlots.get(ThreadLocalRandom.current().nextInt(availableSlots.size()));
+        session.setCurrentFishSlot(nextSlot);
 
-        // 현재 위치 세션에 업데이트
-        GameSession old = activeSessions.get(player.getUniqueId());
-        if (old != null) {
-            activeSessions.put(player.getUniqueId(), new GameSession(old.player(), old.rewardItem(), old.greenStart(), old.greenEnd(), cursor, old.task()));
+        // 물고기 아이템 표시용 복사본
+        ItemStack displayFish = session.getRewardItem().clone();
+        ItemMeta meta = displayFish.getItemMeta();
+        if (meta != null) {
+            List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+            lore.add("§e§l클릭하여 잡으세요!");
+            meta.setLore(lore);
+            displayFish.setItemMeta(meta);
         }
+
+        inv.setItem(nextSlot, displayFish);
+    }
+
+    /**
+     * 인벤토리 배경 초기화
+     */
+    private static void renderBackground(GameSession session) {
+        Inventory inv = session.getInventory();
+        ItemStack glass = createGlassPane();
+
+        for (int i = 0; i < 27; i++) {
+            inv.setItem(i, glass);
+        }
+
+        updateTopStatus(session);
+    }
+
+    /**
+     * 상단 정보 아이템 (시계 & 에메랄드) 갱신
+     */
+    private static void updateTopStatus(GameSession session) {
+        Inventory inv = session.getInventory();
+
+        // 3번 슬롯: 시계 (남은 시간)
+        ItemStack clock = new ItemStack(Material.CLOCK);
+        ItemMeta clockMeta = clock.getItemMeta();
+        if (clockMeta != null) {
+            clockMeta.setDisplayName(String.format("§e⏳ 남은 시간: §c§l%.1f초", session.getRemainingSeconds()));
+            clock.setItemMeta(clockMeta);
+        }
+        inv.setItem(3, clock);
+
+        // 5번 슬롯: 에메랄드 (진행도)
+        ItemStack progress = new ItemStack(Material.EMERALD);
+        ItemMeta progMeta = progress.getItemMeta();
+        if (progMeta != null) {
+            progMeta.setDisplayName(String.format("§a🎯 잡은 횟수: §f§l%d / %d", session.getCurrentHits(), session.getTargetHits()));
+            progress.setItemMeta(progMeta);
+        }
+        inv.setItem(5, progress);
+    }
+
+    private static ItemStack createGlassPane() {
+        ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta meta = pane.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§7");
+            pane.setItemMeta(meta);
+        }
+        return pane;
     }
 
     public static boolean isPlaying(UUID uuid) {
         return activeSessions.containsKey(uuid);
     }
 
-    public static void stop(UUID uuid) {
+    public static GameSession getSession(UUID uuid) {
+        return activeSessions.get(uuid);
+    }
+
+    public static void stop(UUID uuid, boolean notifyFail) {
         GameSession session = activeSessions.remove(uuid);
-        if (session != null && session.task() != null) {
-            session.task().cancel();
+        if (session != null) {
+            session.setFinished(true);
+            session.cancelTask();
+            if (notifyFail && session.getPlayer().isOnline()) {
+                onFail(session.getPlayer(), "낚시를 중단했습니다.");
+            }
         }
     }
 
     public static void clearAll() {
         for (GameSession session : activeSessions.values()) {
-            if (session.task() != null) {
-                session.task().cancel();
-            }
+            session.setFinished(true);
+            session.cancelTask();
         }
         activeSessions.clear();
     }

@@ -1,7 +1,6 @@
 package Hez.CustomItem.Fish;
 
 import Hez.MineFarm.Main;
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -9,15 +8,13 @@ import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.entity.FishHook;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
-import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerFishEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.metadata.FixedMetadataValue;
@@ -45,7 +42,7 @@ public class FishingListener implements Listener {
             return;
         }
 
-        // 2. 바닐라 물고기 낚아 올림 감지
+        // 2. 바닐라 물고기 낚아 올림 감지 -> 체스트 GUI 미니게임 시작!
         if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
             // 바닐라 기본 아이템 드롭 제거
             if (event.getCaught() != null) {
@@ -62,7 +59,7 @@ public class FishingListener implements Listener {
                 rewardItem = whatFishIsCatched(hookBlock.getBiome(), hook.getWorld(), hook.getWorld().getTime());
             }
 
-            // 리듬게임 미니게임 시작!
+            // 체스트 GUI 낚시 미니게임 시작!
             FishingMinigame.start(player, rewardItem);
             return;
         }
@@ -79,25 +76,39 @@ public class FishingListener implements Listener {
     }
 
     /**
-     * 플레이어 클릭 시 리듬게임 판정 (좌클릭 및 우클릭 모두 지원)
+     * 체스트 GUI 미니게임 클릭 이벤트
      */
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerArmSwing(PlayerAnimationEvent event) {
-        Player player = event.getPlayer();
-        if (FishingMinigame.isPlaying(player.getUniqueId())) {
-            FishingMinigame.handleClick(player);
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) return;
+
+        FishingMinigame.GameSession session = FishingMinigame.getSession(player.getUniqueId());
+        if (session == null || session.isFinished()) return;
+
+        // 미니게임 GUI 내 모든 클릭 기본 취소 (아이템 루팅/이동 방지)
+        event.setCancelled(true);
+
+        // 상단 인벤토리 슬롯을 클릭했는지 확인
+        if (event.getClickedInventory() == session.getInventory()) {
+            int slot = event.getSlot();
+
+            // 물고기가 위치한 슬롯을 정확히 클릭했는지 판정!
+            if (slot == session.getCurrentFishSlot()) {
+                FishingMinigame.onFishClicked(player);
+            }
         }
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
-    public void onPlayerInteract(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        if (FishingMinigame.isPlaying(player.getUniqueId())) {
-            if (event.getAction() == Action.LEFT_CLICK_AIR || event.getAction() == Action.LEFT_CLICK_BLOCK
-                    || event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-                event.setCancelled(true);
-                FishingMinigame.handleClick(player);
-            }
+    /**
+     * 미니게임 진행 중 창을 임의로 닫았을 때 실패 처리
+     */
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (!(event.getPlayer() instanceof Player player)) return;
+
+        FishingMinigame.GameSession session = FishingMinigame.getSession(player.getUniqueId());
+        if (session != null && !session.isFinished()) {
+            FishingMinigame.onFail(player, "창을 닫아 물고기가 도망쳤습니다!");
         }
     }
 
