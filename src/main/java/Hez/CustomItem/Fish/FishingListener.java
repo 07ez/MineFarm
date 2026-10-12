@@ -42,7 +42,7 @@ public class FishingListener implements Listener {
             return;
         }
 
-        // 2. 바닐라 물고기 낚아 올림 감지 -> 체스트 GUI 미니게임 시작!
+        // 2. 바닐라 물고기 낚아 올림 감지
         if (event.getState() == PlayerFishEvent.State.CAUGHT_FISH) {
             // 바닐라 기본 아이템 드롭 제거
             if (event.getCaught() != null) {
@@ -50,17 +50,12 @@ public class FishingListener implements Listener {
             }
             event.setExpToDrop(0);
 
-            // 보상 아이템 결정
-            ItemStack rewardItem;
             Block hookBlock = hook.getLocation().getBlock();
             if (hookBlock.getType() == Material.LAVA) {
-                rewardItem = getLavaFish();
+                handleLavaCatch(player);
             } else {
-                rewardItem = whatFishIsCatched(hookBlock.getBiome(), hook.getWorld(), hook.getWorld().getTime());
+                handleWaterCatch(player, hookBlock.getBiome(), hook.getWorld(), hook.getWorld().getTime());
             }
-
-            // 체스트 GUI 낚시 미니게임 시작!
-            FishingMinigame.start(player, rewardItem);
             return;
         }
 
@@ -70,7 +65,7 @@ public class FishingListener implements Listener {
 
             // 용암 찌에 입질이 와 있었던 상태라면 용암 낚시 미니게임 시작
             if (hook.hasMetadata("lava_bite")) {
-                FishingMinigame.start(player, getLavaFish());
+                handleLavaCatch(player);
             }
         }
     }
@@ -161,59 +156,124 @@ public class FishingListener implements Listener {
     }
 
     /**
-     * 용암 낚시 전용 물고기 (용암장어 등)
+     * 용암 낚시 처리 (용암장어 EPIC 미니게임)
      */
-    private ItemStack getLavaFish() {
+    private void handleLavaCatch(Player player) {
         FishData eel = fishManager.fish("용암장어");
         if (eel != null) {
-            return eel.createItemStack();
+            FishingMinigame.start(player, eel.createItemStack(), FishRarity.EPIC);
+        } else {
+            giveTrashDirectly(player);
         }
-        return getTrashItem();
     }
 
     /**
-     * 조건에 맞는 물고기 또는 쓰레기 추첨
+     * 일반 물 낚시 처리
+     * - 조건 불일치 시: 미니게임 없이 즉시 쓰레기 획득
+     * - 조건 일치 시: 희귀도 가중치 추첨(레어25, 에픽3, 레전드1, 커먼 나머지71) 후 미니게임 시작
      */
-    private ItemStack whatFishIsCatched(Biome biome, World world, long worldTime) {
+    private void handleWaterCatch(Player player, Biome biome, World world, long worldTime) {
         BiomeChecker.CustomBiomeCategory category = BiomeChecker.getCategory(biome);
 
-        // 1. 썩은물(DEADWATER)이거나 기타(OTHER) 지역은 쓰레기만 낚임!
+        // 1. 썩은물(DEADWATER)이거나 기타(OTHER) 지역은 조건 불일치 -> 즉시 쓰레기 획득
         if (category == BiomeChecker.CustomBiomeCategory.DEADWATER || category == BiomeChecker.CustomBiomeCategory.OTHER) {
-            return getTrashItem();
+            giveTrashDirectly(player);
+            return;
         }
 
-        // 2. 15% 기본 확률로 쓰레기 낚시
-        if (ThreadLocalRandom.current().nextDouble() < 0.15) {
-            return getTrashItem();
+        // 2. 현재 환경 조건(시간, 날씨, 바이옴)에 부합하는 물고기 필터링 및 희귀도별 분류
+        Map<FishRarity, List<FishData>> poolByRarity = new EnumMap<>(FishRarity.class);
+        for (FishRarity r : FishRarity.values()) {
+            poolByRarity.put(r, new ArrayList<>());
         }
 
-        List<FishData> availableFish = new ArrayList<>();
         for (FishData fish : fishManager.fishByKey.values()) {
+            // 용암장어는 물에서 제외
+            if (fish.displayName() != null && fish.displayName().equals("용암장어")) continue;
+
             if (fish.isCatchableTime(worldTime) && fish.isCatchableWeather(world) && fish.isCatchaleBiome(biome)) {
-                availableFish.add(fish);
+                poolByRarity.get(fish.rarity()).add(fish);
             }
         }
 
-        // 일치하는 물고기가 없으면 쓰레기 반환
-        if (availableFish.isEmpty()) {
-            return getTrashItem();
+        // 잡을 수 있는 물고기가 하나도 없다면 -> 즉시 쓰레기 획득
+        boolean hasAnyFish = poolByRarity.values().stream().anyMatch(list -> !list.isEmpty());
+        if (!hasAnyFish) {
+            giveTrashDirectly(player);
+            return;
         }
 
-        // 가중치 확률 추첨
+        // 3. 희귀도 그룹 추첨 (레어 25, 에픽 3, 레전드 1, 커먼 71)
+        // 단, 해당 환경에서 특정 희귀도 풀이 비어있다면 존재하는 희귀도 풀 내에서만 가중치 계산
         double totalWeight = 0.0;
-        for (FishData fish : availableFish) {
-            totalWeight += fish.chance();
-        }
-
-        double randomValue = ThreadLocalRandom.current().nextDouble() * totalWeight;
-        for (FishData fish : availableFish) {
-            randomValue -= fish.chance();
-            if (randomValue < 0) {
-                return fish.createItemStack();
+        for (Map.Entry<FishRarity, List<FishData>> entry : poolByRarity.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                totalWeight += entry.getKey().getWeight();
             }
         }
 
-        return availableFish.get(availableFish.size() - 1).createItemStack();
+        double rand = ThreadLocalRandom.current().nextDouble() * totalWeight;
+        FishRarity chosenRarity = null;
+        for (Map.Entry<FishRarity, List<FishData>> entry : poolByRarity.entrySet()) {
+            if (!entry.getValue().isEmpty()) {
+                rand -= entry.getKey().getWeight();
+                if (rand <= 0) {
+                    chosenRarity = entry.getKey();
+                    break;
+                }
+            }
+        }
+        if (chosenRarity == null) {
+            chosenRarity = FishRarity.COMMON;
+        }
+
+        // 4. 선택된 희귀도 풀 내부에서 개별 chance 가중치 추첨
+        List<FishData> chosenPool = poolByRarity.get(chosenRarity);
+        if (chosenPool.isEmpty()) {
+            // fallback
+            for (List<FishData> list : poolByRarity.values()) {
+                if (!list.isEmpty()) {
+                    chosenPool = list;
+                    chosenRarity = list.get(0).rarity();
+                    break;
+                }
+            }
+        }
+
+        double innerTotalWeight = 0.0;
+        for (FishData fish : chosenPool) {
+            innerTotalWeight += fish.chance();
+        }
+
+        FishData selectedFish = chosenPool.get(0);
+        if (innerTotalWeight > 0) {
+            double innerRand = ThreadLocalRandom.current().nextDouble() * innerTotalWeight;
+            for (FishData fish : chosenPool) {
+                innerRand -= fish.chance();
+                if (innerRand <= 0) {
+                    selectedFish = fish;
+                    break;
+                }
+            }
+        } else {
+            selectedFish = chosenPool.get(ThreadLocalRandom.current().nextInt(chosenPool.size()));
+        }
+
+        // 5. 미니게임 시작!
+        FishingMinigame.start(player, selectedFish.createItemStack(), chosenRarity);
+    }
+
+    /**
+     * 조건 미일치 구역: 미니게임 없이 즉시 쓰레기 획득
+     */
+    private void giveTrashDirectly(Player player) {
+        ItemStack trash = getTrashItem();
+        HashMap<Integer, ItemStack> leftover = player.getInventory().addItem(trash);
+        for (ItemStack drop : leftover.values()) {
+            player.getWorld().dropItemNaturally(player.getLocation(), drop);
+        }
+        player.playSound(player.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1.0f, 0.8f);
+        player.sendMessage("§7[낚시] 조건에 맞는 물고기가 없어 쓰레기가 건져졌습니다: " + (trash.getItemMeta() != null ? trash.getItemMeta().getDisplayName() : "쓰레기"));
     }
 
     /**

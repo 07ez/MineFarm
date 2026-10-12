@@ -16,5 +16,8 @@ commands:
   menu:
     description: 마인팜 책 메뉴 GUI를 엽니다.
     aliases: [메뉴, m]
+  fish:
+    description: 낚시 테스트 및 관리 명령어입니다.
+    aliases: [낚시]
 
 softdepend: [PlaceholderAPI]

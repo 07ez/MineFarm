@@ -22,6 +22,7 @@ public class CommandManager {
         register("job", new JobCommand(plugin), new JobTabCompleter());
         register("house", new HouseCommand(plugin), new HouseTabCompleter());
         register("menu", new MenuCommand());
+        register("fish", new FishCommand(plugin), new FishTabCompleter());
     }
 
     /**

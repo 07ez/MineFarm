@@ -71,26 +71,13 @@ public class FishingMinigame {
     }
 
     /**
-     * 미니게임 시작
+     * 미니게임 시작 (기본 희귀도 연동)
      */
-    public static void start(Player player, ItemStack rewardItem) {
+    public static void start(Player player, ItemStack rewardItem, FishRarity rarity) {
         stop(player.getUniqueId(), false);
 
-        // 희귀도에 따른 난이도 계산
-        int targetHits = 3;
-        double totalSeconds = 6.0;
-
-        String displayName = rewardItem.getItemMeta() != null && rewardItem.getItemMeta().hasDisplayName()
-                ? rewardItem.getItemMeta().getDisplayName()
-                : "";
-
-        if (displayName.contains("전설") || displayName.contains("용암장어") || displayName.contains("크림슨피쉬")) {
-            targetHits = 5;
-            totalSeconds = 4.0;
-        } else if (displayName.contains("아귀") || displayName.contains("장어") || displayName.contains("참치") || displayName.contains("가오리")) {
-            targetHits = 4;
-            totalSeconds = 5.0;
-        }
+        int targetHits = rarity.getTargetHits();
+        double totalSeconds = rarity.getTimeLimitSeconds();
 
         // 3줄(27칸) 체스트 인벤토리 생성
         Inventory inv = Bukkit.createInventory(player, 27, Component.text(GUI_TITLE));
