@@ -205,9 +205,9 @@ public class FishingMinigame {
     private static void spawnFishAtRandomSlot(GameSession session) {
         Inventory inv = session.getInventory();
 
-        // 기존 물고기 슬롯을 검은 유리판으로 복원
+        // 기존 물고기 슬롯을 비움
         if (session.getCurrentFishSlot() != -1) {
-            inv.setItem(session.getCurrentFishSlot(), createGlassPane());
+            inv.setItem(session.getCurrentFishSlot(), null);
         }
 
         // 9 ~ 26번 슬롯 중 기존과 다른 랜덤 슬롯 선택
@@ -235,15 +235,11 @@ public class FishingMinigame {
     }
 
     /**
-     * 인벤토리 배경 초기화
+     * 인벤토리 배경 초기화 (유리판 제거 - 빈 슬롯으로 깔끔하게 유지)
      */
     private static void renderBackground(GameSession session) {
         Inventory inv = session.getInventory();
-        ItemStack glass = createGlassPane();
-
-        for (int i = 0; i < 27; i++) {
-            inv.setItem(i, glass);
-        }
+        inv.clear();
 
         updateTopStatus(session);
     }
@@ -271,16 +267,6 @@ public class FishingMinigame {
             progress.setItemMeta(progMeta);
         }
         inv.setItem(5, progress);
-    }
-
-    private static ItemStack createGlassPane() {
-        ItemStack pane = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta meta = pane.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§7");
-            pane.setItemMeta(meta);
-        }
-        return pane;
     }
 
     public static boolean isPlaying(UUID uuid) {

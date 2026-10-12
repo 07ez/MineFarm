@@ -5,10 +5,10 @@ package Hez.CustomItem.Fish;
  * (플레이어에게는 노출되지 않으며, 내부 난이도 / 시간 / 클릭수 / 가중치 결정용)
  */
 public enum FishRarity {
-    COMMON("일반", 2.0, 3, 71.0),
-    RARE("희귀", 3.0, 5, 25.0),
-    EPIC("영웅", 3.0, 6, 3.0),
-    LEGEND("전설", 3.0, 10, 1.0);
+    COMMON("일반", 2.5, 3, 71.0),
+    RARE("희귀", 3.5, 5, 25.0),
+    EPIC("영웅", 3.5, 6, 3.0),
+    LEGEND("전설", 3.5, 10, 1.0);
 
     private final String koreanName;
     private final double timeLimitSeconds;
