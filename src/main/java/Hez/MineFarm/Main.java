@@ -132,6 +132,9 @@ public class Main extends JavaPlugin {
         this.houseManager.loadData(houseDataConfig);
         getServer().getPluginManager().registerEvents(new Hez.House.HouseProtector(this.houseManager), this);
 
+        // 메뉴 리스너 등록 (웅크리기 + F키)
+        getServer().getPluginManager().registerEvents(new Hez.Menu.MenuListener(), this);
+
         // 플레이어 데이터 파일 로딩
         this.playerManager.LoadData(playerDataFileConfig);
 
