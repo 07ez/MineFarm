@@ -34,10 +34,12 @@ public class Main extends JavaPlugin {
     // 파일들
     private File playerDataFile;
     private File cropsDataFile;
+    private File houseDataFile;
     private File itemFile;
     private FileConfiguration itemConfig;
     private FileConfiguration playerDataFileConfig;
     private FileConfiguration cropsDataConfig;
+    private FileConfiguration houseDataConfig;
 
     @Override
     public void onEnable() {
@@ -73,9 +75,11 @@ public class Main extends JavaPlugin {
         }
         playerDataFile = new File(getDataFolder(), "playerData.yml");
         cropsDataFile = new File(getDataFolder(), "cropsData.yml");
+        houseDataFile = new File(getDataFolder(), "houseData.yml");
         itemFile = new File(getDataFolder(), "Item.yml");
         playerDataFileConfig = YamlConfiguration.loadConfiguration(playerDataFile);
         cropsDataConfig = YamlConfiguration.loadConfiguration(cropsDataFile);
+        houseDataConfig = YamlConfiguration.loadConfiguration(houseDataFile);
         itemConfig = YamlConfiguration.loadConfiguration(itemFile);
     }
 
@@ -124,6 +128,10 @@ public class Main extends JavaPlugin {
         this.cropsManager.startDisplayWatcherTask(this);
         getServer().getPluginManager().registerEvents(new Hez.Crops.CropListener(this.cropsManager), this);
 
+        // 토지 데이터 로딩 및 프로텍터 리스너 등록
+        this.houseManager.loadData(houseDataConfig);
+        getServer().getPluginManager().registerEvents(new Hez.House.HouseProtector(this.houseManager), this);
+
         // 플레이어 데이터 파일 로딩
         this.playerManager.LoadData(playerDataFileConfig);
 
@@ -135,10 +143,12 @@ public class Main extends JavaPlugin {
         // 각 메니저에 옮기기
         playerManager.saveData(playerDataFileConfig);
         cropsManager.saveData(cropsDataConfig);
+        houseManager.saveData(houseDataConfig);
         // 실제 파일로 덮어쓰기
         try {
             playerDataFileConfig.save(playerDataFile);
             cropsDataConfig.save(cropsDataFile);
+            houseDataConfig.save(houseDataFile);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
