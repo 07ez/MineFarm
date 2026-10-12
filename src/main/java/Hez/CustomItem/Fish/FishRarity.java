@@ -8,7 +8,7 @@ public enum FishRarity {
     COMMON("일반", 2.5, 3, 71.0),
     RARE("희귀", 3.5, 5, 25.0),
     EPIC("영웅", 3.5, 6, 3.0),
-    LEGEND("전설", 3.5, 10, 1.0);
+    LEGEND("전설", 4.5, 10, 1.0);
 
     private final String koreanName;
     private final double timeLimitSeconds;
