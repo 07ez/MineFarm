@@ -66,6 +66,7 @@ public class Main extends JavaPlugin {
         if (this.cropsManager != null) {
             this.cropsManager.clearAllDisplays();
         }
+        Hez.CustomItem.Fish.FishingMinigame.clearAll();
     }
 
     private void InitFiles() {
