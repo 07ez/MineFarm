@@ -23,7 +23,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class FishingMinigame {
 
-    public static final String GUI_TITLE = "§1§l🎣 낚시 미니게임!";
+    // \uF808 = -8px (상자 타이틀 좌측 여백 상쇄), \uE001 = 커스텀 GUI 배경 이미지 (fishTest.png)
+    public static final String GUI_TITLE = "§f\uF808\uF808\uE001§r§1§l🎣 낚시 미니게임!";
 
     private static final Map<UUID, GameSession> activeSessions = new ConcurrentHashMap<>();
 
