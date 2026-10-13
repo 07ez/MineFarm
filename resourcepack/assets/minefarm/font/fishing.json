@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "minefarm:gui/fishtest.png",
+      "ascent": 14,
+      "height": 166,
+      "chars": [
+        "\uE001"
+      ]
+    }
+  ]
+}

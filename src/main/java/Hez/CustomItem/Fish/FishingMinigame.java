@@ -80,8 +80,12 @@ public class FishingMinigame {
         int targetHits = rarity.getTargetHits();
         double totalSeconds = rarity.getTimeLimitSeconds();
 
-        // 3줄(27칸) 체스트 인벤토리 생성
-        Inventory inv = Bukkit.createInventory(player, 27, Component.text(GUI_TITLE));
+        // 3줄(27칸) 체스트 인벤토리 생성 (minefarm:fishing 독립 폰트 적용)
+        Component titleComponent = Component.text("\uE001")
+                .font(net.kyori.adventure.key.Key.key("minefarm", "fishing"))
+                .append(Component.text(" §1§l🎣 낚시 미니게임!").font(net.kyori.adventure.key.Key.key("minecraft", "default")));
+
+        Inventory inv = Bukkit.createInventory(player, 27, titleComponent);
 
         GameSession session = new GameSession(player, rewardItem, targetHits, totalSeconds, inv);
         activeSessions.put(player.getUniqueId(), session);
