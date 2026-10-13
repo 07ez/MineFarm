@@ -1,6 +1,7 @@
 {
   "pack": {
     "pack_format": 46,
+    "supported_formats": [15, 60],
     "description": "MineFarm Fishing GUI Custom Texture Pack"
   }
 }
