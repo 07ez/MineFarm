@@ -80,8 +80,8 @@ public class FishingMinigame {
         int targetHits = rarity.getTargetHits();
         double totalSeconds = rarity.getTimeLimitSeconds();
 
-        // 3줄(27칸) 체스트 인벤토리 생성 (minefarm:fishing 독립 폰트 적용)
-        Component titleComponent = Component.text("\uE001")
+        // 3줄(27칸) 체스트 인벤토리 생성 (minefarm:fishing 독립 폰트 적용, -8px 좌측 이동)
+        Component titleComponent = Component.text("\uF808\uE001")
                 .font(net.kyori.adventure.key.Key.key("minefarm", "fishing"))
                 .append(Component.text(" §1§l🎣 낚시 미니게임!").font(net.kyori.adventure.key.Key.key("minecraft", "default")));
 
@@ -262,7 +262,7 @@ public class FishingMinigame {
         ItemStack clock = new ItemStack(Material.CLOCK);
         ItemMeta clockMeta = clock.getItemMeta();
         if (clockMeta != null) {
-            clockMeta.setDisplayName(String.format("§e⏳ 남은 시간: §c§l%.1f초", session.getRemainingSeconds()));
+            clockMeta.setDisplayName(String.format("§e남은 시간: §c§l%.1f초", session.getRemainingSeconds()));
             clock.setItemMeta(clockMeta);
         }
         inv.setItem(3, clock);
@@ -271,7 +271,7 @@ public class FishingMinigame {
         ItemStack progress = new ItemStack(Material.EMERALD);
         ItemMeta progMeta = progress.getItemMeta();
         if (progMeta != null) {
-            progMeta.setDisplayName(String.format("§a🎯 잡은 횟수: §f§l%d / %d", session.getCurrentHits(), session.getTargetHits()));
+            progMeta.setDisplayName(String.format("§a잡은 횟수: §f§l%d / %d", session.getCurrentHits(), session.getTargetHits()));
             progress.setItemMeta(progMeta);
         }
         inv.setItem(5, progress);
