@@ -23,6 +23,11 @@ public class CreateItem {
             }
 
             item.setItemMeta(meta);
+
+            // 커스텀 요리(APPLE 기반)일 경우 배고픔, 포화도, 툴팁(Lore) 자동 설정
+            if (material == Material.APPLE && customModelData != null) {
+                FoodManager.applyFoodMeta(item, customModelData);
+            }
         }
         return item;
     }

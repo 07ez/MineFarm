@@ -298,7 +298,7 @@ public class AddRecipe {
         );
         RecipeUntil.registerShaped(
                 plugin,
-                "trout_soup",
+                "carrot_soup",
                 Material.APPLE,
                 "1017",
                 "설탕 당근 스프",
