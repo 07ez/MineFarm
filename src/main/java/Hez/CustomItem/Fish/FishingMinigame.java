@@ -75,7 +75,8 @@ public class FishingMinigame {
 
     /**
      * 상자 상단 타이틀 Component 생성
-     * - GUI 배경 이미지: 오른쪽으로 4px 이동 (-4px 오프셋 \uF804\uE001)
+     * - GUI 배경 이미지: 기존(-4px)에서 왼쪽으로 8px 이동 (-12px 오프셋 \uF808\uF804\uE001)
+     * - 그림자 제거: shadowColor(net.kyori.adventure.text.format.ShadowColor.none())
      * - 가로 폭(-164px) 백스페이스 후 좌측: "0.00초", 우측: "0/3"
      */
     public static Component buildDynamicTitle(double remainingSeconds, int currentHits, int targetHits) {
@@ -83,8 +84,10 @@ public class FishingMinigame {
         String rightText = String.format("§e§l%d/%d", currentHits, targetHits);
 
         return Component.text()
-                // 1. GUI 배경 이미지를 -4px 위치에 렌더링
-                .append(Component.text("\uF804\uE001").font(FONT_FISHING))
+                // 1. GUI 배경 이미지를 -12px 위치(기존 대비 8px 좌측 이동)에 그림자 없이 렌더링
+                .append(Component.text("\uF808\uF804\uE001")
+                        .font(FONT_FISHING)
+                        .shadowColor(net.kyori.adventure.text.format.ShadowColor.none()))
                 // 2. 이미지 가로 폭만큼 백스페이스(-164px)하여 좌측 상단 기준점으로 복귀
                 .append(Component.text("\uF880\uF820\uF804").font(FONT_FISHING))
                 // 3. 왼쪽 상단: 남은 시간 표시
