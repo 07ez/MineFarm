@@ -437,6 +437,24 @@ public class HouseProtector implements Listener {
     }
 
     /**
+     * [26.3 방석(Cushion) 파괴 완벽 차단]
+     * 방석(org.bukkit.entity.Cushion)은 LivingEntity도 Vehicle도 아니기 때문에
+     * EntityDamageEvent 대신 Paper의 PrePlayerAttackEntityEvent가 먼저 발생하여 파괴됩니다.
+     * 여기서 비권한자의 공격을 취소하면 방석 파괴가 100% 원천 차단됩니다!
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPrePlayerAttackEntity(io.papermc.paper.event.player.PrePlayerAttackEntityEvent event) {
+        Player attacker = event.getPlayer();
+        Entity victim = event.getAttacked();
+        if (!houseManager.isTownWorld(victim.getLocation())) return;
+
+        if (!houseManager.hasEntityDamagePermission(attacker, victim)) {
+            event.setCancelled(true);
+            attacker.sendMessage("§c보호된 구역의 가구(방석)나 엔티티를 파괴할 수 없습니다.");
+        }
+    }
+
+    /**
      * 10. 아이템 액자 / 그림 파괴 방지
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -462,8 +480,7 @@ public class HouseProtector implements Listener {
     }
 
     /**
-     * 11. 유체(물/용암) 흐름 침범 방지
-     * [버그 2 해결] 내 집에서 빈 땅(미소유 청크)으로 흐르는 것도 차단! 오직 동일 소유자의 청크 간에만 허용
+     * 11. 유체(물/용암) 흐름 침범 방지 및 내 땅 방향 흐름 멈춤(Stall) 현상 해결
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onFluidFlow(BlockFromToEvent event) {
@@ -477,8 +494,80 @@ public class HouseProtector implements Listener {
 
         if (fromChunk.getX() != toChunk.getX() || fromChunk.getZ() != toChunk.getZ()) {
             // 청크 경계를 넘어갈 때는 반드시 출발지와 도착지가 동일한 소유자의 땅이어야만 흐름 허용!
-            // (미소유 빈 땅으로 흘러나가거나 다른 사람 땅으로 흘러들어가는 것 모두 차단)
             if (!isSameOwnerChunk(from.getLocation(), to.getLocation())) {
+                event.setCancelled(true);
+
+                // [유체 멈춤(Stall) 해결]
+                // 마인크래프트 유체 엔진은 경계면에서 한쪽 방향의 BlockFromToEvent가 취소되면
+                // 인접한 내 땅 방향의 추가 확산 스케줄링이 끊기는 현상이 발생할 수 있습니다.
+                // 이를 해결하기 위해 1틱 뒤 내 땅 내부의 인접 블록들에 물리 업데이트를 깨워 정상적으로 흐르게 보장합니다!
+                org.bukkit.Bukkit.getScheduler().runTaskLater(Hez.MineFarm.Main.getInstance(), () -> {
+                    if (!from.isLiquid()) return;
+                    org.bukkit.block.BlockFace[] faces = {
+                            org.bukkit.block.BlockFace.NORTH,
+                            org.bukkit.block.BlockFace.SOUTH,
+                            org.bukkit.block.BlockFace.EAST,
+                            org.bukkit.block.BlockFace.WEST,
+                            org.bukkit.block.BlockFace.DOWN
+                    };
+                    for (org.bukkit.block.BlockFace face : faces) {
+                        Block neighbor = from.getRelative(face);
+                        if (isSameOwnerChunk(from.getLocation(), neighbor.getLocation())) {
+                            // 내 땅 쪽으로 비어있거나 유체가 흐를 수 있는 공간이면 상태 업데이트 강제 트리거
+                            from.getState().update(true, true);
+                            break;
+                        }
+                    }
+                }, 1L);
+            }
+        }
+    }
+
+    /**
+     * 11-2. 경계면 물 + 용암 접촉으로 인한 흑요석/조약돌/돌 생성 원천 차단!
+     * (내 땅에 용암, 상대 땅에 물이 있을 때 서로 다른 소유권의 유체가 반응하여 블록이 변하는 현상 방지)
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockForm(BlockFormEvent event) {
+        Block block = event.getBlock();
+        if (!houseManager.isTownWorld(block.getLocation())) return;
+
+        Material newType = event.getNewState().getType();
+        if (newType == Material.OBSIDIAN || newType == Material.COBBLESTONE || newType == Material.STONE) {
+            org.bukkit.block.BlockFace[] faces = {
+                    org.bukkit.block.BlockFace.NORTH,
+                    org.bukkit.block.BlockFace.SOUTH,
+                    org.bukkit.block.BlockFace.EAST,
+                    org.bukkit.block.BlockFace.WEST,
+                    org.bukkit.block.BlockFace.UP,
+                    org.bukkit.block.BlockFace.DOWN
+            };
+            // 주변 6방향 중 다른 소유권의 청크에 있는 유체(물/용암)와 접촉해서 발생한 반응이라면 차단!
+            for (org.bukkit.block.BlockFace face : faces) {
+                Block adj = block.getRelative(face);
+                if (adj.isLiquid() || adj.getType() == Material.WATER || adj.getType() == Material.LAVA
+                        || adj.getBlockData() instanceof org.bukkit.block.data.Waterlogged wl && wl.isWaterlogged()) {
+                    if (!isSameOwnerChunk(block.getLocation(), adj.getLocation())) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockPhysics(BlockPhysicsEvent event) {
+        Block block = event.getBlock();
+        Block source = event.getSourceBlock();
+        if (source == null || block.equals(source)) return;
+        if (!houseManager.isTownWorld(block.getLocation())) return;
+
+        // 서로 다른 소유권의 청크 경계에서 물과 용암이 물리 업데이트로 상호작용하는 것을 원천 차단!
+        if (!isSameOwnerChunk(block.getLocation(), source.getLocation())) {
+            boolean blockIsLiquid = block.isLiquid() || block.getType() == Material.WATER || block.getType() == Material.LAVA;
+            boolean sourceIsLiquid = source.isLiquid() || source.getType() == Material.WATER || source.getType() == Material.LAVA;
+            if (blockIsLiquid || sourceIsLiquid) {
                 event.setCancelled(true);
             }
         }
