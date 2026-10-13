@@ -173,6 +173,9 @@ public class FishingMinigame {
             player.getWorld().dropItemNaturally(player.getLocation(), drop);
         }
 
+        // 레시피 해금용 물고기 획득 기록
+        Hez.CustomItem.RecipeUntil.recordItemAcquired(player, reward);
+
         player.sendMessage("§a[낚시] §f축하합니다! §e" + itemName + "§f 획득!");
     }
 

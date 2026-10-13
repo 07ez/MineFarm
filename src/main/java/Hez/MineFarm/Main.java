@@ -66,6 +66,9 @@ public class Main extends JavaPlugin {
         if (this.cropsManager != null) {
             this.cropsManager.clearAllDisplays();
         }
+        if (this.displayManager != null) {
+            this.displayManager.clearAllDisplays();
+        }
         Hez.CustomItem.Fish.FishingMinigame.clearAll();
     }
 
@@ -136,11 +139,13 @@ public class Main extends JavaPlugin {
         // 메뉴 리스너 등록 (웅크리기 + F키)
         getServer().getPluginManager().registerEvents(new Hez.Menu.MenuListener(), this);
 
-        // 커스텀 요리 섭취 리스너 등록
+        // 커스텀 요리 섭취 및 레시피 자동 해금 리스너 등록
         getServer().getPluginManager().registerEvents(new Hez.CustomItem.FoodListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.CustomItem.RecipeUntil(), this);
 
-        // 플레이어 데이터 파일 로딩
+        // 플레이어 데이터 파일 로딩 및 접속 리스너 등록
         this.playerManager.LoadData(playerDataFileConfig);
+        getServer().getPluginManager().registerEvents(this.playerManager, this);
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();

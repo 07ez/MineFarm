@@ -45,9 +45,13 @@ public class PlayerManager implements Listener {
                 // "UUID.항목" 경로로 접근.
                 int money = file.getInt(uuidStr + ".money", 0);
                 List<String> chunkKeyList = (file.getStringList(uuidStr + ".chunkKey"));
+                List<String> ownedItems = file.getStringList(uuidStr + ".ownedRecipeItems");
+
+                // 레시피 해금용 보유 이력 로드
+                Hez.CustomItem.RecipeUntil.loadOwnedItems(uuid, ownedItems);
 
                 // 저장
-                PlayerData data = new PlayerData(uuid, money, chunkKeyList,0, 0, 0, 0);
+                PlayerData data = new PlayerData(uuid, money, chunkKeyList, 0, 0, 0, 0);
                 playersData.put(uuid, data);
 
             } catch (IllegalArgumentException e) {
@@ -74,6 +78,14 @@ public class PlayerManager implements Listener {
             }
             // 통계용
             file.set(uuidStr + ".totalCropsHarvest", data.totalCropsHarvest());
+            // 레시피 재료 소유 이력 저장
+            file.set(uuidStr + ".ownedRecipeItems", Hez.CustomItem.RecipeUntil.getOwnedItemsList(entry.getKey()));
+        }
+
+        // 접속 중인 플레이어의 레시피 재료 이력도 누락 없이 저장
+        for (org.bukkit.entity.Player online : org.bukkit.Bukkit.getOnlinePlayers()) {
+            UUID u = online.getUniqueId();
+            file.set(u.toString() + ".ownedRecipeItems", Hez.CustomItem.RecipeUntil.getOwnedItemsList(u));
         }
     }
 }

@@ -1,28 +1,63 @@
 package Hez.House;
 
 import org.bukkit.Chunk;
+import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
+import org.bukkit.block.data.type.Bed;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
+import org.bukkit.event.entity.EntityChangeBlockEvent;
+import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
+import org.bukkit.event.entity.EntityPlaceEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.hanging.HangingBreakEvent;
+import org.bukkit.event.hanging.HangingPlaceEvent;
+import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerBucketEntityEvent;
+import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.vehicle.VehicleDamageEvent;
+import org.bukkit.event.vehicle.VehicleDestroyEvent;
+import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.inventory.ItemStack;
+
+import java.util.Iterator;
+import java.util.List;
 
 public class HouseProtector implements Listener {
     private final HouseManager houseManager;
 
     public HouseProtector(HouseManager houseManager) {
         this.houseManager = houseManager;
+    }
+
+    /**
+     * 두 위치가 동일한 소유권의 땅인지 판별
+     * (둘 다 소유자가 있고 그 소유자가 같을 때만 true. 빈 땅이 섞여있거나 소유자가 다르면 false)
+     */
+    private boolean isSameOwnerChunk(Location loc1, Location loc2) {
+        Chunk c1 = loc1.getChunk();
+        Chunk c2 = loc2.getChunk();
+        if (c1.getX() == c2.getX() && c1.getZ() == c2.getZ()) {
+            return true;
+        }
+        HouseData h1 = houseManager.GetHouseData(loc1);
+        HouseData h2 = houseManager.GetHouseData(loc2);
+        return h1 != null && h2 != null && h1.getOwner().equals(h2.getOwner());
     }
 
     /**
@@ -37,24 +72,87 @@ public class HouseProtector implements Listener {
     }
 
     /**
-     * 2. 블록 설치 방지
+     * 2. 블록 설치 방지 (침대 등 2블록 경계 침범 포함 완벽 차단)
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
-        if (!houseManager.hasBuildPermission(event.getPlayer(), event.getBlock().getLocation())) {
+        Player player = event.getPlayer();
+        Block block = event.getBlockPlaced();
+
+        // 기본 설치 위치 권한 확인
+        if (!houseManager.hasBuildPermission(player, block.getLocation())) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage("§c이곳은 보호된 구역입니다. 블록을 설치할 수 없습니다.");
+            player.sendMessage("§c이곳은 보호된 구역입니다. 블록을 설치할 수 없습니다.");
+            return;
+        }
+
+        // 침대(Bed)는 2칸을 차지하므로 머리(HEAD) 부분이 넘어가는 인접 블록 위치의 권한도 반드시 확인!
+        if (block.getBlockData() instanceof Bed bed) {
+            Block headBlock = block.getRelative(bed.getFacing());
+            if (!houseManager.hasBuildPermission(player, headBlock.getLocation())) {
+                event.setCancelled(true);
+                player.sendMessage("§c침대가 다른 구역의 경계를 침범하여 설치할 수 없습니다.");
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onMultiPlace(BlockMultiPlaceEvent event) {
+        Player player = event.getPlayer();
+        for (BlockState state : event.getReplacedBlockStates()) {
+            if (!houseManager.hasBuildPermission(player, state.getLocation())) {
+                event.setCancelled(true);
+                player.sendMessage("§c이곳은 보호된 구역입니다. 경계를 넘어 블록을 설치할 수 없습니다.");
+                return;
+            }
         }
     }
 
     /**
-     * 3. 상호작용 및 경작지 짓밟기 방지
+     * 3. 양동이(유체) 측면 경계 설치 및 회수 방지
+     * (OO집 | 내집 경계면 측면에 클릭 시 실제로 물/용암이 놓이는 위치 기준으로 검사)
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketEmpty(PlayerBucketEmptyEvent event) {
+        Player player = event.getPlayer();
+        // event.getBlock()이 실제로 유체가 생성될 대상 블록!
+        Block fluidTargetBlock = event.getBlock();
+        Block clickedBlock = event.getBlockClicked();
+
+        if (!houseManager.hasBuildPermission(player, fluidTargetBlock.getLocation())
+                || !houseManager.hasBuildPermission(player, clickedBlock.getLocation())) {
+            event.setCancelled(true);
+            player.sendMessage("§c이곳에 유체를 설치할 권한이 없습니다.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketFill(PlayerBucketFillEvent event) {
+        Player player = event.getPlayer();
+        if (!houseManager.hasBuildPermission(player, event.getBlock().getLocation())
+                || !houseManager.hasBuildPermission(player, event.getBlockClicked().getLocation())) {
+            event.setCancelled(true);
+            player.sendMessage("§c이곳의 유체를 퍼낼 권한이 없습니다.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBucketEntity(PlayerBucketEntityEvent event) {
+        Player player = event.getPlayer();
+        if (!houseManager.hasEntityInteractPermission(player, event.getEntity())) {
+            event.setCancelled(true);
+            player.sendMessage("§c이 생물을 양동이에 담을 권한이 없습니다.");
+        }
+    }
+
+    /**
+     * 4. 상호작용, 웅크리기+버튼(생성알/설치아이템 악용), 경작지 짓밟기 방지
      */
     @EventHandler(priority = EventPriority.HIGH)
     public void onInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
 
-        // 3-1. 경작지(Farmland) 짓밟기(점프) 방지: 모든 플레이어 대상
+        // 4-1. 경작지(Farmland) 짓밟기(점프) 방지: 모든 플레이어 대상
         if (event.getAction() == Action.PHYSICAL) {
             Block block = event.getClickedBlock();
             if (block != null && block.getType() == Material.FARMLAND) {
@@ -63,7 +161,21 @@ public class HouseProtector implements Listener {
             return;
         }
 
-        // 3-2. 블록 우클릭 상호작용
+        // 4-2. 블록 좌클릭 시 (방석/특수블록/불끄기 등 비권한자 차단)
+        if (event.getAction() == Action.LEFT_CLICK_BLOCK) {
+            Block clickedBlock = event.getClickedBlock();
+            if (clickedBlock != null && houseManager.isTownWorld(clickedBlock.getLocation())) {
+                Block relative = clickedBlock.getRelative(event.getBlockFace());
+                if (relative.getType() == Material.FIRE || relative.getType() == Material.SOUL_FIRE) {
+                    if (!houseManager.hasBuildPermission(player, relative.getLocation())) {
+                        event.setCancelled(true);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 4-3. 블록 우클릭 상호작용
         if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
             Block clickedBlock = event.getClickedBlock();
             if (clickedBlock == null) return;
@@ -71,17 +183,23 @@ public class HouseProtector implements Listener {
             // 마을 월드가 아니면 통과
             if (!houseManager.isTownWorld(clickedBlock.getLocation())) return;
 
-            // 양동이, 라이터 등 특수 설치/사용 아이템 체크
+            Block targetPlaceBlock = clickedBlock.getRelative(event.getBlockFace());
             ItemStack item = event.getItem();
-            if (item != null && isSpecialPlacementItem(item.getType())) {
-                if (!houseManager.hasBuildPermission(player, clickedBlock.getLocation())) {
-                    event.setCancelled(true);
-                    player.sendMessage("§c이곳에서 해당 도구를 사용할 권한이 없습니다.");
-                    return;
+
+            // [버그 10 해결] 웅크리기 상태에서 버튼/레버 등을 우클릭하거나, 손에 생성알/특수 아이템을 들고 우클릭할 때:
+            // 버튼 작동이 아니라 아이템 사용(생성알 소환, 방석/보트/갑옷대/양동이 설치 등)이 발생하므로 건축 권한 검사!
+            if (item != null && item.getType() != Material.AIR) {
+                if (isRestrictedUseItem(item.getType()) || (player.isSneaking() && HouseData.isButtonOrLever(clickedBlock.getType()))) {
+                    if (!houseManager.hasBuildPermission(player, clickedBlock.getLocation())
+                            || !houseManager.hasBuildPermission(player, targetPlaceBlock.getLocation())) {
+                        event.setCancelled(true);
+                        player.sendMessage("§c이곳에서 해당 아이템을 사용할 권한이 없습니다.");
+                        return;
+                    }
                 }
             }
 
-            // 블록 자체 상호작용 (문, 상자, 레버 등)
+            // 블록 자체 상호작용 (문, 상자, 버튼, 레버 등)
             if (!houseManager.hasInteractPermission(player, clickedBlock)) {
                 event.setCancelled(true);
                 player.sendMessage("§c이 블록과 상호작용할 권한이 없습니다.");
@@ -89,23 +207,151 @@ public class HouseProtector implements Listener {
         }
     }
 
-    private boolean isSpecialPlacementItem(Material material) {
+    /**
+     * 비권한 구역에서 우클릭 사용이 금지되는 아이템 판별
+     * (생성알, 양동이, 방석/가구류, 보트, 광산수레, 갑옷대, 폭죽, 뼛가루 등)
+     */
+    private boolean isRestrictedUseItem(Material material) {
+        String name = material.name();
+        if (name.endsWith("_SPAWN_EGG")
+                || name.endsWith("_BUCKET")
+                || name.endsWith("_BOAT")
+                || name.endsWith("_RAFT")
+                || name.endsWith("_MINECART")
+                || name.contains("CUSHION")
+                || name.contains("SEAT")) {
+            return true;
+        }
         return material == Material.FLINT_AND_STEEL
                 || material == Material.FIRE_CHARGE
-                || material == Material.WATER_BUCKET
-                || material == Material.LAVA_BUCKET
                 || material == Material.BUCKET
+                || material == Material.POWDER_SNOW_BUCKET
                 || material == Material.ARMOR_STAND
-                || material == Material.END_CRYSTAL;
+                || material == Material.END_CRYSTAL
+                || material == Material.BONE_MEAL
+                || material == Material.ITEM_FRAME
+                || material == Material.GLOW_ITEM_FRAME
+                || material == Material.PAINTING;
     }
 
     /**
-     * 4. 엔티티 공격 및 데미지 방지 (PvP는 허용, 가축/액자/갑옷대 등 재산 엔티티 보호)
+     * 5. 엔티티 배치 방지 (방석, 갑옷대, 보트, 수정 등 블록->엔티티 변환 설치 포함)
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onEntityDamage(EntityDamageByEntityEvent event) {
-        Player attacker = null;
+    public void onEntityPlace(EntityPlaceEvent event) {
+        Player player = event.getPlayer();
+        if (player == null) return;
+        if (!houseManager.hasBuildPermission(player, event.getEntity().getLocation())
+                || !houseManager.hasBuildPermission(player, event.getBlock().getLocation())) {
+            event.setCancelled(true);
+            player.sendMessage("§c이곳에 엔티티나 가구를 배치할 권한이 없습니다.");
+        }
+    }
 
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHangingPlace(HangingPlaceEvent event) {
+        Player player = event.getPlayer();
+        if (player == null) return;
+        if (!houseManager.hasBuildPermission(player, event.getEntity().getLocation())) {
+            event.setCancelled(true);
+            player.sendMessage("§c이곳에 전시물을 설치할 권한이 없습니다.");
+        }
+    }
+
+    /**
+     * 6. 뼛가루 번짐 침범 방지 (내 땅에서 뿌린 뼛가루가 옆 땅으로 꽃/잔디 번지는 것 차단)
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onFertilize(BlockFertilizeEvent event) {
+        Location originLoc = event.getBlock().getLocation();
+        if (!houseManager.isTownWorld(originLoc)) return;
+
+        Player player = event.getPlayer();
+        if (player != null && !houseManager.hasBuildPermission(player, originLoc)) {
+            event.setCancelled(true);
+            player.sendMessage("§c이곳에 뼛가루를 사용할 권한이 없습니다.");
+            return;
+        }
+
+        // 번져서 생성되는 꽃/잔디 블록들 중 다른 소유권 청크로 넘어가는 블록만 제거!
+        Iterator<BlockState> it = event.getBlocks().iterator();
+        while (it.hasNext()) {
+            BlockState state = it.next();
+            if ( player != null ) {
+                if (!houseManager.hasBuildPermission(player, state.getLocation()) || !isSameOwnerChunk(originLoc, state.getLocation())) {
+                    it.remove();
+                }
+            } else {
+                // 디스펜서 등으로 뿌렸을 경우 출발지 청크와 소유권이 다르면 제거
+                if (!isSameOwnerChunk(originLoc, state.getLocation())) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
+    /**
+     * 7. 나무 성장 침범 및 큰 가문비나무 땅(회백토/Podzol) 번짐 방지
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onStructureGrow(StructureGrowEvent event) {
+        Location saplingLoc = event.getLocation();
+        if (!houseManager.isTownWorld(saplingLoc)) return;
+
+        Player player = event.getPlayer();
+        if (player != null && !houseManager.hasBuildPermission(player, saplingLoc)) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 자라나는 나뭇잎, 원목, 그리고 큰 가문비나무가 바꾸는 회백토(PODZOL) 등 모든 블록 중
+        // 묘목이 심긴 땅과 소유권이 다른 청크로 넘어가는 블록들을 리스트에서 제거!
+        Iterator<BlockState> it = event.getBlocks().iterator();
+        while (it.hasNext()) {
+            BlockState state = it.next();
+            if (!isSameOwnerChunk(saplingLoc, state.getLocation())) {
+                it.remove();
+            }
+        }
+    }
+
+    /**
+     * 8. 엔티티 공격, 방석/탈것 파괴, 폭발 데미지 방지
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityDamage(EntityDamageEvent event) {
+        Entity victim = event.getEntity();
+        if (!houseManager.isTownWorld(victim.getLocation())) return;
+
+        // [버그 1 해결] 마을 월드 내 모든 폭발 데미지(ENTITY_EXPLOSION, BLOCK_EXPLOSION) 원천 차단!
+        if (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
+                || event.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 플레이어나 몬스터가 아닌 엔티티(방석, 가구, 액자, 갑옷대, 가축 등)가 불/용암/선인장 등에 파괴되는 것 방지
+        if (!(victim instanceof Player) && !(victim instanceof Monster)) {
+            if (event instanceof EntityDamageByBlockEvent) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityDamageByEntity(EntityDamageByEntityEvent event) {
+        Entity victim = event.getEntity();
+        if (!houseManager.isTownWorld(victim.getLocation())) return;
+
+        // 폭발에 의한 엔티티 데미지 무조건 차단
+        if (event.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION
+                || event.getCause() == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION) {
+            event.setCancelled(true);
+            return;
+        }
+
+        Player attacker = null;
         if (event.getDamager() instanceof Player p) {
             attacker = p;
         } else if (event.getDamager() instanceof Projectile proj && proj.getShooter() instanceof Player p) {
@@ -113,15 +359,66 @@ public class HouseProtector implements Listener {
         }
 
         if (attacker != null) {
-            if (!houseManager.hasEntityDamagePermission(attacker, event.getEntity())) {
+            if (!houseManager.hasEntityDamagePermission(attacker, victim)) {
                 event.setCancelled(true);
-                attacker.sendMessage("§c보호된 엔티티나 가축을 공격할 수 없습니다.");
+                attacker.sendMessage("§c보호된 구역의 엔티티나 가구(방석 등)를 파괴할 수 없습니다.");
+            }
+        } else {
+            // 플레이어가 아닌 엔티티(스켈레톤 화살, 크리퍼 등)가 가축/방석/액자를 부수는 것 차단
+            if (!(victim instanceof Player) && !(victim instanceof Monster)) {
+                event.setCancelled(true);
             }
         }
     }
 
     /**
-     * 5. 엔티티 상호작용 방지 (가축 탑승, 번식, 젖짜기 등)
+     * [버그 9 해결] 방석 등 최신 버전 탑승형 엔티티(Vehicle 판정 엔티티) 파괴/공격 방지
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onVehicleDamage(VehicleDamageEvent event) {
+        Entity vehicle = event.getVehicle();
+        if (!houseManager.isTownWorld(vehicle.getLocation())) return;
+
+        if (event.getAttacker() instanceof Player player) {
+            if (!houseManager.hasEntityDamagePermission(player, vehicle)) {
+                event.setCancelled(true);
+                player.sendMessage("§c보호된 가구(방석)나 탈것을 부술 수 없습니다.");
+            }
+        } else if (event.getAttacker() != null) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onVehicleDestroy(VehicleDestroyEvent event) {
+        Entity vehicle = event.getVehicle();
+        if (!houseManager.isTownWorld(vehicle.getLocation())) return;
+
+        if (event.getAttacker() instanceof Player player) {
+            if (!houseManager.hasEntityDamagePermission(player, vehicle)) {
+                event.setCancelled(true);
+                player.sendMessage("§c보호된 가구(방석)나 탈것을 부술 수 없습니다.");
+            }
+        } else {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onEntityChangeBlock(EntityChangeBlockEvent event) {
+        if (!houseManager.isTownWorld(event.getBlock().getLocation())) return;
+        if (event.getEntity() instanceof Player player) {
+            if (!houseManager.hasBuildPermission(player, event.getBlock().getLocation())) {
+                event.setCancelled(true);
+            }
+        } else {
+            // 엔더맨 블록 줍기, 위더, 보트 등으로 블록 변형 방지
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * 9. 엔티티 상호작용 방지
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityInteract(PlayerInteractEntityEvent event) {
@@ -131,31 +428,42 @@ public class HouseProtector implements Listener {
         }
     }
 
-    /**
-     * 6. 갑옷대 등 세부 상호작용 방지
-     */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onArmorStandInteract(PlayerInteractAtEntityEvent event) {
         if (!houseManager.hasEntityInteractPermission(event.getPlayer(), event.getRightClicked())) {
             event.setCancelled(true);
+            event.getPlayer().sendMessage("§c이 엔티티와 상호작용할 권한이 없습니다.");
         }
     }
 
     /**
-     * 7. 아이템 액자 파괴 방지
+     * 10. 아이템 액자 / 그림 파괴 방지
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onHangingBreak(HangingBreakByEntityEvent event) {
+    public void onHangingBreakByEntity(HangingBreakByEntityEvent event) {
+        if (!houseManager.isTownWorld(event.getEntity().getLocation())) return;
+
         if (event.getRemover() instanceof Player player) {
             if (!houseManager.hasEntityDamagePermission(player, event.getEntity())) {
                 event.setCancelled(true);
                 player.sendMessage("§c보호된 전시물을 파괴할 수 없습니다.");
             }
+        } else {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onHangingBreak(HangingBreakEvent event) {
+        if (!houseManager.isTownWorld(event.getEntity().getLocation())) return;
+        if (event.getCause() == HangingBreakEvent.RemoveCause.EXPLOSION) {
+            event.setCancelled(true);
         }
     }
 
     /**
-     * 8. 유체(물/용암) 흐름 침범 방지 (서로 다른 소유권의 청크로 유입 차단)
+     * 11. 유체(물/용암) 흐름 침범 방지
+     * [버그 2 해결] 내 집에서 빈 땅(미소유 청크)으로 흐르는 것도 차단! 오직 동일 소유자의 청크 간에만 허용
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onFluidFlow(BlockFromToEvent event) {
@@ -168,18 +476,16 @@ public class HouseProtector implements Listener {
         Chunk toChunk = to.getChunk();
 
         if (fromChunk.getX() != toChunk.getX() || fromChunk.getZ() != toChunk.getZ()) {
-            HouseData fromHouse = houseManager.GetHouseData(from.getLocation());
-            HouseData toHouse = houseManager.GetHouseData(to.getLocation());
-
-            // 유입 대상 청크가 등록된 땅인데 출발지와 소유권이 다르면 차단
-            if (toHouse != null && (fromHouse == null || !fromHouse.getOwner().equals(toHouse.getOwner()))) {
+            // 청크 경계를 넘어갈 때는 반드시 출발지와 도착지가 동일한 소유자의 땅이어야만 흐름 허용!
+            // (미소유 빈 땅으로 흘러나가거나 다른 사람 땅으로 흘러들어가는 것 모두 차단)
+            if (!isSameOwnerChunk(from.getLocation(), to.getLocation())) {
                 event.setCancelled(true);
             }
         }
     }
 
     /**
-     * 9. 피스톤 침범 방지 (다른 소유권 청크로 블록을 밀거나 당기는 것 차단)
+     * 12. 피스톤 침범 방지
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPistonExtend(BlockPistonExtendEvent event) {
@@ -191,22 +497,20 @@ public class HouseProtector implements Listener {
         checkPistonCrossChunk(event, event.getBlocks());
     }
 
-    private void checkPistonCrossChunk(BlockPistonEvent event, java.util.List<Block> pushedBlocks) {
+    private void checkPistonCrossChunk(BlockPistonEvent event, List<Block> pushedBlocks) {
         Block piston = event.getBlock();
         if (!houseManager.isTownWorld(piston.getLocation())) return;
 
-        HouseData pistonHouse = houseManager.GetHouseData(piston.getLocation());
+        Block pistonHeadTarget = piston.getRelative(event.getDirection());
+        if (!isSameOwnerChunk(piston.getLocation(), pistonHeadTarget.getLocation())) {
+            event.setCancelled(true);
+            return;
+        }
 
         for (Block b : pushedBlocks) {
             Block target = b.getRelative(event.getDirection());
-            HouseData targetHouse = houseManager.GetHouseData(target.getLocation());
-
-            if (pistonHouse != null && targetHouse != null) {
-                if (!pistonHouse.getOwner().equals(targetHouse.getOwner())) {
-                    event.setCancelled(true);
-                    return;
-                }
-            } else if (pistonHouse != targetHouse) {
+            if (!isSameOwnerChunk(piston.getLocation(), b.getLocation())
+                    || !isSameOwnerChunk(piston.getLocation(), target.getLocation())) {
                 event.setCancelled(true);
                 return;
             }
@@ -214,25 +518,50 @@ public class HouseProtector implements Listener {
     }
 
     /**
-     * 10. 폭발 블록 파괴 방지 (마을 월드 내 폭발 블록 피해 원천 차단)
+     * 13. 폭발 완전 무효화 및 주민 '허(NO)' 소리 출력
+     * [TNT 및 폭발 이펙트/소리/블록파괴 모두 취소 + ENTITY_VILLAGER_NO 재생]
      */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockExplode(BlockExplodeEvent event) {
-        if (houseManager.isTownWorld(event.getBlock().getLocation())) {
+        Location loc = event.getBlock().getLocation();
+        if (houseManager.isTownWorld(loc)) {
             event.blockList().clear();
+            event.setCancelled(true);
+            loc.getWorld().playSound(loc, Sound.ENTITY_VILLAGER_NO, 1.5f, 1.0f);
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onEntityExplode(EntityExplodeEvent event) {
-        if (houseManager.isTownWorld(event.getLocation())) {
+        Location loc = event.getLocation();
+        if (houseManager.isTownWorld(loc)) {
             event.blockList().clear();
+            event.setCancelled(true); // 폭발 파티클 및 쾅 소리까지 원천 차단!
+            loc.getWorld().playSound(loc, Sound.ENTITY_VILLAGER_NO, 1.5f, 1.0f);
         }
     }
 
     /**
-     * 11. 불 번짐 및 불로 인한 블록 소실 방지
+     * 14. 불 번짐(용암 발화 포함) 및 블록 소실 원천 차단
+     * [버그 6 해결] BlockIgniteEvent에서 LAVA, SPREAD, LIGHTNING 등 비권한 발화 모두 차단
      */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onBlockIgnite(BlockIgniteEvent event) {
+        Location loc = event.getBlock().getLocation();
+        if (!houseManager.isTownWorld(loc)) return;
+
+        // 플레이어가 직접 라이터로 불을 붙이는 경우: 해당 위치 건축 권한 확인
+        if (event.getPlayer() != null) {
+            if (!houseManager.hasBuildPermission(event.getPlayer(), loc)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        // 용암 불번짐(LAVA), 불 옮겨붙기(SPREAD), 번개(LIGHTNING), 화염구 등 자연 발화는 마을 월드에서 전면 차단!
+        event.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBlockBurn(BlockBurnEvent event) {
         if (houseManager.isTownWorld(event.getBlock().getLocation())) {
@@ -242,10 +571,16 @@ public class HouseProtector implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onFireSpread(BlockSpreadEvent event) {
-        if (event.getSource().getType() == Material.FIRE) {
-            if (houseManager.isTownWorld(event.getBlock().getLocation())) {
-                event.setCancelled(true);
-            }
+        if (!houseManager.isTownWorld(event.getBlock().getLocation())) return;
+
+        if (event.getSource().getType() == Material.FIRE || event.getSource().getType() == Material.SOUL_FIRE) {
+            event.setCancelled(true);
+            return;
+        }
+
+        // 잔디, 균사체, 덩굴 등이 청크 경계를 넘어 다른 땅으로 번지는 것도 차단
+        if (!isSameOwnerChunk(event.getSource().getLocation(), event.getBlock().getLocation())) {
+            event.setCancelled(true);
         }
     }
 }

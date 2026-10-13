@@ -11,16 +11,21 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DisplayManager {
     private final JavaPlugin plugin;
-    // UUID별로 띄운 TextDisplay
-    private final Map<UUID, List<TextDisplay>> activeTexts = new HashMap<>();
 
-    Display previousDisplay = null;
-    Display currentDisplay = null;
+    // 플레이어별 현재 바라보고 있는 Display 추적 (전역 공유 버그 해결!)
+    private final Map<UUID, Display> currentDisplays = new ConcurrentHashMap<>();
+    // 플레이어별 띄운 개인 전용 TextDisplay 목록
+    private final Map<UUID, List<TextDisplay>> activeTexts = new ConcurrentHashMap<>();
+    // 플레이어별 개인 전용 클론 발광 Display 엔티티
+    private final Map<UUID, Display> activeGlowDisplays = new ConcurrentHashMap<>();
 
-    public DisplayManager (JavaPlugin plugin) { this.plugin = plugin; }
+    public DisplayManager(JavaPlugin plugin) {
+        this.plugin = plugin;
+    }
 
     // 각 디스플레이
     TreeTextDisplay treeTextDisplay = new TreeTextDisplay();
@@ -28,6 +33,7 @@ public class DisplayManager {
     SellCropTextDisplay sellCropTextDisplay = new SellCropTextDisplay();
     FishTextDisplay fishTextDisplay = new FishTextDisplay();
     OreTextDisplay oreTextDisplay = new OreTextDisplay();
+
     public void InitDisplay() {
         treeTextDisplay.Init();
         buyCropTextDisplay.Init();
@@ -37,123 +43,207 @@ public class DisplayManager {
     }
 
     public void startRaytraceTask() {
-        // 1틱(0.05초)마다 서버의 모든 온라인 플레이어 시선 검사
+        // 1틱(0.05초)마다 서버의 모든 온라인 플레이어 시선 개별 검사
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            Set<UUID> onlineUUIDs = new HashSet<>();
             for (Player player : Bukkit.getOnlinePlayers()) {
+                onlineUUIDs.add(player.getUniqueId());
                 checkPlayerLook(player);
+            }
+
+            // 퇴장한 플레이어의 잔여 디스플레이 정리
+            for (UUID uuid : new HashSet<>(activeTexts.keySet())) {
+                if (!onlineUUIDs.contains(uuid)) {
+                    cleanupPlayerDisplay(uuid);
+                }
             }
         }, 0L, 1L);
     }
 
     private void checkPlayerLook(Player player) {
-        // 플레이어 눈 위치에서 최대 5블록 거리까지 엔티티 레이트레이스 (비대면 처리)
+        UUID uuid = player.getUniqueId();
+
+        // 플레이어 눈 위치에서 최대 5블록 거리까지 엔티티 레이트레이스 (개인 클론 발광 엔티티 및 텍스트 제외)
         RayTraceResult result = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
-                5.0, // 최대 감지 거리 (필요시 조절)
-                0.25, // 감지 오차 범위(마우스 조준 보정)
-                entity -> (entity instanceof Display) && entity.getType() != EntityType.TEXT_DISPLAY
+                5.0,
+                0.25,
+                entity -> (entity instanceof Display)
+                        && entity.getType() != EntityType.TEXT_DISPLAY
+                        && !entity.getScoreboardTags().contains("private_glow")
         );
 
         RayTraceResult blockResult = player.getWorld().rayTraceBlocks(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
-                5.0, // 최대 감지 거리 (필요시 조절)
+                5.0,
                 FluidCollisionMode.NEVER,
                 true
         );
 
+        Display prevTarget = currentDisplays.get(uuid);
+
         // 바라보고 있는 target 엔티티가 있는 경우
-        if (result != null && result.getHitEntity() != null) {
+        if (result != null && result.getHitEntity() instanceof Display hitDisplay) {
             // 블럭에 막혀있는지 확인
             if (blockResult != null && blockResult.getHitBlock() != null) {
                 double blockDistance = player.getEyeLocation().distance(blockResult.getHitPosition().toLocation(player.getWorld()));
                 double entityDistance = player.getEyeLocation().distance(result.getHitPosition().toLocation(player.getWorld()));
-                if (blockDistance < entityDistance) return;
+                if (blockDistance < entityDistance) {
+                    if (prevTarget != null) {
+                        removeTextDisplay(player);
+                    }
+                    return;
+                }
             }
 
-            // 바라보는 블럭디스플레이가 다르다면 발광 및 텍스트 삭제
-            if (currentDisplay != (Display) result.getHitEntity()) {
-                previousDisplay = currentDisplay;
-                removeTextDisplay(player, previousDisplay);
+            // 바라보는 디스플레이가 이전과 달라졌다면 기존 개인 텍스트/발광 제거
+            if (prevTarget != null && !prevTarget.equals(hitDisplay)) {
+                removeTextDisplay(player);
             }
 
-            // 텍스트 넣기 및 발광효과
-            currentDisplay = (Display) result.getHitEntity();
-            Set<String> tags = currentDisplay.getScoreboardTags();
+            Set<String> tags = hitDisplay.getScoreboardTags();
+            if (tags.contains("none")) {
+                if (prevTarget != null) {
+                    removeTextDisplay(player);
+                }
+                return;
+            }
+
+            // 이미 현재 타깃에 대한 개인 텍스트가 떠 있다면 유지
+            if (activeTexts.containsKey(uuid)) {
+                return;
+            }
+
             DisplayTextInfo texts;
             float textYPos;
             if (tags.contains("tree")) {
                 texts = treeTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
-            }
-            else if (tags.contains("sellCrop")) {
+            } else if (tags.contains("sellCrop")) {
                 texts = sellCropTextDisplay.getTexts(tags);
                 textYPos = 0.3f;
-            }
-            else if (tags.contains("buyCrop")) {
+            } else if (tags.contains("buyCrop")) {
                 texts = buyCropTextDisplay.getTexts(tags);
                 textYPos = 0.3f;
-            }
-            else if (tags.contains("fish")) {
-                texts = buyCropTextDisplay.getTexts(tags);
+            } else if (tags.contains("fish")) {
+                texts = fishTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
-            }
-            else if (tags.contains("ore")) {
-                texts = buyCropTextDisplay.getTexts(tags);
+            } else if (tags.contains("ore")) {
+                texts = oreTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
-            }
-            else if(tags.contains("none")) {
-                return;
-            }
-            else {
+            } else {
                 texts = new DisplayTextInfo(0, 0, 0);
                 textYPos = 0.6f;
             }
 
-            // 아직 이 플레이어에게 텍스트가 안 떠 있다면 생성
-            if (!activeTexts.containsKey(player.getUniqueId())) {
-                activeTexts.put(player.getUniqueId(), shopTexts(currentDisplay.getLocation(), texts, textYPos));
-                currentDisplay.setGlowing(true); // 발광
-                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 0.8f);
-            }
+            // 이 플레이어에게만 보이는 개인 전용 텍스트 및 개인 전용 발광 적용!
+            currentDisplays.put(uuid, hitDisplay);
+            activeTexts.put(uuid, shopTexts(player, hitDisplay.getLocation(), texts, textYPos));
+            spawnPrivateGlow(player, hitDisplay);
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 0.8f);
         } else {
-            // 바라보지 않고 있다면 텍스트 제거
-            removeTextDisplay(player, currentDisplay);
+            // 바라보지 않고 있다면 해당 플레이어의 개인 텍스트 및 발광만 제거
+            if (prevTarget != null || activeTexts.containsKey(uuid)) {
+                removeTextDisplay(player);
+            }
         }
     }
 
-    private TextDisplay spawnTextDisplay(Location loc, String content, int yaw) {
-        return loc.getWorld().spawn(loc, TextDisplay.class, text -> {
-            text.setText(content);                                                      // 글자 내용 적기
-            text.setSeeThrough(false);                                                  // 벽 뒤에서는 안 보임
-            text.setBackgroundColor(Color.fromARGB(50, 0, 0, 0));  // 베경 투명도
-            text.setRotation(yaw, 0);                                              // 텍스트 디스플레이 돌리기
+    /**
+     * 해당 플레이어에게만 보이는 개인 전용 TextDisplay 생성
+     */
+    private TextDisplay spawnPrivateTextDisplay(Player viewer, Location loc, String content, int yaw) {
+        TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, text -> {
+            text.setVisibleByDefault(false); // 다른 플레이어에게는 보이지 않음!
+            text.setPersistent(false);       // 서버 재시작 시 잔류 방지
+            text.setText(content);
+            text.setSeeThrough(false);
+            text.setBackgroundColor(Color.fromARGB(50, 0, 0, 0));
+            text.setRotation(yaw, 0);
 
-            org.bukkit.util.Transformation transformation = text.getTransformation();   // 글자 크기
+            org.bukkit.util.Transformation transformation = text.getTransformation();
             transformation.getScale().set(0.7f, 0.7f, 0.7f);
             text.setTransformation(transformation);
         });
+        viewer.showEntity(plugin, display); // 오직 바라본 본인에게만 표시
+        return display;
     }
 
-    private List <TextDisplay> shopTexts(Location baseLoc, DisplayTextInfo info, float textYPos) {
+    private List<TextDisplay> shopTexts(Player viewer, Location baseLoc, DisplayTextInfo info, float textYPos) {
         return List.of(
-                spawnTextDisplay(baseLoc.clone().add(0, textYPos, 0), "판매: " + info.sale() + "원", info.yaw()),
-                spawnTextDisplay(baseLoc.clone().add(0, textYPos + 0.3f, 0), "구매: " + info.purchase() + "원", info.yaw())
+                spawnPrivateTextDisplay(viewer, baseLoc.clone().add(0, textYPos, 0), "판매: " + info.sale() + "원", info.yaw()),
+                spawnPrivateTextDisplay(viewer, baseLoc.clone().add(0, textYPos + 0.3f, 0), "구매: " + info.purchase() + "원", info.yaw())
         );
     }
 
-    private void removeTextDisplay(Player player, Display target) {
-        List<TextDisplay> displays = activeTexts.remove(player.getUniqueId());
+    /**
+     * 해당 플레이어에게만 발광(Glowing)이 보이도록 개인용 오버레이 Display 생성
+     */
+    private void spawnPrivateGlow(Player viewer, Display target) {
+        // 혹시 원본에 발광이 켜져 있었다면 꺼서 다른 사람에게 안 보이게 초기화
+        if (target.isGlowing()) {
+            target.setGlowing(false);
+        }
 
+        Location loc = target.getLocation();
+        Display glowClone = null;
+
+        if (target instanceof ItemDisplay itemTarget) {
+            glowClone = loc.getWorld().spawn(loc, ItemDisplay.class, clone -> {
+                clone.setVisibleByDefault(false);
+                clone.setPersistent(false);
+                clone.addScoreboardTag("private_glow");
+                clone.setItemStack(itemTarget.getItemStack());
+                clone.setItemDisplayTransform(itemTarget.getItemDisplayTransform());
+                clone.setBillboard(itemTarget.getBillboard());
+                clone.setTransformation(itemTarget.getTransformation());
+                clone.setGlowing(true);
+            });
+        } else if (target instanceof BlockDisplay blockTarget) {
+            glowClone = loc.getWorld().spawn(loc, BlockDisplay.class, clone -> {
+                clone.setVisibleByDefault(false);
+                clone.setPersistent(false);
+                clone.addScoreboardTag("private_glow");
+                clone.setBlock(blockTarget.getBlock());
+                clone.setBillboard(blockTarget.getBillboard());
+                clone.setTransformation(blockTarget.getTransformation());
+                clone.setGlowing(true);
+            });
+        }
+
+        if (glowClone != null) {
+            viewer.showEntity(plugin, glowClone);
+            activeGlowDisplays.put(viewer.getUniqueId(), glowClone);
+        }
+    }
+
+    private void removeTextDisplay(Player player) {
+        cleanupPlayerDisplay(player.getUniqueId());
+    }
+
+    private void cleanupPlayerDisplay(UUID uuid) {
+        currentDisplays.remove(uuid);
+
+        List<TextDisplay> displays = activeTexts.remove(uuid);
         if (displays != null) {
             for (TextDisplay display : displays) {
                 if (display != null && display.isValid()) {
-                    display.remove(); // sale과 purchase텍스트 모두 삭제
+                    display.remove();
                 }
             }
         }
-        if (target != null)
-            target.setGlowing(false); // 발광 삭제
+
+        Display glowClone = activeGlowDisplays.remove(uuid);
+        if (glowClone != null && glowClone.isValid()) {
+            glowClone.remove();
+        }
+    }
+
+    public void clearAllDisplays() {
+        for (UUID uuid : new HashSet<>(activeTexts.keySet())) {
+            cleanupPlayerDisplay(uuid);
+        }
     }
 }
