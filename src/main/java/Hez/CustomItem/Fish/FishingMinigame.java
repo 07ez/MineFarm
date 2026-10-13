@@ -23,8 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class FishingMinigame {
 
-    // \uF808 = -8px (상자 타이틀 좌측 여백 상쇄), \uE001 = 커스텀 GUI 배경 이미지 (fishTest.png)
-    public static final String GUI_TITLE = "§f\uF808\uF808\uE001§r§1§l🎣 낚시 미니게임!";
+
 
     private static final Map<UUID, GameSession> activeSessions = new ConcurrentHashMap<>();
 
@@ -71,6 +70,32 @@ public class FishingMinigame {
         }
     }
 
+    private static final net.kyori.adventure.key.Key FONT_FISHING = net.kyori.adventure.key.Key.key("minefarm", "fishing");
+    private static final net.kyori.adventure.key.Key FONT_DEFAULT = net.kyori.adventure.key.Key.key("minecraft", "default");
+
+    /**
+     * 상자 상단 타이틀 Component 생성
+     * - GUI 배경 이미지: 오른쪽으로 4px 이동 (-4px 오프셋 \uF804\uE001)
+     * - 가로 폭(-164px) 백스페이스 후 좌측: "0.00초", 우측: "0/3"
+     */
+    public static Component buildDynamicTitle(double remainingSeconds, int currentHits, int targetHits) {
+        String leftText = String.format("§c§l%.2f초", Math.max(0.0, remainingSeconds));
+        String rightText = String.format("§e§l%d/%d", currentHits, targetHits);
+
+        return Component.text()
+                // 1. GUI 배경 이미지를 -4px 위치에 렌더링
+                .append(Component.text("\uF804\uE001").font(FONT_FISHING))
+                // 2. 이미지 가로 폭만큼 백스페이스(-164px)하여 좌측 상단 기준점으로 복귀
+                .append(Component.text("\uF880\uF820\uF804").font(FONT_FISHING))
+                // 3. 왼쪽 상단: 남은 시간 표시
+                .append(Component.text(leftText).font(FONT_DEFAULT))
+                // 4. 오른쪽으로 밀어내기 위한 공백 간격
+                .append(Component.text("              ").font(FONT_DEFAULT))
+                // 5. 오른쪽 상단: 잡은 횟수 표시
+                .append(Component.text(rightText).font(FONT_DEFAULT))
+                .build();
+    }
+
     /**
      * 미니게임 시작 (기본 희귀도 연동)
      */
@@ -80,20 +105,14 @@ public class FishingMinigame {
         int targetHits = rarity.getTargetHits();
         double totalSeconds = rarity.getTimeLimitSeconds();
 
-        // 3줄(27칸) 체스트 인벤토리 생성 (minefarm:fishing 독립 폰트 적용, -8px 좌측 이동)
-        Component titleComponent = Component.text("\uF808\uE001")
-                .font(net.kyori.adventure.key.Key.key("minefarm", "fishing"))
-                .append(Component.text(" §1§l🎣 낚시 미니게임!").font(net.kyori.adventure.key.Key.key("minecraft", "default")));
-
+        // 3줄(27칸) 체스트 인벤토리 생성 (동적 타이틀 적용: 시간 및 횟수 표시)
+        Component titleComponent = buildDynamicTitle(totalSeconds, 0, targetHits);
         Inventory inv = Bukkit.createInventory(player, 27, titleComponent);
 
         GameSession session = new GameSession(player, rewardItem, targetHits, totalSeconds, inv);
         activeSessions.put(player.getUniqueId(), session);
 
-        // 초기 인벤토리 배경 구성
-        renderBackground(session);
-
-        // 첫 물고기 스폰
+        // 첫 물고기 스폰 (아이템 없이 빈 상자에서 자유롭게 스폰)
         spawnFishAtRandomSlot(session);
 
         // 인벤토리 열기
@@ -110,8 +129,8 @@ public class FishingMinigame {
 
                 session.decrementTime(0.05);
 
-                // 상단 타이머 아이템 갱신
-                updateTopStatus(session);
+                // 상단 타이틀 실시간 동적 갱신
+                updateDynamicTitle(session);
 
                 // 시간 초과 시 실패
                 if (session.getRemainingSeconds() <= 0) {
@@ -122,6 +141,20 @@ public class FishingMinigame {
         }.runTaskTimer(Main.getInstance(), 1L, 1L);
 
         session.setTimerTask(task);
+    }
+
+    /**
+     * 상자 상단 타이틀 실시간 동적 갱신
+     */
+    private static void updateDynamicTitle(GameSession session) {
+        Player player = session.getPlayer();
+        if (!player.isOnline()) return;
+
+        org.bukkit.inventory.InventoryView view = player.getOpenInventory();
+        if (view.getTopInventory().equals(session.getInventory())) {
+            Component newTitle = buildDynamicTitle(session.getRemainingSeconds(), session.getCurrentHits(), session.getTargetHits());
+            view.setTitle(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection().serialize(newTitle));
+        }
     }
 
     /**
@@ -143,7 +176,7 @@ public class FishingMinigame {
         } else {
             // 다른 랜덤 위치로 물고기 이동
             spawnFishAtRandomSlot(session);
-            updateTopStatus(session);
+            updateDynamicTitle(session);
         }
     }
 
@@ -208,7 +241,7 @@ public class FishingMinigame {
     }
 
     /**
-     * 물고기를 2~3번째 줄(9~26번 슬롯) 중 랜덤 빈 위치로 이동
+     * 물고기를 전체 27칸 중 랜덤 빈 위치로 이동
      */
     private static void spawnFishAtRandomSlot(GameSession session) {
         Inventory inv = session.getInventory();
@@ -218,9 +251,9 @@ public class FishingMinigame {
             inv.setItem(session.getCurrentFishSlot(), null);
         }
 
-        // 9 ~ 26번 슬롯 중 기존과 다른 랜덤 슬롯 선택
+        // 전체 0 ~ 26번 슬롯 중 기존과 다른 랜덤 슬롯 선택
         List<Integer> availableSlots = new ArrayList<>();
-        for (int i = 9; i < 27; i++) {
+        for (int i = 0; i < 27; i++) {
             if (i != session.getCurrentFishSlot()) {
                 availableSlots.add(i);
             }
@@ -240,41 +273,6 @@ public class FishingMinigame {
         }
 
         inv.setItem(nextSlot, displayFish);
-    }
-
-    /**
-     * 인벤토리 배경 초기화 (유리판 제거 - 빈 슬롯으로 깔끔하게 유지)
-     */
-    private static void renderBackground(GameSession session) {
-        Inventory inv = session.getInventory();
-        inv.clear();
-
-        updateTopStatus(session);
-    }
-
-    /**
-     * 상단 정보 아이템 (시계 & 에메랄드) 갱신
-     */
-    private static void updateTopStatus(GameSession session) {
-        Inventory inv = session.getInventory();
-
-        // 3번 슬롯: 시계 (남은 시간)
-        ItemStack clock = new ItemStack(Material.CLOCK);
-        ItemMeta clockMeta = clock.getItemMeta();
-        if (clockMeta != null) {
-            clockMeta.setDisplayName(String.format("§e남은 시간: §c§l%.1f초", session.getRemainingSeconds()));
-            clock.setItemMeta(clockMeta);
-        }
-        inv.setItem(3, clock);
-
-        // 5번 슬롯: 에메랄드 (진행도)
-        ItemStack progress = new ItemStack(Material.EMERALD);
-        ItemMeta progMeta = progress.getItemMeta();
-        if (progMeta != null) {
-            progMeta.setDisplayName(String.format("§a잡은 횟수: §f§l%d / %d", session.getCurrentHits(), session.getTargetHits()));
-            progress.setItemMeta(progMeta);
-        }
-        inv.setItem(5, progress);
     }
 
     public static boolean isPlaying(UUID uuid) {
