@@ -78,8 +78,11 @@ public class CropListener implements Listener {
 
     /**
      * 작물 우클릭 상호작용:
-     * - 웅크리기(Shift) + 우클릭: 작물 위에 실시간 TextDisplay 소환 (00:00:00 / 수확가능!)
-     *   (크로스헤어가 벗어나면 자동 해제)
+     * 1. 뼛가루(BONE_MEAL) 들고 우클릭:
+     *    - 딱 1회만 자라는 시간 10% 단축 (성장 소요 시간 / 10 차감)
+     *    - 이미 사용했거나 다 자란 경우 사용 불가
+     * 2. 웅크리기(Shift) + 우클릭: 작물 위에 실시간 TextDisplay 소환 (00:00:00 / 수확가능!)
+     *    (크로스헤어가 벗어나면 자동 해제)
      */
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEvent event) {
@@ -91,8 +94,52 @@ public class CropListener implements Listener {
         if (data == null) return;
 
         Player player = event.getPlayer();
+        ItemStack itemInHand = event.getItem();
 
-        // 웅크리기 + 우클릭 시에만 TextDisplay 띄우기
+        // 1. 뼛가루 들고 우클릭 처리
+        if (itemInHand != null && itemInHand.getType() == Material.BONE_MEAL) {
+            // 바닐라 기본 뼛가루 동작 취소 (플러그인 자체 10% 단축 로직으로 대체)
+            event.setCancelled(true);
+
+            // 마을 월드인 경우 건축/농사 권한 확인
+            if (!Main.getInstance().getHouseManager().hasBuildPermission(player, clickedBlock.getLocation())) {
+                player.sendMessage("§c이곳의 작물에 뼛가루를 사용할 권한이 없습니다.");
+                return;
+            }
+
+            if (data.isHarvestable()) {
+                player.sendMessage("§e이미 다 자란 작물입니다.");
+                return;
+            }
+
+            if (data.isBoneMealUsed()) {
+                player.sendMessage("§c이 작물은 이미 뼛가루 단축 혜택을 받았습니다. (1회 제한)");
+                return;
+            }
+
+            // 뼛가루 10% 단축 적용
+            boolean success = data.applyBoneMeal();
+            if (success) {
+                // 서바이벌 모드일 경우 뼛가루 1개 소모
+                if (player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                    itemInHand.setAmount(itemInHand.getAmount() - 1);
+                }
+
+                // 나이 즉시 시각적 동기화
+                cropsManager.updateBlockVisual(clickedBlock, data);
+
+                // 마인크래프트 바닐라 뼛가루 파티클 및 효과음 재생
+                clickedBlock.getWorld().spawnParticle(org.bukkit.Particle.HAPPY_VILLAGER, clickedBlock.getLocation().add(0.5, 0.5, 0.5), 15, 0.3, 0.3, 0.3, 0.05);
+                player.playSound(clickedBlock.getLocation(), org.bukkit.Sound.ITEM_BONE_MEAL_USE, 1.0f, 1.0f);
+
+                long reducedSec = (data.getGrowDurationMs() / 10L) / 1000L;
+                player.sendMessage(String.format("§a[농사] §f뼛가루를 사용하여 성장 시간이 §e%d초(10%%) §f단축되었습니다! (남은 시간: §b%s§f)",
+                        reducedSec, data.getFormattedRemainingTime()));
+            }
+            return;
+        }
+
+        // 2. 웅크리기 + 우클릭 시에만 TextDisplay 띄우기
         if (player.isSneaking()) {
             event.setCancelled(true);
             cropsManager.showCropDisplay(player, clickedBlock, data);

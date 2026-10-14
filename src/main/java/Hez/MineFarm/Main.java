@@ -129,6 +129,7 @@ public class Main extends JavaPlugin {
 
         // 농사 데이터 로딩 및 리스너 등록
         this.cropsManager.loadData(cropsDataConfig);
+        this.cropsManager.startCropGrowthUpdaterTask(this);
         this.cropsManager.startDisplayWatcherTask(this);
         getServer().getPluginManager().registerEvents(new Hez.Crops.CropListener(this.cropsManager), this);
 

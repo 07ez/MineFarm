@@ -200,7 +200,8 @@ public class HouseProtector implements Listener {
             }
 
             // 블록 자체 상호작용 (문, 상자, 버튼, 레버 등)
-            if (!houseManager.hasInteractPermission(player, clickedBlock)) {
+            // 단, 작물(밀, 당근, 감자 등)은 우클릭 시 GUI나 특별한 인터랙션이 없고 작물 시스템(CropListener)에서 관리하므로 여기서 차단하지 않음
+            if (!(clickedBlock.getBlockData() instanceof org.bukkit.block.data.Ageable) && !houseManager.hasInteractPermission(player, clickedBlock)) {
                 event.setCancelled(true);
                 player.sendMessage("§c이 블록과 상호작용할 권한이 없습니다.");
             }

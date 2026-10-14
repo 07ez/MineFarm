@@ -11,17 +11,23 @@ public class CropData {
     private final long plantedAt;         // 심은 시각 (ms)
     private final long growDurationMs;     // 완전히 자라는 데 걸리는 기본 시간 (ms)
     private float boost;                   // 성장 가속 계수 (기본 1.0f)
+    private boolean boneMealUsed;          // 뼛가루 10% 단축 사용 여부 (딱 1회만 가능)
 
     public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs) {
-        this(pos, cropMaterial, plantedAt, growDurationMs, 1.0f);
+        this(pos, cropMaterial, plantedAt, growDurationMs, 1.0f, false);
     }
 
     public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs, float boost) {
+        this(pos, cropMaterial, plantedAt, growDurationMs, boost, false);
+    }
+
+    public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs, float boost, boolean boneMealUsed) {
         this.pos = pos;
         this.cropMaterial = cropMaterial;
         this.plantedAt = plantedAt;
         this.growDurationMs = growDurationMs;
         this.boost = boost;
+        this.boneMealUsed = boneMealUsed;
     }
 
     public BlockPos getPos() {
@@ -48,11 +54,38 @@ public class CropData {
         this.boost = boost;
     }
 
+    public boolean isBoneMealUsed() {
+        return boneMealUsed;
+    }
+
+    public void setBoneMealUsed(boolean boneMealUsed) {
+        this.boneMealUsed = boneMealUsed;
+    }
+
     /**
-     * 부스트를 적용한 유효 성장 필요 시간 (ms)
+     * 뼛가루 사용 (딱 1회만 가능):
+     * 전체 자라는 시간의 10% (growDurationMs / 10)를 단축
+     * @return 뼛가루가 성공적으로 적용되었으면 true, 이미 사용되었으면 false
+     */
+    public boolean applyBoneMeal() {
+        if (boneMealUsed || isHarvestable()) {
+            return false;
+        }
+        this.boneMealUsed = true;
+        return true;
+    }
+
+    /**
+     * 부스트 및 뼛가루 단축을 적용한 유효 성장 필요 시간 (ms)
+     * - 뼛가루 사용 시 전체 자라는 시간의 10% (growDurationMs / 10) 차감
      */
     public long getEffectiveDurationMs() {
-        return (long) (growDurationMs / Math.max(0.1f, boost));
+        long baseDuration = (long) (growDurationMs / Math.max(0.1f, boost));
+        if (boneMealUsed) {
+            long reduction = growDurationMs / 10L;
+            return Math.max(0L, baseDuration - reduction);
+        }
+        return baseDuration;
     }
 
     /**

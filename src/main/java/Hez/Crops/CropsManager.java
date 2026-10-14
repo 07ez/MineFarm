@@ -173,6 +173,7 @@ public class CropsManager {
             config.set(key + ".plantedAt", data.getPlantedAt());
             config.set(key + ".growDuration", data.getGrowDurationMs());
             config.set(key + ".boost", data.getBoost());
+            config.set(key + ".boneMealUsed", data.isBoneMealUsed());
         }
     }
 
@@ -195,13 +196,14 @@ public class CropsManager {
             long plantedAt = section.getLong(key + ".plantedAt");
             long growDuration = section.getLong(key + ".growDuration");
             float boost = (float) section.getDouble(key + ".boost", 1.0);
+            boolean boneMealUsed = section.getBoolean(key + ".boneMealUsed", false);
 
             if (world == null || matName == null) continue;
 
             try {
                 Material material = Material.valueOf(matName);
                 BlockPos pos = new BlockPos(world, x, y, z);
-                CropData cropData = new CropData(pos, material, plantedAt, growDuration, boost);
+                CropData cropData = new CropData(pos, material, plantedAt, growDuration, boost, boneMealUsed);
 
                 cropsByPos.put(pos, cropData);
 
@@ -249,6 +251,35 @@ public class CropsManager {
         if (active != null && active.display().isValid()) {
             active.display().remove();
         }
+    }
+
+    /**
+     * 주기적 작물 성장 상태 동기화 태스크:
+     * 로딩된 청크 내의 작물들의 나이(Age)를 실시간 경과 시간 기준으로 자동 갱신 (1초마다)
+     * 플레이어가 웅크리기+우클릭하지 않아도 시간이 되면 저절로 자라는 모습으로 보이도록 보장
+     */
+    public void startCropGrowthUpdaterTask(org.bukkit.plugin.java.JavaPlugin plugin) {
+        org.bukkit.Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (cropsByPos.isEmpty()) return;
+
+            for (Map.Entry<BlockPos, CropData> entry : cropsByPos.entrySet()) {
+                BlockPos pos = entry.getKey();
+                CropData cropData = entry.getValue();
+
+                org.bukkit.World world = org.bukkit.Bukkit.getWorld(pos.worldName());
+                if (world == null) continue;
+
+                // 청크가 로딩되어 있을 때만 블록 상태를 안전하게 갱신
+                int chunkX = pos.x() >> 4;
+                int chunkZ = pos.z() >> 4;
+                if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
+
+                Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
+                if (block.getType() == cropData.getCropMaterial()) {
+                    updateBlockVisual(block, cropData);
+                }
+            }
+        }, 20L, 20L); // 1초(20틱)마다 실행
     }
 
     /**
