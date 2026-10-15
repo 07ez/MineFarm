@@ -2,25 +2,21 @@
   "providers": [
     {
       "type": "bitmap",
-      "file": "minefarm:gui/fishtest.png",
-      "ascent": 14,
-      "height": 166,
+      "file": "minecraft:font/test.png",
+      "ascent": 13,
+      "height": 256,
       "chars": [
-        "\uE001"
+        "\uEAAA"
       ]
     },
     {
-      "type": "space",
-      "advances": {
-        "\uF801": -1,
-        "\uF802": -2,
-        "\uF804": -4,
-        "\uF808": -8,
-        "\uF810": -16,
-        "\uF820": -32,
-        "\uF840": -64,
-        "\uF880": -128
-      }
+      "type": "bitmap",
+      "file": "minecraft:font/space.png",
+      "ascent": -32768,
+      "height": -10,
+      "chars": [
+        "\uEBBB"
+      ]
     }
   ]
 }
