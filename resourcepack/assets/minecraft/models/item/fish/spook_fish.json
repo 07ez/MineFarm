@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/spook_fish"
+                 },
+    "parent":  "minecraft:item/generated"
+}

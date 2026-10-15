@@ -1,22 +1,18 @@
 {
   "providers": [
     {
-      "type": "bitmap",
       "file": "minecraft:font/test.png",
+      "type": "bitmap",
+      "chars": ["\uEAAA"],
       "ascent": 13,
-      "height": 256,
-      "chars": [
-        "\uEAAA"
-      ]
+      "height": 256
     },
     {
-      "type": "bitmap",
       "file": "minecraft:font/space.png",
+      "type": "bitmap",
+      "chars": ["\uEBBB"],
       "ascent": -32768,
-      "height": -10,
-      "chars": [
-        "\uEBBB"
-      ]
+      "height": -10
     }
   ]
 }

@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/smallmouth_bass"
+                 },
+    "parent":  "minecraft:item/generated"
+}

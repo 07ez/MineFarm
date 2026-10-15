@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/sturgeon"
+                 },
+    "parent":  "minecraft:item/generated"
+}

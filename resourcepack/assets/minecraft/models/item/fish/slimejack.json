@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/slimejack"
+                 },
+    "parent":  "minecraft:item/generated"
+}

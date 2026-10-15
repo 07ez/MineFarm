@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/lingcod"
+                 },
+    "parent":  "minecraft:item/generated"
+}

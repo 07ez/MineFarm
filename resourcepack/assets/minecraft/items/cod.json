@@ -1,0 +1,391 @@
+﻿{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:custom_model_data",
+    "index": 0,
+    "cases": [
+      {
+        "when": "1001",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/albacore"
+        }
+      },
+      {
+        "when": "1002",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/anchovy"
+        }
+      },
+      {
+        "when": "1003",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/angler"
+        }
+      },
+      {
+        "when": "1004",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/blobfish"
+        }
+      },
+      {
+        "when": "1005",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/blue_discus"
+        }
+      },
+      {
+        "when": "1006",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/bream"
+        }
+      },
+      {
+        "when": "1007",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/bullhead"
+        }
+      },
+      {
+        "when": "1008",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/carp"
+        }
+      },
+      {
+        "when": "1009",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/catfish"
+        }
+      },
+      {
+        "when": "1010",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/chub"
+        }
+      },
+      {
+        "when": "1011",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/crimsonfish"
+        }
+      },
+      {
+        "when": "1012",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/dorado"
+        }
+      },
+      {
+        "when": "1013",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/eel"
+        }
+      },
+      {
+        "when": "1014",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/flounder"
+        }
+      },
+      {
+        "when": "1015",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/ghost_fish"
+        }
+      },
+      {
+        "when": "1016",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/glacierfish"
+        }
+      },
+      {
+        "when": "1017",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/goby"
+        }
+      },
+      {
+        "when": "1018",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/halibut"
+        }
+      },
+      {
+        "when": "1019",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/herring"
+        }
+      },
+      {
+        "when": "1020",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/ice_pip"
+        }
+      },
+      {
+        "when": "1021",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/largemouth_bass"
+        }
+      },
+      {
+        "when": "1022",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/lava_eel"
+        }
+      },
+      {
+        "when": "1023",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/legend"
+        }
+      },
+      {
+        "when": "1024",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/lingcod"
+        }
+      },
+      {
+        "when": "1025",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/lionfish"
+        }
+      },
+      {
+        "when": "1026",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/midnight_carp"
+        }
+      },
+      {
+        "when": "1027",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/midnight_squid"
+        }
+      },
+      {
+        "when": "1028",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/mullet"
+        }
+      },
+      {
+        "when": "1029",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/octopus"
+        }
+      },
+      {
+        "when": "1030",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/perch"
+        }
+      },
+      {
+        "when": "1031",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/pike"
+        }
+      },
+      {
+        "when": "1032",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/radioactive_carp"
+        }
+      },
+      {
+        "when": "1033",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/rainbow_trout"
+        }
+      },
+      {
+        "when": "1034",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/red_snapper"
+        }
+      },
+      {
+        "when": "1035",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/sandfish"
+        }
+      },
+      {
+        "when": "1036",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/sardine"
+        }
+      },
+      {
+        "when": "1037",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/scorpion_carp"
+        }
+      },
+      {
+        "when": "1038",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/sea_cucumber"
+        }
+      },
+      {
+        "when": "1039",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/shad"
+        }
+      },
+      {
+        "when": "1040",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/slimejack"
+        }
+      },
+      {
+        "when": "1041",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/smallmouth_bass"
+        }
+      },
+      {
+        "when": "1042",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/spook_fish"
+        }
+      },
+      {
+        "when": "1043",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/squid"
+        }
+      },
+      {
+        "when": "1044",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/stingray"
+        }
+      },
+      {
+        "when": "1045",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/stonefish"
+        }
+      },
+      {
+        "when": "1046",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/sturgeon"
+        }
+      },
+      {
+        "when": "1047",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/sunfish"
+        }
+      },
+      {
+        "when": "1048",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/super_cucumber"
+        }
+      },
+      {
+        "when": "1049",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/tiger_trout"
+        }
+      },
+      {
+        "when": "1050",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/tilapia"
+        }
+      },
+      {
+        "when": "1051",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/tuna"
+        }
+      },
+      {
+        "when": "1052",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/void_salmon"
+        }
+      },
+      {
+        "when": "1053",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/walleye"
+        }
+      },
+      {
+        "when": "1054",
+        "model": {
+          "type": "minecraft:model",
+          "model": "minecraft:item/fish/woodskip"
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:model",
+      "model": "minecraft:item/cod"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/baked_fish"
+                 },
+    "parent":  "minecraft:item/generated"
+}

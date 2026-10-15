@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/dish_of_the_sea"
+                 },
+    "parent":  "minecraft:item/generated"
+}

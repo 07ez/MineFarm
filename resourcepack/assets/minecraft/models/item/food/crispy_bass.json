@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/crispy_bass"
+                 },
+    "parent":  "minecraft:item/generated"
+}

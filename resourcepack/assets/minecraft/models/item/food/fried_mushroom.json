@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/fried_mushroom"
+                 },
+    "parent":  "minecraft:item/generated"
+}

@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/super_cucumber"
+                 },
+    "parent":  "minecraft:item/generated"
+}

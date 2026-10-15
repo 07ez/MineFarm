@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/parsnip_soup"
+                 },
+    "parent":  "minecraft:item/generated"
+}

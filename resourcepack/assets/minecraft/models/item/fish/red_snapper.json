@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/red_snapper"
+                 },
+    "parent":  "minecraft:item/generated"
+}

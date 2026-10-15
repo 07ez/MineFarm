@@ -2,6 +2,8 @@ package Hez.CustomItem.Fish;
 
 import Hez.MineFarm.Main;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.ShadowColor;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -80,10 +82,11 @@ public class FishingMinigame {
      */
     public static Component buildDynamicTitle(double remainingSeconds, int currentHits, int targetHits) {
         return Component.text()
-                // 1. 음수 오프셋(\uEBBB)이 앞에 오고, 그 다음 커스텀 GUI(\uEAAA) 렌더링
+                // 1. 음수 오프셋(\uEBBB)이 앞에 오고, 그 다음 커스텀 GUI(\uEAAA) 렌더링 (원래 색상 유지를 위해 WHITE 지정)
                 .append(Component.text("\uEBBB\uEAAA")
                         .font(FONT_DEFAULT)
-                        .shadowColor(net.kyori.adventure.text.format.ShadowColor.none()))
+                        .color(NamedTextColor.WHITE)
+                        .shadowColor(ShadowColor.none()))
                 .build();
     }
 

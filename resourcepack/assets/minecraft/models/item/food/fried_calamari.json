@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/fried_calamari"
+                 },
+    "parent":  "minecraft:item/generated"
+}

@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/ice_cream"
+                 },
+    "parent":  "minecraft:item/generated"
+}

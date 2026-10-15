@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/omelet"
+                 },
+    "parent":  "minecraft:item/generated"
+}

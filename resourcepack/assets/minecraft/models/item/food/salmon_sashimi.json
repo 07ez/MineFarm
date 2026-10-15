@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/food/salmon_sashimi"
+                 },
+    "parent":  "minecraft:item/generated"
+}

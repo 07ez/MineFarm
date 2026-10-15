@@ -1,0 +1,6 @@
+﻿{
+    "textures":  {
+                     "layer0":  "minecraft:item/fish/tilapia"
+                 },
+    "parent":  "minecraft:item/generated"
+}
