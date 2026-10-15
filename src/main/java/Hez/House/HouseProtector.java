@@ -1,12 +1,16 @@
 package Hez.House;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.type.Bed;
+import org.bukkit.entity.EnderPearl;
+import org.bukkit.entity.EnderSignal;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
@@ -21,6 +25,9 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityPlaceEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.hanging.HangingPlaceEvent;
@@ -671,6 +678,95 @@ public class HouseProtector implements Listener {
         // 잔디, 균사체, 덩굴 등이 청크 경계를 넘어 다른 땅으로 번지는 것도 차단
         if (!isSameOwnerChunk(event.getSource().getLocation(), event.getBlock().getLocation())) {
             event.setCancelled(true);
+        }
+    }
+
+    /**
+     * 15. 엔더진주(Ender Pearl) 사유지 침범 차단
+     * - 마을 월드에서 비권한자의 엔더진주가 타인의 사유지 청크로 진입하면 즉시 진주를 소멸
+     * - 진주가 소멸되는 위치에 엔더의 눈(Eye of Ender)으로 변신하여 공중에 둥실 뜬 후,
+     *   엔더의 눈이 깨지는 소리와 함께 엔더진주 이미지 파편(Particle.ITEM)이 덮여 산산조각 깨지는 연출 재생!
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        if (!(event.getEntity() instanceof EnderPearl pearl)) return;
+        if (!(pearl.getShooter() instanceof Player player)) return;
+
+        // 관리자(OP)는 자유로운 이동 허용
+        if (player.isOp()) return;
+
+        Location spawnLoc = pearl.getLocation();
+        if (!houseManager.isTownWorld(spawnLoc)) return;
+
+        // 1) 던진 위치 자체가 이미 비권한 사유지인 경우 즉시 진주를 죽이고 깨짐 연출
+        if (!houseManager.hasBuildPermission(player, spawnLoc)) {
+            pearl.remove();
+            playEnderPearlBreakEffect(player, spawnLoc);
+            return;
+        }
+
+        // 2) 정상 구역에서 던져진 엔더진주가 비행 도중 타인의 사유지 청크로 진입하는 순간 감지
+        new BukkitRunnable() {
+            private int ticks = 0;
+
+            @Override
+            public void run() {
+                ticks++;
+                if (!pearl.isValid() || pearl.isDead() || ticks > 200) {
+                    cancel();
+                    return;
+                }
+
+                Location currentLoc = pearl.getLocation();
+                if (!houseManager.isTownWorld(currentLoc)) return;
+
+                // 비행 중 플레이어에게 권한이 없는 청크로 진입했을 때!
+                if (!houseManager.hasBuildPermission(player, currentLoc)) {
+                    cancel();
+                    Location breakLoc = currentLoc.clone();
+                    pearl.remove(); // 텔레포트 원천 차단을 위해 즉시 엔더진주 제거
+                    playEnderPearlBreakEffect(player, breakLoc);
+                }
+            }
+        }.runTaskTimer(Hez.MineFarm.Main.getInstance(), 1L, 1L);
+    }
+
+    /**
+     * 엔더진주 텔레포트 2중 방어선
+     * (혹시 모를 틱 지연이나 낙하 착지 시점에 비권한 구역으로 순간이동되는 것 완벽 차단)
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerTeleport(PlayerTeleportEvent event) {
+        if (event.getCause() != PlayerTeleportEvent.TeleportCause.ENDER_PEARL) return;
+
+        Player player = event.getPlayer();
+        if (player.isOp()) return;
+
+        Location to = event.getTo();
+        if (to == null || !houseManager.isTownWorld(to)) return;
+
+        if (!houseManager.hasBuildPermission(player, to)) {
+            event.setCancelled(true);
+            playEnderPearlBreakEffect(player, to);
+        }
+    }
+
+    /**
+     * 엔더진주가 청크에 들어왔을 때 엔더의 눈 터지는 소리와 함께 엔더진주 파편이 깨지는 연출
+     */
+    private void playEnderPearlBreakEffect(Player player, Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+
+        // 엔더의 눈/진주 터질 때 나는 고유 소리만 깔끔하게 재생
+        loc.getWorld().playSound(loc, Sound.ENTITY_ENDER_EYE_DEATH, 1.0f, 1.0f);
+
+        // 엔더진주가 깨지는 아이템 파티클만 깔끔하게 출력
+        loc.getWorld().spawnParticle(Particle.ITEM, loc, 35, 0.2, 0.2, 0.2, 0.08, new ItemStack(Material.ENDER_PEARL));
+
+        // 플레이어에게 알림 메시지 및 사운드 전달
+        if (player != null && player.isOnline()) {
+            player.sendMessage("§c타인의 사유지로는 엔더진주를 던질 수 없어 진주가 깨졌습니다!");
+            player.playSound(player.getLocation(), Sound.ENTITY_ENDER_EYE_DEATH, 0.8f, 1.0f);
         }
     }
 }
