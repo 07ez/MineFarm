@@ -687,6 +687,26 @@ public class HouseProtector implements Listener {
      * - 진주가 소멸되는 위치에 엔더의 눈(Eye of Ender)으로 변신하여 공중에 둥실 뜬 후,
      *   엔더의 눈이 깨지는 소리와 함께 엔더진주 이미지 파편(Particle.ITEM)이 덮여 산산조각 깨지는 연출 재생!
      */
+    /**
+     * 엔더진주 진입이 차단되는 "타인의 사유지"인지 판별
+     * - 미소유 빈 땅(아무도 없는 땅): 허용 (false)
+     * - 본인 소유 땅 또는 본인이 등록된 멤버 땅: 허용 (false)
+     * - 타인 소유 땅 또는 서버 땅: 차단 (true)
+     */
+    private boolean isRestrictedPearlArea(Player player, Location loc) {
+        if (player.isOp()) return false;
+        if (!houseManager.isTownWorld(loc)) return false;
+
+        HouseData house = houseManager.GetHouseData(loc);
+        if (house == null) {
+            // 소유권이 없는 아무도 없는 땅은 자유롭게 던질 수 있음
+            return false;
+        }
+
+        // 소유자가 존재하지만 본인에게 권한이 없는 타인의 땅인 경우 차단
+        return !house.hasFullPermission(player.getUniqueId());
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
         if (!(event.getEntity() instanceof EnderPearl pearl)) return;
@@ -698,14 +718,14 @@ public class HouseProtector implements Listener {
         Location spawnLoc = pearl.getLocation();
         if (!houseManager.isTownWorld(spawnLoc)) return;
 
-        // 1) 던진 위치 자체가 이미 비권한 사유지인 경우 즉시 진주를 죽이고 깨짐 연출
-        if (!houseManager.hasBuildPermission(player, spawnLoc)) {
+        // 1) 던진 위치 자체가 이미 타인의 사유지인 경우 즉시 진주를 죽이고 깨짐 연출
+        if (isRestrictedPearlArea(player, spawnLoc)) {
             pearl.remove();
             playEnderPearlBreakEffect(player, spawnLoc);
             return;
         }
 
-        // 2) 정상 구역에서 던져진 엔더진주가 비행 도중 타인의 사유지 청크로 진입하는 순간 감지
+        // 2) 정상 구역(미소유 땅, 내 땅 등)에서 던져진 엔더진주가 비행 도중 타인의 사유지 청크로 진입하는 순간 감지
         new BukkitRunnable() {
             private int ticks = 0;
 
@@ -718,10 +738,8 @@ public class HouseProtector implements Listener {
                 }
 
                 Location currentLoc = pearl.getLocation();
-                if (!houseManager.isTownWorld(currentLoc)) return;
-
-                // 비행 중 플레이어에게 권한이 없는 청크로 진입했을 때!
-                if (!houseManager.hasBuildPermission(player, currentLoc)) {
+                // 비행 중 타인의 사유지 청크로 진입했을 때만 차단 (아무도 없는 빈 땅은 통과!)
+                if (isRestrictedPearlArea(player, currentLoc)) {
                     cancel();
                     Location breakLoc = currentLoc.clone();
                     pearl.remove(); // 텔레포트 원천 차단을 위해 즉시 엔더진주 제거
@@ -733,7 +751,7 @@ public class HouseProtector implements Listener {
 
     /**
      * 엔더진주 텔레포트 2중 방어선
-     * (혹시 모를 틱 지연이나 낙하 착지 시점에 비권한 구역으로 순간이동되는 것 완벽 차단)
+     * (혹시 모를 틱 지연이나 낙하 착지 시점에 타인의 사유지로 순간이동되는 것 완벽 차단)
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlayerTeleport(PlayerTeleportEvent event) {
@@ -745,7 +763,7 @@ public class HouseProtector implements Listener {
         Location to = event.getTo();
         if (to == null || !houseManager.isTownWorld(to)) return;
 
-        if (!houseManager.hasBuildPermission(player, to)) {
+        if (isRestrictedPearlArea(player, to)) {
             event.setCancelled(true);
             playEnderPearlBreakEffect(player, to);
         }
@@ -760,8 +778,8 @@ public class HouseProtector implements Listener {
         // 엔더의 눈/진주 터질 때 나는 고유 소리만 깔끔하게 재생
         loc.getWorld().playSound(loc, Sound.ENTITY_ENDER_EYE_DEATH, 1.0f, 1.0f);
 
-        // 엔더진주가 깨지는 아이템 파티클만 깔끔하게 출력
-        loc.getWorld().spawnParticle(Particle.ITEM, loc, 35, 0.2, 0.2, 0.2, 0.08, new ItemStack(Material.ENDER_PEARL));
+        // 과하지 않게 소량(10개)의 엔더진주 파편 파티클만 톡 깨지도록 출력
+        loc.getWorld().spawnParticle(Particle.ITEM, loc, 10, 0.15, 0.15, 0.15, 0.05, new ItemStack(Material.ENDER_PEARL));
 
         // 플레이어에게 알림 메시지 및 사운드 전달
         if (player != null && player.isOnline()) {
