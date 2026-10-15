@@ -77,17 +77,67 @@ public class FishingMinigame {
 
     /**
      * 상자 상단 타이틀 Component 생성
-     * - 음수 오프셋(\uEBBB) 후 커스텀 GUI(\uEAAA) 렌더링
-     * - 그림자 제거: shadowColor(ShadowColor.none())
+     * - 음수 오프셋(\uEBBB) 후 커스텀 GUI(\uEAAA) 렌더링 (기존 설정 유지)
+     * - 좌측 상단: 남은 시간 타이머 (0.00 포맷)
+     * - 우측 상단: 잡은 횟수 카운트 (0/3 포맷)
      */
     public static Component buildDynamicTitle(double remainingSeconds, int currentHits, int targetHits) {
+        String timerText = String.format(Locale.US, "%.2f", Math.max(0.0, remainingSeconds));
+        String countText = currentHits + "/" + targetHits;
+
+        // GUI 끝(x=174)에서 좌측 상단(x=8)으로 복귀: \uEBBB(-10px)*17 + 공백(+4px) = -166px
+        String backToLeft = "\uEBBB".repeat(17) + " ";
+        int gapSpaces = calculateGapSpaces(timerText, countText);
+
         return Component.text()
-                // 1. 음수 오프셋(\uEBBB)이 앞에 오고, 그 다음 커스텀 GUI(\uEAAA) 렌더링 (원래 색상 유지를 위해 WHITE 지정)
+                // 1. 기존 유니코드 유지 (공백 \uEBBB + GUI \uEAAA)
                 .append(Component.text("\uEBBB\uEAAA")
                         .font(FONT_DEFAULT)
                         .color(NamedTextColor.WHITE)
                         .shadowColor(ShadowColor.none()))
+                // 2. 좌측 상단 타이머 (0.00)
+                .append(Component.text(backToLeft + timerText)
+                        .font(FONT_DEFAULT)
+                        .color(NamedTextColor.DARK_GRAY)
+                        .shadowColor(ShadowColor.none()))
+                // 3. 우측 상단 카운트 (0/3)
+                .append(Component.text(" ".repeat(gapSpaces) + countText)
+                        .font(FONT_DEFAULT)
+                        .color(NamedTextColor.DARK_GRAY)
+                        .shadowColor(ShadowColor.none()))
                 .build();
+    }
+
+    /**
+     * 좌측 타이머와 우측 카운트 사이의 공백 개수 계산
+     */
+    private static int calculateGapSpaces(String timerText, String countText) {
+        int timerWidth = estimateTextWidth(timerText);
+        int countWidth = estimateTextWidth(countText);
+        // 타이머 시작 x=8, 카운트 끝 목표 x=166 (전체 폭 176 - 우측 여백 10)
+        int timerEndX = 8 + timerWidth;
+        int countStartX = 166 - countWidth;
+        int gapPx = countStartX - timerEndX;
+        return Math.max(1, gapPx / 4);
+    }
+
+    /**
+     * 바닐라 폰트 기준 문자열 너비(px) 추정
+     */
+    private static int estimateTextWidth(String text) {
+        int width = 0;
+        for (char c : text.toCharArray()) {
+            if (c == '.') {
+                width += 2;
+            } else if (c == '/') {
+                width += 5;
+            } else if (c == ' ') {
+                width += 4;
+            } else {
+                width += 6; // 숫자(0~9) 등
+            }
+        }
+        return width;
     }
 
     /**
