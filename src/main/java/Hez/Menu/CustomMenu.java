@@ -58,7 +58,11 @@ public class CustomMenu implements InventoryHolder {
         ItemStack petItem = createMenuItem(Material.PAPER, "펫", "pet");
         setSlots(petItem, 10, 11, 12);
 
-        // 5. 21 집
+        // 5. (13, 14, 15) 집관리
+        ItemStack houseManageItem = createMenuItem(Material.PAPER, "집관리", "house_manage");
+        setSlots(houseManageItem, 13, 14, 15);
+
+        // 6. 21 집
         inventory.setItem(20, createMenuItem(Material.PAPER, "집", "house"));
 
         // 6. 22 마을

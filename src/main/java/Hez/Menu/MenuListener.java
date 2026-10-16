@@ -31,6 +31,12 @@ public class MenuListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMenuClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder() instanceof HouseManageMenu) {
+            // 집관리 메뉴창 안의 아이템 조작 금지
+            event.setCancelled(true);
+            return;
+        }
+
         if (!(event.getInventory().getHolder() instanceof CustomMenu)) {
             return;
         }
@@ -57,6 +63,10 @@ public class MenuListener implements Listener {
                     Hez.Encyclopedia.EncyclopediaMenu.openDefaultEncyclopedia(player);
                     break;
                 case "pet":
+                    break;
+                case "house_manage":
+                    HouseManageMenu.open(player);
+                    break;
                 case "house":
                     break;
                 case "town":
