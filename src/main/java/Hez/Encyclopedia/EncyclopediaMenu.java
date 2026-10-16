@@ -109,12 +109,13 @@ public class EncyclopediaMenu {
     /**
      * 도감 슬롯용 아이템 생성
      * - 이름은 마인팜도감리스트 이름 그대로
-     * - 미등록 시: customModelData = 0 (안보이게)
-     * - 등록 시: customModelData = 1 (보이게)
+     * - 미등록 시: 임시로 Material.PAPER 사용 (잠금 아이콘), customModelData = 0
+     * - 등록 시: 실제 도감 아이템 Material 사용, customModelData = 1
      * - lore는 보류
      */
     private static ItemStack createEncyclopediaSlotItem(EncyclopediaItem info, boolean unlocked) {
-        ItemStack item = new ItemStack(info.material());
+        Material mat = unlocked ? info.material() : Material.PAPER;
+        ItemStack item = new ItemStack(mat);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));

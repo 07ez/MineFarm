@@ -15,6 +15,7 @@ public class DefaultEncyclopediaRegistry {
 
     private static final Map<Integer, EncyclopediaItem> ITEMS_BY_INDEX = new HashMap<>();
     private static final Map<String, EncyclopediaItem> ITEMS_BY_NAME = new HashMap<>();
+    private static final Map<String, EncyclopediaItem> ITEMS_BY_KEY = new HashMap<>();
     private static final Map<Material, EncyclopediaItem> ITEMS_BY_MATERIAL = new HashMap<>();
 
     private static boolean initialized = false;
@@ -47,6 +48,12 @@ public class DefaultEncyclopediaRegistry {
                 ITEMS_BY_INDEX.put(index, item);
                 ITEMS_BY_NAME.put(name.replace(" ", ""), item);
 
+                // 영문 키 매핑 등록
+                String key = resolveInternalKey(index);
+                if (key != null) {
+                    ITEMS_BY_KEY.put(key.toLowerCase(), item);
+                }
+
                 // PAPER나 특수 공통 재료가 아닌 경우 Material 매핑에 등록
                 if (mat != Material.PAPER && mat != Material.AIR && !ITEMS_BY_MATERIAL.containsKey(mat)) {
                     ITEMS_BY_MATERIAL.put(mat, item);
@@ -73,24 +80,54 @@ public class DefaultEncyclopediaRegistry {
     public static EncyclopediaItem findMatchingItem(ItemStack stack) {
         if (stack == null || stack.getType().isAir()) return null;
 
-        // 1. 커스텀 이름(DisplayName) 우선 매칭
         if (stack.hasItemMeta()) {
             ItemMeta meta = stack.getItemMeta();
-            if (meta != null && meta.hasDisplayName()) {
-                String rawName = meta.getDisplayName();
-                String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
-                        .serialize(meta.displayName())
-                        .replaceAll("§[0-9a-fk-orA-FK-OR]", "")
-                        .replace(" ", "")
-                        .trim();
+            if (meta != null) {
+                // 1. PDC(PersistentDataContainer) 태그 확인 (string 값들 검사)
+                for (org.bukkit.NamespacedKey nKey : meta.getPersistentDataContainer().getKeys()) {
+                    String val = meta.getPersistentDataContainer().get(nKey, org.bukkit.persistence.PersistentDataType.STRING);
+                    if (val != null) {
+                        EncyclopediaItem matched = ITEMS_BY_KEY.get(val.toLowerCase());
+                        if (matched != null) return matched;
+                        matched = ITEMS_BY_NAME.get(val.replace(" ", ""));
+                        if (matched != null) return matched;
+                    }
+                }
 
-                EncyclopediaItem matched = ITEMS_BY_NAME.get(plain);
-                if (matched != null) return matched;
+                // 2. 커스텀 이름(DisplayName) 매칭
+                if (meta.hasDisplayName()) {
+                    String plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                            .serialize(meta.displayName())
+                            .replaceAll("§[0-9a-fk-orA-FK-OR]", "")
+                            .trim();
+
+                    EncyclopediaItem matched = ITEMS_BY_NAME.get(plain.replace(" ", ""));
+                    if (matched != null) return matched;
+
+                    matched = ITEMS_BY_KEY.get(plain.toLowerCase().replace(" ", "_"));
+                    if (matched != null) return matched;
+                }
             }
         }
 
-        // 2. 바닐라 Material 매칭
+        // 3. 바닐라 Material 매칭
         return ITEMS_BY_MATERIAL.get(stack.getType());
+    }
+
+    private static String resolveInternalKey(int index) {
+        return switch (index) {
+            case 54 -> "poplar_log";
+            case 55 -> "stripped_poplar_log";
+            case 56 -> "poplar_planks";
+            case 57 -> "poplar_sapling";
+            case 58 -> "red_poplar_leaves";
+            case 59 -> "orange_poplar_leaves";
+            case 60 -> "yellow_poplar_leaves";
+            case 323 -> "shelf_mushroom";
+            case 362 -> "dried_ghast";
+            case 382 -> "white_cushion";
+            default -> null;
+        };
     }
 
     /**
@@ -225,8 +262,17 @@ public class DefaultEncyclopediaRegistry {
             case 113 -> Material.SMOOTH_RED_SANDSTONE;
             case 114 -> Material.CHISELED_RED_SANDSTONE;
             case 115 -> Material.CUT_RED_SANDSTONE;
-            // 116 ~ 125 진사, 유황 (커스텀 아이템)
-            case 116, 117, 118, 119, 120, 121, 122, 123, 124, 125 -> Material.PAPER;
+            // 116 ~ 125 진사, 유황
+            case 116 -> Material.CINNABAR;
+            case 117 -> Material.POLISHED_CINNABAR;
+            case 118 -> Material.CHISELED_CINNABAR;
+            case 119 -> Material.CINNABAR_BRICKS;
+            case 120 -> Material.SULFUR;
+            case 121 -> Material.POLISHED_SULFUR;
+            case 122 -> Material.CHISELED_SULFUR;
+            case 123 -> Material.SULFUR_BRICKS;
+            case 124 -> Material.SULFUR_SPIKE;
+            case 125 -> Material.POTENT_SULFUR;
             // 126 ~ 136 흙, 모래
             case 126 -> Material.DIRT;
             case 127 -> Material.GRASS_BLOCK;
@@ -433,8 +479,9 @@ public class DefaultEncyclopediaRegistry {
             // 321 ~ 362 식물, 버섯, 꽃
             case 321 -> Material.BROWN_MUSHROOM;
             case 322 -> Material.RED_MUSHROOM;
-            case 323 -> Material.PAPER; // 선반버섯
-            case 324, 325 -> Material.DANDELION; // 민들레, 황금민들레
+            case 323 -> Material.PAPER; // 선반버섯 (shelf_mushroom)
+            case 324 -> Material.DANDELION;
+            case 325 -> Material.GOLDEN_DANDELION;
             case 326 -> Material.POPPY;
             case 327 -> Material.BLUE_ORCHID;
             case 328 -> Material.ALLIUM;
@@ -446,26 +493,32 @@ public class DefaultEncyclopediaRegistry {
             case 334 -> Material.ORANGE_TULIP;
             case 335 -> Material.WHITE_TULIP;
             case 336 -> Material.PINK_TULIP;
-            case 337 -> Material.PAPER; // 튜리판
+            case 337 -> Material.PAPER; // 튜리판 (오타 확인 예정)
             case 338 -> Material.TORCHFLOWER;
             case 339 -> Material.PITCHER_PLANT;
-            case 340, 341, 342 -> Material.PAPER; // 선인장꽃, 눈망울꽃
+            case 340 -> Material.CACTUS_FLOWER;
+            case 341 -> Material.CLOSED_EYEBLOSSOM;
+            case 342 -> Material.OPEN_EYEBLOSSOM;
             case 343 -> Material.WITHER_ROSE;
             case 344 -> Material.SUNFLOWER;
             case 345 -> Material.LILAC;
             case 346 -> Material.PEONY;
             case 347 -> Material.ROSE_BUSH;
             case 348 -> Material.PINK_PETALS;
-            case 349, 350 -> Material.PAPER; // 들꽃, 낙엽
+            case 349 -> Material.WILDFLOWERS;
+            case 350 -> Material.LEAF_LITTER;
             case 351 -> Material.SPORE_BLOSSOM;
-            case 352 -> Material.PAPER; // 반디불이덤불
+            case 352 -> Material.FIREFLY_BUSH;
             case 353 -> Material.SHORT_GRASS;
             case 354 -> Material.TALL_GRASS;
             case 355 -> Material.FERN;
             case 356 -> Material.LARGE_FERN;
-            case 357, 358, 359, 360 -> Material.PAPER; // 마른잔디, 붉은관목
+            case 357 -> Material.SHORT_DRY_GRASS;
+            case 358 -> Material.TALL_DRY_GRASS;
+            case 359 -> Material.PAPER; // 붉은관목
+            case 360 -> Material.BUSH;
             case 361 -> Material.DEAD_BUSH;
-            case 362 -> Material.PAPER; // 마른카스트
+            case 362 -> Material.PAPER; // 마른가스트 (dried_ghast)
             // 363 ~ 378 염료
             case 363 -> Material.WHITE_DYE;
             case 364 -> Material.LIGHT_GRAY_DYE;
@@ -499,7 +552,7 @@ public class DefaultEncyclopediaRegistry {
             case 391 -> Material.CLOCK;
             case 392 -> Material.SPYGLASS;
             case 393 -> Material.FIRE_CHARGE;
-            case 394 -> Material.PAPER; // 유황큐브양동이
+            case 394 -> Material.SULFUR_CUBE_BUCKET;
             case 395 -> Material.LAVA_BUCKET;
             case 396 -> Material.POWDER_SNOW_BUCKET;
             case 397 -> Material.BUNDLE;
