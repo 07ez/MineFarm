@@ -29,8 +29,16 @@ public class QuestMenu implements InventoryHolder {
     }
 
     public static void open(Player player) {
+        // 인벤토리(보관함 36칸) 백업 및 비우기
+        QuestInventoryManager.getInstance().backupAndClear(player);
+
         QuestMenu menu = new QuestMenu();
-        player.openInventory(menu.getInventory());
+        org.bukkit.inventory.InventoryView view = player.openInventory(menu.getInventory());
+        if (view == null) {
+            // 인벤토리 열기 실패 시 즉시 복구
+            QuestInventoryManager.getInstance().restore(player);
+            return;
+        }
         player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.0f);
     }
 

@@ -70,6 +70,7 @@ public class Main extends JavaPlugin {
             this.displayManager.clearAllDisplays();
         }
         Hez.CustomItem.Fish.FishingMinigame.clearAll();
+        Hez.Quest.QuestInventoryManager.getInstance().restoreAll();
     }
 
     private void InitFiles() {
@@ -152,6 +153,9 @@ public class Main extends JavaPlugin {
         Hez.Encyclopedia.DefaultEncyclopediaRegistry.init();
         getServer().getPluginManager().registerEvents(new Hez.Encyclopedia.EncyclopediaListener(), this);
 
+        // 퀘스트 인벤토리 백업/복원 및 안전 리스너 등록
+        getServer().getPluginManager().registerEvents(Hez.Quest.QuestInventoryManager.getInstance(), this);
+
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();
     }
@@ -177,6 +181,9 @@ public class Main extends JavaPlugin {
     public void reloadPlugin() {
         // 1. 현재 데이터 파일로 안전하게 저장
         SaveData();
+
+        // 1-1. 퀘스트 창을 열고 있는 플레이어 인벤토리 안전 복원
+        Hez.Quest.QuestInventoryManager.getInstance().restoreAll();
 
         // 2. 디스플레이 엔티티 및 미니게임 임시 데이터 정리
         if (this.cropsManager != null) {

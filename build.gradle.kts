@@ -18,6 +18,12 @@ java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
+val copyJar = tasks.register<Copy>("copyJar") {
+    from(tasks.jar.flatMap { it.archiveFile })
+    into(file("D:/03 MineCraftPlugin/MineFarm/plugin"))
+}
+
 tasks.jar {
-    destinationDirectory.set(file("D:/01Work/03 MineCraftPlugin/MineFarm/plugin"))
+    destinationDirectory.set(file("D:/기타/01 MineFarm/plugins"))
+    finalizedBy(copyJar)
 }
