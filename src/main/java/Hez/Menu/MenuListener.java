@@ -58,6 +58,7 @@ public class MenuListener implements Listener {
                     break;
                 case "pet":
                 case "house":
+                    break;
                 case "town":
                 case "wild":
                 case "museum":
@@ -66,6 +67,8 @@ public class MenuListener implements Listener {
                 case "fish":
                 case "ore":
                 case "tree":
+                    WarpManager.teleport(player, action);
+                    break;
                 case "wiki":
                 case "discord":
                 case "bug_report":

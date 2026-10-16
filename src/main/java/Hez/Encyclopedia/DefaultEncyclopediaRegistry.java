@@ -46,6 +46,7 @@ public class DefaultEncyclopediaRegistry {
                 EncyclopediaItem item = new EncyclopediaItem(index, name, mat);
 
                 ITEMS_BY_INDEX.put(index, item);
+                ITEMS_BY_NAME.put(name, item);
                 ITEMS_BY_NAME.put(name.replace(" ", ""), item);
 
                 // 영문 키 매핑 등록

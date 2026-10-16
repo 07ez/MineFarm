@@ -73,17 +73,17 @@ public class CustomMenu implements InventoryHolder {
         // 9. 25 은행
         inventory.setItem(24, createMenuItem(Material.PAPER, "은행", "bank"));
 
-        // 10. 26 작물
-        inventory.setItem(25, createMenuItem(Material.PAPER, "작물", "crops"));
+        // 10. 26 작물상점
+        inventory.setItem(25, createMenuItem(Material.PAPER, "작물상점", "crops"));
 
-        // 11. 27 물고기
-        inventory.setItem(26, createMenuItem(Material.PAPER, "물고기", "fish"));
+        // 11. 27 물고기상점
+        inventory.setItem(26, createMenuItem(Material.PAPER, "물고기상점", "fish"));
 
-        // 12. 35 광석
-        inventory.setItem(34, createMenuItem(Material.PAPER, "광석", "ore"));
+        // 12. 35 광석상점
+        inventory.setItem(34, createMenuItem(Material.PAPER, "광석상점", "ore"));
 
-        // 13. 36 나무
-        inventory.setItem(35, createMenuItem(Material.PAPER, "나무", "tree"));
+        // 13. 36 나무상점
+        inventory.setItem(35, createMenuItem(Material.PAPER, "나무상점", "tree"));
 
         // 14. 40 위키
         inventory.setItem(39, createMenuItem(Material.PAPER, "위키", "wiki"));
