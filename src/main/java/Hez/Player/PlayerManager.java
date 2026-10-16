@@ -26,6 +26,7 @@ public class PlayerManager implements Listener {
     @EventHandler
     public void OnJoin(PlayerJoinEvent event) {
         UUID playerUUID  = event.getPlayer().getUniqueId();
+        getOrCreatePlayerData(playerUUID);
         moneyManager.LoadPlayerMoney(playerUUID, 0); // 돈 정보 전달
     }
 
@@ -50,8 +51,14 @@ public class PlayerManager implements Listener {
                 // 레시피 해금용 보유 이력 로드
                 Hez.CustomItem.RecipeUntil.loadOwnedItems(uuid, ownedItems);
 
+                // 도감 데이터 로드 (비트마스크)
+                Hez.Encyclopedia.PlayerEncyclopedia encyclopedia = new Hez.Encyclopedia.PlayerEncyclopedia();
+                encyclopedia.loadMaskList(Hez.Encyclopedia.EncyclopediaType.DEFAULT, file.getIntegerList(uuidStr + ".encyclopedia.default"));
+                encyclopedia.loadMaskList(Hez.Encyclopedia.EncyclopediaType.FISH, file.getIntegerList(uuidStr + ".encyclopedia.fish"));
+                encyclopedia.loadMaskList(Hez.Encyclopedia.EncyclopediaType.COOK, file.getIntegerList(uuidStr + ".encyclopedia.cook"));
+
                 // 저장
-                PlayerData data = new PlayerData(uuid, money, chunkKeyList, 0, 0, 0, 0);
+                PlayerData data = new PlayerData(uuid, money, chunkKeyList, 0, 0, 0, 0, encyclopedia);
                 playersData.put(uuid, data);
 
             } catch (IllegalArgumentException e) {
@@ -80,6 +87,13 @@ public class PlayerManager implements Listener {
             file.set(uuidStr + ".totalCropsHarvest", data.totalCropsHarvest());
             // 레시피 재료 소유 이력 저장
             file.set(uuidStr + ".ownedRecipeItems", Hez.CustomItem.RecipeUntil.getOwnedItemsList(entry.getKey()));
+
+            // 도감 비트마스크 저장
+            if (data.encyclopedia() != null) {
+                file.set(uuidStr + ".encyclopedia.default", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.DEFAULT));
+                file.set(uuidStr + ".encyclopedia.fish", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.FISH));
+                file.set(uuidStr + ".encyclopedia.cook", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.COOK));
+            }
         }
 
         // 접속 중인 플레이어의 레시피 재료 이력도 누락 없이 저장
@@ -87,5 +101,13 @@ public class PlayerManager implements Listener {
             UUID u = online.getUniqueId();
             file.set(u.toString() + ".ownedRecipeItems", Hez.CustomItem.RecipeUntil.getOwnedItemsList(u));
         }
+    }
+
+    public PlayerData getPlayerData(UUID uuid) {
+        return playersData.get(uuid);
+    }
+
+    public PlayerData getOrCreatePlayerData(UUID uuid) {
+        return playersData.computeIfAbsent(uuid, u -> new PlayerData(u, 0, new ArrayList<>(), 0, 0, 0, 0, new Hez.Encyclopedia.PlayerEncyclopedia()));
     }
 }

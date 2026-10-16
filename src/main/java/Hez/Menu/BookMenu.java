@@ -166,6 +166,8 @@ public class BookMenu {
                 .append(createItemBadge("생선구이", false, "생선 + 밀가루 조합"))
                 .append(Component.text(" "))
                 .append(createItemBadge("회", false, "물고기 손질 요리"))
+                .append(Component.text("\n\n"))
+                .append(createCommandButton("📖 도감 열기", "/도감", "도감 GUI를 직접 엽니다."))
                 .append(Component.text("\n───────────────────\n", GRAY))
                 .append(createBackButton())
                 .build();

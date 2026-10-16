@@ -23,6 +23,7 @@ public class CommandManager {
         register("house", new HouseCommand(plugin), new HouseTabCompleter());
         register("menu", new MenuCommand());
         register("fish", new FishCommand(plugin), new FishTabCompleter());
+        register("encyclopedia", new EncyclopediaCommand(), new EncyclopediaTabCompleter());
     }
 
     /**

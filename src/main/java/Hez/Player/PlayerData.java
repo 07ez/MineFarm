@@ -1,6 +1,6 @@
 package Hez.Player;
 
-import Hez.House.ChunkKey;
+import Hez.Encyclopedia.PlayerEncyclopedia;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,8 +17,13 @@ public record PlayerData(
         int totalCropsHarvest,
         int totalFishCatch,
         int totalOreMining,
-        int totalJumps
+        int totalJumps,
 
-        // 퀘스트 기록용
+        // 도감 데이터 (비트마스크)
+        PlayerEncyclopedia encyclopedia
 ) {
+    public PlayerData(UUID playerUUID, int money, List<String> chunkList,
+                      int totalCropsHarvest, int totalFishCatch, int totalOreMining, int totalJumps) {
+        this(playerUUID, money, chunkList, totalCropsHarvest, totalFishCatch, totalOreMining, totalJumps, new PlayerEncyclopedia());
+    }
 }

@@ -11,6 +11,15 @@
     },
     {
       "type": "bitmap",
+      "file": "minecraft:font/menu.png",
+      "ascent": 13,
+      "height": 256,
+      "chars": [
+        "\uEAAB"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "minecraft:font/space.png",
       "ascent": -32768,
       "height": -10,
