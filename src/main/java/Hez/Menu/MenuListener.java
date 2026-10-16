@@ -1,5 +1,6 @@
 package Hez.Menu;
 
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -27,7 +28,7 @@ public class MenuListener implements Listener {
     /**
      * 메뉴 인벤토리 클릭 이벤트
      * - 메뉴 내 아이템 꺼내기/이동 방지
-     * - 태그(PDC) 또는 제목(DisplayName)으로 버튼 인식 예시
+     * - 워프 항목은 텔레포트(엔더맨 소리), 그 외 항목은 "띵" 소리 재생
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMenuClick(InventoryClickEvent event) {
@@ -51,24 +52,10 @@ public class MenuListener implements Listener {
 
         Player player = (Player) event.getWhoClicked();
 
-        // 1. [가장 추천] PDC 태그로 인식하는 방법:
+        boolean isWarp = false;
         String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
         if (action != null) {
-            // 나중에 기능 연결 시 사용할 수 있도록 구조화
             switch (action) {
-                case "mailbox":
-                case "quest":
-                    break;
-                case "encyclopedia":
-                    Hez.Encyclopedia.EncyclopediaMenu.openDefaultEncyclopedia(player);
-                    break;
-                case "pet":
-                    break;
-                case "house_manage":
-                    HouseManageMenu.open(player);
-                    break;
-                case "house":
-                    break;
                 case "town":
                 case "wild":
                 case "museum":
@@ -77,16 +64,30 @@ public class MenuListener implements Listener {
                 case "fish":
                 case "ore":
                 case "tree":
+                    isWarp = true;
                     WarpManager.teleport(player, action);
                     break;
+                case "encyclopedia":
+                    Hez.Encyclopedia.EncyclopediaMenu.openDefaultEncyclopedia(player);
+                    break;
+                case "house_manage":
+                    HouseManageMenu.open(player);
+                    break;
+                case "mailbox":
+                case "quest":
+                case "pet":
+                case "house":
                 case "wiki":
                 case "discord":
                 case "bug_report":
+                default:
                     break;
             }
         }
 
-        // 2. [참고] 제목(DisplayName)으로 인식하는 방법:
-        // net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(clicked.getItemMeta().displayName());
+        // 텔레포트(워프)를 제외한 메뉴 버튼을 클릭했을 때 "띵" 효과음 재생!
+        if (!isWarp) {
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.4f);
+        }
     }
 }
