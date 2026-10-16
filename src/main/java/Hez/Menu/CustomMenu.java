@@ -106,21 +106,20 @@ public class CustomMenu implements InventoryHolder {
 
     /**
      * 메뉴 아이템 생성 헬퍼
-     * - CustomModelData 제외
+     * - Material.PAPER, CustomModelData 1002 적용 (CreateItem 메커니즘)
      * - DisplayName 제목 설정
      * - PersistentDataContainer(PDC) 태그 부여 (안전한 식별용)
      */
-    private ItemStack createMenuItem(Material material, String title, String actionId) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Component.text(title).decoration(TextDecoration.ITALIC, false));
-            meta.setCustomModelData(null); // 모델데이터 제거
-            meta.getPersistentDataContainer().set(ACTION_KEY, PersistentDataType.STRING, actionId);
-            item.setItemMeta(meta);
-        }
-        return item;
-    }
+     private ItemStack createMenuItem(Material material, String title, String actionId) {
+         ItemStack item = Hez.CustomItem.CreateItem.create(material, "1002", title);
+         ItemMeta meta = item.getItemMeta();
+         if (meta != null) {
+             meta.displayName(Component.text(title).decoration(TextDecoration.ITALIC, false));
+             meta.getPersistentDataContainer().set(ACTION_KEY, PersistentDataType.STRING, actionId);
+             item.setItemMeta(meta);
+         }
+         return item;
+     }
 
     public static void open(Player player) {
         CustomMenu menu = new CustomMenu();

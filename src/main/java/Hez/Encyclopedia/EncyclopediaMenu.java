@@ -101,36 +101,45 @@ public class EncyclopediaMenu {
             inv.setItem(slot, null);
         }
 
-        // 마지막 6번째 줄 양끝: 이전으로 (슬롯 45), 다음으로 (슬롯 53) 임시 유리판 배치
-        inv.setItem(SLOT_PREV, createButton(Material.GLASS_PANE, "이전으로", ACTION_PREV));
-        inv.setItem(SLOT_NEXT, createButton(Material.GLASS_PANE, "다음으로", ACTION_NEXT));
+        // 마지막 6번째 줄 양끝: 이전으로 (슬롯 45, 1003), 다음으로 (슬롯 53, 1004) 페이퍼 배치
+        inv.setItem(SLOT_PREV, createButton(Material.PAPER, "1003", "이전으로", ACTION_PREV));
+        inv.setItem(SLOT_NEXT, createButton(Material.PAPER, "1004", "다음으로", ACTION_NEXT));
     }
 
     /**
      * 도감 슬롯용 아이템 생성
+     * - 미등록 시: Material.PAPER, customModelData = "1001" (CreateItem 방식)
+     * - 등록 시: 실제 도감 아이템 Material 사용
      * - 이름은 마인팜도감리스트 이름 그대로
-     * - 미등록 시: 임시로 Material.PAPER 사용 (잠금 아이콘), customModelData = 0
-     * - 등록 시: 실제 도감 아이템 Material 사용, customModelData = 1
      * - lore는 보류
      */
     private static ItemStack createEncyclopediaSlotItem(EncyclopediaItem info, boolean unlocked) {
-        Material mat = unlocked ? info.material() : Material.PAPER;
-        ItemStack item = new ItemStack(mat);
+        if (!unlocked) {
+            ItemStack item = Hez.CustomItem.CreateItem.create(Material.PAPER, "1001", info.name());
+            ItemMeta meta = item.getItemMeta();
+            if (meta != null) {
+                meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+                item.setItemMeta(meta);
+            }
+            return item;
+        }
+
+        // 등록된 아이템: 실제 Material 사용
+        ItemStack item = new ItemStack(info.material());
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
-            // 등록 여부에 따른 CustomModelData (등록: 1, 미등록: 0)
-            meta.setCustomModelData(unlocked ? 1 : 0);
             item.setItemMeta(meta);
         }
         return item;
     }
 
     /**
-     * 임시 버튼 아이템 생성 헬퍼
+     * 버튼 아이템 생성 헬퍼
+     * - Material.PAPER, CustomModelDataComponent 적용
      */
-    private static ItemStack createButton(Material material, String name, String action) {
-        ItemStack item = new ItemStack(material);
+    private static ItemStack createButton(Material material, String customModelData, String name, String action) {
+        ItemStack item = Hez.CustomItem.CreateItem.create(material, customModelData, name);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(name, NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
