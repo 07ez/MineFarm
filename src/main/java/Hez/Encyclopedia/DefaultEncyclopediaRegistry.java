@@ -198,8 +198,14 @@ public class DefaultEncyclopediaRegistry {
             case 51 -> Material.NETHER_WART_BLOCK;
             case 52 -> Material.CRIMSON_FUNGUS;
             case 53 -> Material.CRIMSON_NYLIUM;
-            // 54 ~ 60 포플러나무 (커스텀 아이템)
-            case 54, 55, 56, 57, 58, 59, 60 -> Material.PAPER;
+            // 54 ~ 60 포플러나무
+            case 54 -> resolveDynamicMaterial("POPLAR_LOG", "OAK_LOG");
+            case 55 -> resolveDynamicMaterial("STRIPPED_POPLAR_LOG", "STRIPPED_OAK_LOG");
+            case 56 -> resolveDynamicMaterial("POPLAR_PLANKS", "OAK_PLANKS");
+            case 57 -> resolveDynamicMaterial("POPLAR_SAPLING", "OAK_SAPLING");
+            case 58 -> resolveDynamicMaterial("RED_POPLAR_LEAVES", "OAK_LEAVES");
+            case 59 -> resolveDynamicMaterial("ORANGE_POPLAR_LEAVES", "OAK_LEAVES");
+            case 60 -> resolveDynamicMaterial("YELLOW_POPLAR_LEAVES", "OAK_LEAVES");
             // 61 ~ 66 맹그로브나무
             case 61 -> Material.MANGROVE_LOG;
             case 62 -> Material.STRIPPED_MANGROVE_LOG;
@@ -479,7 +485,7 @@ public class DefaultEncyclopediaRegistry {
             // 321 ~ 362 식물, 버섯, 꽃
             case 321 -> Material.BROWN_MUSHROOM;
             case 322 -> Material.RED_MUSHROOM;
-            case 323 -> Material.PAPER; // 선반버섯 (shelf_mushroom)
+            case 323 -> resolveDynamicMaterial("SHELF_MUSHROOM", "BROWN_MUSHROOM");
             case 324 -> Material.DANDELION;
             case 325 -> Material.GOLDEN_DANDELION;
             case 326 -> Material.POPPY;
@@ -493,7 +499,7 @@ public class DefaultEncyclopediaRegistry {
             case 334 -> Material.ORANGE_TULIP;
             case 335 -> Material.WHITE_TULIP;
             case 336 -> Material.PINK_TULIP;
-            case 337 -> Material.PAPER; // 튜리판 (오타 확인 예정)
+            case 337 -> Material.GLASS_PANE; // 유리판
             case 338 -> Material.TORCHFLOWER;
             case 339 -> Material.PITCHER_PLANT;
             case 340 -> Material.CACTUS_FLOWER;
@@ -515,10 +521,10 @@ public class DefaultEncyclopediaRegistry {
             case 356 -> Material.LARGE_FERN;
             case 357 -> Material.SHORT_DRY_GRASS;
             case 358 -> Material.TALL_DRY_GRASS;
-            case 359 -> Material.PAPER; // 붉은관목
+            case 359 -> resolveDynamicMaterial("RED_SHRUB", "DEAD_BUSH");
             case 360 -> Material.BUSH;
             case 361 -> Material.DEAD_BUSH;
-            case 362 -> Material.PAPER; // 마른가스트 (dried_ghast)
+            case 362 -> resolveDynamicMaterial("DRIED_GHAST", "GHAST_TEAR");
             // 363 ~ 378 염료
             case 363 -> Material.WHITE_DYE;
             case 364 -> Material.LIGHT_GRAY_DYE;
@@ -540,7 +546,7 @@ public class DefaultEncyclopediaRegistry {
             case 379 -> Material.WHITE_WOOL;
             case 380 -> Material.WHITE_BANNER;
             case 381 -> Material.WHITE_BED;
-            case 382 -> Material.PAPER; // 방석
+            case 382 -> resolveDynamicMaterial("WHITE_CUSHION", "WHITE_CARPET");
             case 383 -> Material.CANDLE;
             case 384 -> Material.GLASS;
             case 385 -> Material.TERRACOTTA;
@@ -595,5 +601,13 @@ public class DefaultEncyclopediaRegistry {
             case 432 -> Material.GUSTER_BANNER_PATTERN;
             default -> Material.PAPER;
         };
+    }
+
+    private static Material resolveDynamicMaterial(String... names) {
+        for (String name : names) {
+            Material mat = Material.matchMaterial(name);
+            if (mat != null) return mat;
+        }
+        return Material.PAPER;
     }
 }
