@@ -34,12 +34,21 @@ public class DefaultEncyclopediaRegistry {
             String line;
             while ((line = reader.readLine()) != null) {
                 line = line.trim();
+                // UTF-8 BOM(\uFEFF) 제거
+                if (line.startsWith("\uFEFF")) {
+                    line = line.substring(1).trim();
+                }
                 if (line.isEmpty()) continue;
 
                 int dotIdx = line.indexOf('.');
                 if (dotIdx == -1) continue;
 
-                int index = Integer.parseInt(line.substring(0, dotIdx).trim());
+                int index;
+                try {
+                    index = Integer.parseInt(line.substring(0, dotIdx).trim());
+                } catch (NumberFormatException nfe) {
+                    continue;
+                }
                 String name = line.substring(dotIdx + 1).trim();
 
                 Material mat = resolveMaterial(index, name);

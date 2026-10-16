@@ -88,11 +88,14 @@ public class PlayerManager implements Listener {
             // 레시피 재료 소유 이력 저장
             file.set(uuidStr + ".ownedRecipeItems", Hez.CustomItem.RecipeUntil.getOwnedItemsList(entry.getKey()));
 
-            // 도감 비트마스크 저장
+            // 도감 비트마스크 및 등록 수 저장
             if (data.encyclopedia() != null) {
                 file.set(uuidStr + ".encyclopedia.default", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.DEFAULT));
+                file.set(uuidStr + ".encyclopedia.defaultCount", data.encyclopedia().getUnlockedCount(Hez.Encyclopedia.EncyclopediaType.DEFAULT));
                 file.set(uuidStr + ".encyclopedia.fish", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.FISH));
+                file.set(uuidStr + ".encyclopedia.fishCount", data.encyclopedia().getUnlockedCount(Hez.Encyclopedia.EncyclopediaType.FISH));
                 file.set(uuidStr + ".encyclopedia.cook", data.encyclopedia().getMaskList(Hez.Encyclopedia.EncyclopediaType.COOK));
+                file.set(uuidStr + ".encyclopedia.cookCount", data.encyclopedia().getUnlockedCount(Hez.Encyclopedia.EncyclopediaType.COOK));
             }
         }
 

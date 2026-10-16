@@ -363,6 +363,9 @@ public class AddRecipe {
                 fishManager.fish("해삼").createItemStack(),
                 new ItemStack(Material.GOLDEN_CARROT)
         );
+
+        // 레시피 등록 완료 후, 기존 로드된 데이터 중 레시피 재료가 아닌 항목(예: 참나무 원목 등) 자동 정리
+        RecipeUntil.cleanUpNonRecipeIngredients();
     }
 
     private void addEggList(){

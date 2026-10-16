@@ -37,6 +37,9 @@ public class RecipeUntil implements Listener {
     // 그룹별 묶음 해금 지원 (예: 달걀 1종만 얻어도 fried_egg 그룹 전체 해금, 물고기 1종만 얻어도 sashimi/baked_fish 해금)
     private static final Map<String, List<NamespacedKey>> GROUP_KEYS = new ConcurrentHashMap<>();
 
+    // 등록된 레시피들의 모든 필수 재료 식별자 집합 (레시피 재료에 해당하는 아이템만 플레이어 이력에 저장)
+    private static final Set<String> ALL_RECIPE_INGREDIENT_IDS = ConcurrentHashMap.newKeySet();
+
     // 플레이어별 누적 획득한 재료 식별자 집합 (동시에 들고 있지 않아도 과거에 한 번이라도 소유했으면 기록 유지!)
     private static final Map<UUID, Set<String>> playerOwnedItems = new ConcurrentHashMap<>();
     // 플레이어별 이미 해금 완료된 레시피 키 집합
@@ -116,6 +119,7 @@ public class RecipeUntil implements Listener {
 
         Bukkit.addRecipe(recipe);
         REGISTERED_RECIPES.add(new RegisteredRecipeInfo(key, displayName, groupName, reqIds));
+        ALL_RECIPE_INGREDIENT_IDS.addAll(reqIds);
     }
 
     /**
@@ -155,10 +159,23 @@ public class RecipeUntil implements Listener {
 
         Bukkit.addRecipe(recipe);
         REGISTERED_RECIPES.add(new RegisteredRecipeInfo(key, displayName, groupName, reqIds));
+        ALL_RECIPE_INGREDIENT_IDS.addAll(reqIds);
     }
 
     /**
-     * 플레이어가 특정 아이템을 획득했을 때 기록하고 조건 충족 레시피를 즉시 해금
+     * 해당 아이템이 등록된 레시피들의 재료로 쓰이는지 여부 판별
+     */
+    public static boolean isRecipeIngredient(ItemStack item) {
+        if (item == null || item.getType() == Material.AIR) return false;
+        if (isAnyFishItem(item) && ALL_RECIPE_INGREDIENT_IDS.contains("GROUP:ANY_FISH")) {
+            return true;
+        }
+        String id = getItemIdentifier(item);
+        return id != null && ALL_RECIPE_INGREDIENT_IDS.contains(id);
+    }
+
+    /**
+     * 플레이어가 특정 아이템을 획득했을 때 레시피 재료에 해당하는 경우만 기록하고 조건 충족 레시피를 즉시 해금
      */
     public static void recordItemAcquired(Player player, ItemStack item) {
         if (player == null || item == null || item.getType() == Material.AIR) return;
@@ -168,10 +185,10 @@ public class RecipeUntil implements Listener {
 
         boolean addedNew = false;
         String id = getItemIdentifier(item);
-        if (id != null && owned.add(id)) {
+        if (id != null && ALL_RECIPE_INGREDIENT_IDS.contains(id) && owned.add(id)) {
             addedNew = true;
         }
-        if (isAnyFishItem(item) && owned.add("GROUP:ANY_FISH")) {
+        if (isAnyFishItem(item) && ALL_RECIPE_INGREDIENT_IDS.contains("GROUP:ANY_FISH") && owned.add("GROUP:ANY_FISH")) {
             addedNew = true;
         }
 
@@ -181,7 +198,7 @@ public class RecipeUntil implements Listener {
     }
 
     /**
-     * 플레이어의 전체 인벤토리를 스캔하여 보유 아이템을 기록하고 해금 가능한 모든 레시피 해금
+     * 플레이어의 전체 인벤토리를 스캔하여 레시피 재료 아이템만 보유 기록하고 해금 가능한 모든 레시피 해금
      */
     public static void scanInventoryAndUnlock(Player player) {
         if (player == null || !player.isOnline()) return;
@@ -193,10 +210,10 @@ public class RecipeUntil implements Listener {
         for (ItemStack item : player.getInventory().getContents()) {
             if (item == null || item.getType() == Material.AIR) continue;
             String id = getItemIdentifier(item);
-            if (id != null && owned.add(id)) {
+            if (id != null && ALL_RECIPE_INGREDIENT_IDS.contains(id) && owned.add(id)) {
                 added = true;
             }
-            if (isAnyFishItem(item) && owned.add("GROUP:ANY_FISH")) {
+            if (isAnyFishItem(item) && ALL_RECIPE_INGREDIENT_IDS.contains("GROUP:ANY_FISH") && owned.add("GROUP:ANY_FISH")) {
                 added = true;
             }
         }
@@ -247,15 +264,36 @@ public class RecipeUntil implements Listener {
     // =========================================================================
     // 데이터 저장/로드 연동용 헬퍼 (PlayerManager 연동)
     // =========================================================================
+
+    /**
+     * 레시피 등록 완료 후, 기존 로드된 데이터 중 실제 레시피 재료가 아닌 항목들을 일괄 제거
+     */
+    public static void cleanUpNonRecipeIngredients() {
+        for (Set<String> owned : playerOwnedItems.values()) {
+            owned.removeIf(id -> !ALL_RECIPE_INGREDIENT_IDS.contains(id));
+        }
+    }
+
     public static List<String> getOwnedItemsList(UUID uuid) {
         Set<String> set = playerOwnedItems.get(uuid);
-        return set != null ? new ArrayList<>(set) : List.of();
+        if (set == null) return List.of();
+        List<String> list = new ArrayList<>();
+        for (String id : set) {
+            if (ALL_RECIPE_INGREDIENT_IDS.contains(id)) {
+                list.add(id);
+            }
+        }
+        return list;
     }
 
     public static void loadOwnedItems(UUID uuid, List<String> items) {
         if (items == null) return;
         Set<String> owned = playerOwnedItems.computeIfAbsent(uuid, k -> ConcurrentHashMap.newKeySet());
-        owned.addAll(items);
+        for (String id : items) {
+            if (ALL_RECIPE_INGREDIENT_IDS.isEmpty() || ALL_RECIPE_INGREDIENT_IDS.contains(id)) {
+                owned.add(id);
+            }
+        }
     }
 
     // =========================================================================
