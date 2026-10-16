@@ -110,7 +110,17 @@ public class DefaultEncyclopediaRegistry {
             }
         }
 
-        // 3. 바닐라 Material 매칭
+        // 3. 음반(Record) 매칭: 어떤 종류의 음반이든 401번 "음반"으로 등록
+        if (stack.getType().isRecord()) {
+            return ITEMS_BY_INDEX.get(401);
+        }
+
+        // 4. 염소 뿔(GOAT_HORN) 매칭: 8가지 어떤 염소 뿔이든 400번 "염소뿔"로 등록
+        if (stack.getType() == Material.GOAT_HORN) {
+            return ITEMS_BY_INDEX.get(400);
+        }
+
+        // 5. 바닐라 Material 매칭
         return ITEMS_BY_MATERIAL.get(stack.getType());
     }
 
@@ -124,8 +134,8 @@ public class DefaultEncyclopediaRegistry {
             case 59 -> "orange_poplar_leaves";
             case 60 -> "yellow_poplar_leaves";
             case 323 -> "shelf_mushroom";
-            case 362 -> "dried_ghast";
-            case 382 -> "white_cushion";
+            case 361 -> "dried_ghast";
+            case 381 -> "white_cushion";
             default -> null;
         };
     }
@@ -499,56 +509,56 @@ public class DefaultEncyclopediaRegistry {
             case 334 -> Material.ORANGE_TULIP;
             case 335 -> Material.WHITE_TULIP;
             case 336 -> Material.PINK_TULIP;
-            case 337 -> Material.GLASS_PANE; // 유리판
-            case 338 -> Material.TORCHFLOWER;
-            case 339 -> Material.PITCHER_PLANT;
-            case 340 -> Material.CACTUS_FLOWER;
-            case 341 -> Material.CLOSED_EYEBLOSSOM;
-            case 342 -> Material.OPEN_EYEBLOSSOM;
-            case 343 -> Material.WITHER_ROSE;
-            case 344 -> Material.SUNFLOWER;
-            case 345 -> Material.LILAC;
-            case 346 -> Material.PEONY;
-            case 347 -> Material.ROSE_BUSH;
-            case 348 -> Material.PINK_PETALS;
-            case 349 -> Material.WILDFLOWERS;
-            case 350 -> Material.LEAF_LITTER;
-            case 351 -> Material.SPORE_BLOSSOM;
-            case 352 -> Material.FIREFLY_BUSH;
-            case 353 -> Material.SHORT_GRASS;
-            case 354 -> Material.TALL_GRASS;
-            case 355 -> Material.FERN;
-            case 356 -> Material.LARGE_FERN;
-            case 357 -> Material.SHORT_DRY_GRASS;
-            case 358 -> Material.TALL_DRY_GRASS;
-            case 359 -> resolveDynamicMaterial("RED_SHRUB", "DEAD_BUSH");
-            case 360 -> Material.BUSH;
-            case 361 -> Material.DEAD_BUSH;
-            case 362 -> resolveDynamicMaterial("DRIED_GHAST", "GHAST_TEAR");
-            // 363 ~ 378 염료
-            case 363 -> Material.WHITE_DYE;
-            case 364 -> Material.LIGHT_GRAY_DYE;
-            case 365 -> Material.GRAY_DYE;
-            case 366 -> Material.BLACK_DYE;
-            case 367 -> Material.BROWN_DYE;
-            case 368 -> Material.RED_DYE;
-            case 369 -> Material.ORANGE_DYE;
-            case 370 -> Material.YELLOW_DYE;
-            case 371 -> Material.LIME_DYE;
-            case 372 -> Material.GREEN_DYE;
-            case 373 -> Material.CYAN_DYE;
-            case 374 -> Material.LIGHT_BLUE_DYE;
-            case 375 -> Material.BLUE_DYE;
-            case 376 -> Material.PURPLE_DYE;
-            case 377 -> Material.MAGENTA_DYE;
-            case 378 -> Material.PINK_DYE;
-            // 379 ~ 404 기타 생활/도구/모험 아이템
-            case 379 -> Material.WHITE_WOOL;
-            case 380 -> Material.WHITE_BANNER;
-            case 381 -> Material.WHITE_BED;
-            case 382 -> resolveDynamicMaterial("WHITE_CUSHION", "WHITE_CARPET");
-            case 383 -> Material.CANDLE;
-            case 384 -> Material.GLASS;
+            case 337 -> Material.TORCHFLOWER;
+            case 338 -> Material.PITCHER_PLANT;
+            case 339 -> Material.CACTUS_FLOWER;
+            case 340 -> Material.CLOSED_EYEBLOSSOM;
+            case 341 -> Material.OPEN_EYEBLOSSOM;
+            case 342 -> Material.WITHER_ROSE;
+            case 343 -> Material.SUNFLOWER;
+            case 344 -> Material.LILAC;
+            case 345 -> Material.PEONY;
+            case 346 -> Material.ROSE_BUSH;
+            case 347 -> Material.PINK_PETALS;
+            case 348 -> Material.WILDFLOWERS;
+            case 349 -> Material.LEAF_LITTER;
+            case 350 -> Material.SPORE_BLOSSOM;
+            case 351 -> Material.FIREFLY_BUSH;
+            case 352 -> Material.SHORT_GRASS;
+            case 353 -> Material.TALL_GRASS;
+            case 354 -> Material.FERN;
+            case 355 -> Material.LARGE_FERN;
+            case 356 -> Material.SHORT_DRY_GRASS;
+            case 357 -> Material.TALL_DRY_GRASS;
+            case 358 -> resolveDynamicMaterial("RED_SHRUB", "DEAD_BUSH");
+            case 359 -> Material.BUSH;
+            case 360 -> Material.DEAD_BUSH;
+            case 361 -> resolveDynamicMaterial("DRIED_GHAST", "GHAST_TEAR");
+            // 362 ~ 377 염료
+            case 362 -> Material.WHITE_DYE;
+            case 363 -> Material.LIGHT_GRAY_DYE;
+            case 364 -> Material.GRAY_DYE;
+            case 365 -> Material.BLACK_DYE;
+            case 366 -> Material.BROWN_DYE;
+            case 367 -> Material.RED_DYE;
+            case 368 -> Material.ORANGE_DYE;
+            case 369 -> Material.YELLOW_DYE;
+            case 370 -> Material.LIME_DYE;
+            case 371 -> Material.GREEN_DYE;
+            case 372 -> Material.CYAN_DYE;
+            case 373 -> Material.LIGHT_BLUE_DYE;
+            case 374 -> Material.BLUE_DYE;
+            case 375 -> Material.PURPLE_DYE;
+            case 376 -> Material.MAGENTA_DYE;
+            case 377 -> Material.PINK_DYE;
+            // 378 ~ 404 기타 생활/도구/모험 아이템
+            case 378 -> Material.WHITE_WOOL;
+            case 379 -> Material.WHITE_BANNER;
+            case 380 -> Material.WHITE_BED;
+            case 381 -> resolveDynamicMaterial("WHITE_CUSHION", "WHITE_CARPET");
+            case 382 -> Material.CANDLE;
+            case 383 -> Material.GLASS;
+            case 384 -> Material.GLASS_PANE; // 유리와 테라코타 사이의 유리판
             case 385 -> Material.TERRACOTTA;
             case 386 -> Material.WHITE_GLAZED_TERRACOTTA;
             case 387 -> Material.WHITE_CONCRETE;
