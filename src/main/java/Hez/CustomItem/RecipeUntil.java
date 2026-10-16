@@ -266,6 +266,20 @@ public class RecipeUntil implements Listener {
     // =========================================================================
 
     /**
+     * 리로드 시 등록된 레시피 및 관련 캐시를 완전히 초기화
+     */
+    public static void resetRecipes() {
+        for (RegisteredRecipeInfo info : REGISTERED_RECIPES) {
+            Bukkit.removeRecipe(info.key());
+        }
+        REGISTERED_RECIPES.clear();
+        GROUP_KEYS.clear();
+        ALL_RECIPE_INGREDIENT_IDS.clear();
+        playerOwnedItems.clear();
+        playerUnlockedRecipes.clear();
+    }
+
+    /**
      * 레시피 등록 완료 후, 기존 로드된 데이터 중 실제 레시피 재료가 아닌 항목들을 일괄 제거
      */
     public static void cleanUpNonRecipeIngredients() {

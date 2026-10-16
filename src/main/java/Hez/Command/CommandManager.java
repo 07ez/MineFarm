@@ -24,6 +24,7 @@ public class CommandManager {
         register("menu", new MenuCommand());
         register("fish", new FishCommand(plugin), new FishTabCompleter());
         register("encyclopedia", new EncyclopediaCommand(), new EncyclopediaTabCompleter());
+        register("mf", new MfCommand(plugin), new MfTabCompleter());
     }
 
     /**

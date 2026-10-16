@@ -22,5 +22,9 @@ commands:
   encyclopedia:
     description: 도감 GUI를 엽니다.
     aliases: [도감, guide]
+  mf:
+    description: 마인팜 플러그인 관리 및 리로드 명령어입니다.
+    aliases: [minefarm]
+    permission: minefarm.admin
 
 softdepend: [PlaceholderAPI]

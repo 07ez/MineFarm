@@ -171,6 +171,54 @@ public class Main extends JavaPlugin {
         }
     }
 
+    /**
+     * 플러그인의 모든 데이터, 설정, 리스너, 스케줄러 태스크, 레시피를 안전하게 전체 리로드합니다.
+     */
+    public void reloadPlugin() {
+        // 1. 현재 데이터 파일로 안전하게 저장
+        SaveData();
+
+        // 2. 디스플레이 엔티티 및 미니게임 임시 데이터 정리
+        if (this.cropsManager != null) {
+            this.cropsManager.clearAllDisplays();
+        }
+        if (this.displayManager != null) {
+            this.displayManager.clearAllDisplays();
+        }
+        Hez.CustomItem.Fish.FishingMinigame.clearAll();
+
+        // 3. 실행 중인 플러그인 스케줄러 태스크 모두 취소
+        Bukkit.getScheduler().cancelTasks(this);
+
+        // 4. 등록된 모든 이벤트 리스너 해제 (중복 등록 방지)
+        org.bukkit.event.HandlerList.unregisterAll(this);
+
+        // 5. 등록된 커스텀 레시피 및 캐시 초기화
+        Hez.CustomItem.RecipeUntil.resetRecipes();
+
+        // 6. 설정 및 데이터 파일 다시 로드
+        InitFiles();
+
+        // 7. 매니저 새로 초기화
+        InitManager();
+
+        // 8. 데이터 로딩, 리스너 재등록, 태스크 재시작, 커맨드 재바인딩
+        LoadData();
+
+        // 9. 레시피 재등록
+        new AddRecipe(this).registarAll();
+
+        // 10. 현재 접속 중인 온라인 플레이어 상태 재동기화
+        for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+            java.util.UUID uuid = player.getUniqueId();
+            Hez.Player.PlayerData data = playerManager.getOrCreatePlayerData(uuid);
+            if (this.moneyManager != null && data != null) {
+                this.moneyManager.LoadPlayerMoney(uuid, data.money());
+            }
+            Hez.CustomItem.RecipeUntil.scanInventoryAndUnlock(player);
+        }
+    }
+
     public static Main getInstance() { return instance; }
     public MoneyManager getMoneyManager() {
         return moneyManager;

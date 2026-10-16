@@ -1,6 +1,7 @@
 package Hez.Menu;
 
 import Hez.House.HouseData;
+import Hez.House.HouseManager;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -33,6 +34,44 @@ public class MenuListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMenuClick(InventoryClickEvent event) {
+        if (event.getInventory().getHolder() instanceof HouseMemberActionMenu actionMenu) {
+            // 1x5 멤버 관리 확인창 조작 금지
+            event.setCancelled(true);
+
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || !clicked.hasItemMeta()) return;
+
+            Player player = (Player) event.getWhoClicked();
+            String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
+            if (action == null) return;
+
+            if (action.equals("member_action_cancel")) {
+                // 1번 자리 (1006): 취소 / 뒤로가기
+                player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+                HouseManageMenu.open(player);
+            } else if (action.equals("member_action_confirm")) {
+                // 5번 자리 (1005): 확인 / 멤버 추가 또는 추방
+                HouseManager houseManager = Hez.MineFarm.Main.getInstance().getHouseManager();
+                HouseData house = houseManager.getOrCreateHouseData(player.getUniqueId());
+                org.bukkit.OfflinePlayer target = actionMenu.getTarget();
+                String targetName = (target.getName() != null) ? target.getName() : "플레이어";
+
+                if (actionMenu.isMember()) {
+                    // 이미 멤버인 경우 -> 멤버 제외
+                    house.removeMember(target.getUniqueId());
+                    player.sendMessage("§e[집관리] " + targetName + "님을 영지 멤버에서 제외하였습니다.");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 0.8f);
+                } else {
+                    // 외지인인 경우 -> 멤버 추가
+                    house.addMember(target.getUniqueId());
+                    player.sendMessage("§a[집관리] " + targetName + "님을 영지 멤버로 추가하였습니다!");
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.2f);
+                }
+                HouseManageMenu.open(player);
+            }
+            return;
+        }
+
         if (event.getInventory().getHolder() instanceof HouseManageMenu houseMenu) {
             // 집관리 메뉴창 안의 아이템 조작 금지
             event.setCancelled(true);
@@ -43,6 +82,20 @@ public class MenuListener implements Listener {
             }
 
             Player player = (Player) event.getWhoClicked();
+
+            // 머리 클릭 감지 (멤버 머리 또는 외지인 머리)
+            String targetUuidStr = clicked.getItemMeta().getPersistentDataContainer().get(HouseMemberActionMenu.TARGET_UUID_KEY, PersistentDataType.STRING);
+            if (targetUuidStr != null) {
+                try {
+                    java.util.UUID targetUuid = java.util.UUID.fromString(targetUuidStr);
+                    org.bukkit.OfflinePlayer targetOp = org.bukkit.Bukkit.getOfflinePlayer(targetUuid);
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+                    HouseMemberActionMenu.open(player, targetOp);
+                } catch (IllegalArgumentException ignored) {
+                }
+                return;
+            }
+
             String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
             if (action == null) return;
 

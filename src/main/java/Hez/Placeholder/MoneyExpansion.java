@@ -7,8 +7,6 @@ import org.bukkit.OfflinePlayer;
 
 public class MoneyExpansion extends PlaceholderExpansion {
 
-    MoneyManager moneyManager = Main.getInstance().getMoneyManager();
-
     @Override
     public String getIdentifier(){
         return "mfmoney";
@@ -32,6 +30,9 @@ public class MoneyExpansion extends PlaceholderExpansion {
     @Override
     public String onRequest(OfflinePlayer player, String params) {
         if (player == null) return "";
+
+        MoneyManager moneyManager = Main.getInstance().getMoneyManager();
+        if (moneyManager == null) return "";
 
         // %mfmoney_balance% : 단순 숫자 반환 (예: 15000)
         if (params.equalsIgnoreCase("balance")) {

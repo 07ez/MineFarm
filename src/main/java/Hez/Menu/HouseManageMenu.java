@@ -92,7 +92,9 @@ public class HouseManageMenu implements InventoryHolder {
                 List<Component> lore = new ArrayList<>();
                 lore.add(Component.text("§7영지 멤버").decoration(TextDecoration.ITALIC, false));
                 lore.add(Component.text(op.isOnline() ? "§a● 온라인" : "§7○ 오프라인").decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("§e▶ 클릭하여 관리").decoration(TextDecoration.ITALIC, false));
                 meta.lore(lore);
+                meta.getPersistentDataContainer().set(HouseMemberActionMenu.TARGET_UUID_KEY, PersistentDataType.STRING, op.getUniqueId().toString());
                 skull.setItemMeta(meta);
             }
             inventory.setItem(memberSlots[memberIdx], skull);
@@ -125,7 +127,9 @@ public class HouseManageMenu implements InventoryHolder {
                 List<Component> lore = new ArrayList<>();
                 lore.add(Component.text("§7외지인 (방문자)").decoration(TextDecoration.ITALIC, false));
                 lore.add(Component.text(op.isOnline() ? "§a● 온라인" : "§7○ 오프라인").decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("§e▶ 클릭하여 관리").decoration(TextDecoration.ITALIC, false));
                 meta.lore(lore);
+                meta.getPersistentDataContainer().set(HouseMemberActionMenu.TARGET_UUID_KEY, PersistentDataType.STRING, op.getUniqueId().toString());
                 skull.setItemMeta(meta);
             }
             inventory.setItem(strangerSlots[strangerIdx], skull);
