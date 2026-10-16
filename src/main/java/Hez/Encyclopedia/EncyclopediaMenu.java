@@ -1,6 +1,7 @@
 package Hez.Encyclopedia;
 
 import Hez.MineFarm.Main;
+import Hez.Player.PlayerData;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -19,6 +20,8 @@ public class EncyclopediaMenu {
 
     // 9x6 형태 (큰 상자: 54칸)
     public static final int INVENTORY_SIZE = 54;
+    // 한 페이지당 도감 아이템 배치 슬롯 수 (0~44: 총 45칸)
+    public static final int ITEMS_PER_PAGE = 45;
 
     // 6번째 줄 양끝 슬롯 인덱스 (0-based)
     public static final int SLOT_PREV = 45;
@@ -33,7 +36,7 @@ public class EncyclopediaMenu {
     /**
      * 기본 도감 GUI 타이틀
      * - [\uEBBB][\uE100] : 음수 스페이서(\uEBBB) + GUI 배경 텍스처 문자(\uE100)
-     * - 어둡게 보이지 않도록 전체 및 하위 모두 color: WHITE 설정
+     * - 어둡게 보이지 않도록 color: WHITE 설정
      */
     public static final Component DEFAULT_TITLE = Component.text()
             .append(Component.text("\uEBBB\uE100")
@@ -52,7 +55,6 @@ public class EncyclopediaMenu {
 
     /**
      * 특정 페이지의 기본 도감 GUI 오픈
-     * - 6번째 줄 양끝(슬롯 45, 53)에 임시 유리판("이전으로", "다음으로") 배치
      */
     public static void openDefaultEncyclopedia(Player player, int page) {
         if (page < 1) page = 1;
@@ -61,11 +63,66 @@ public class EncyclopediaMenu {
         Inventory inv = Bukkit.createInventory(holder, INVENTORY_SIZE, DEFAULT_TITLE);
         holder.setInventory(inv);
 
+        // 아이템 렌더링
+        renderPage(player, inv, page);
+
+        player.openInventory(inv);
+    }
+
+    /**
+     * 도감 인벤토리 내용 렌더링 / 갱신
+     */
+    public static void renderPage(Player player, Inventory inv, int page) {
+        PlayerData pData = Main.getInstance().getPlayerManager().getOrCreatePlayerData(player.getUniqueId());
+        PlayerEncyclopedia enc = pData.encyclopedia();
+
+        int startIndex = (page - 1) * ITEMS_PER_PAGE + 1;
+        int totalItems = DefaultEncyclopediaRegistry.getTotalItemCount();
+
+        // 1~5번째 줄 (슬롯 0 ~ 44): 도감 아이템 배치
+        for (int slot = 0; slot < ITEMS_PER_PAGE; slot++) {
+            int itemIndex = startIndex + slot;
+            if (itemIndex <= totalItems) {
+                EncyclopediaItem info = DefaultEncyclopediaRegistry.getItem(itemIndex);
+                if (info != null) {
+                    boolean unlocked = enc.isUnlocked(EncyclopediaType.DEFAULT, itemIndex);
+                    ItemStack item = createEncyclopediaSlotItem(info, unlocked);
+                    inv.setItem(slot, item);
+                } else {
+                    inv.setItem(slot, null);
+                }
+            } else {
+                inv.setItem(slot, null);
+            }
+        }
+
+        // 6번째 줄: 가운데 비우기
+        for (int slot = 46; slot <= 52; slot++) {
+            inv.setItem(slot, null);
+        }
+
         // 마지막 6번째 줄 양끝: 이전으로 (슬롯 45), 다음으로 (슬롯 53) 임시 유리판 배치
         inv.setItem(SLOT_PREV, createButton(Material.GLASS_PANE, "이전으로", ACTION_PREV));
         inv.setItem(SLOT_NEXT, createButton(Material.GLASS_PANE, "다음으로", ACTION_NEXT));
+    }
 
-        player.openInventory(inv);
+    /**
+     * 도감 슬롯용 아이템 생성
+     * - 이름은 마인팜도감리스트 이름 그대로
+     * - 미등록 시: customModelData = 0 (안보이게)
+     * - 등록 시: customModelData = 1 (보이게)
+     * - lore는 보류
+     */
+    private static ItemStack createEncyclopediaSlotItem(EncyclopediaItem info, boolean unlocked) {
+        ItemStack item = new ItemStack(info.material());
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
+            // 등록 여부에 따른 CustomModelData (등록: 1, 미등록: 0)
+            meta.setCustomModelData(unlocked ? 1 : 0);
+            item.setItemMeta(meta);
+        }
+        return item;
     }
 
     /**

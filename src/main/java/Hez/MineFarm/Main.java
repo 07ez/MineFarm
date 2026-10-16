@@ -148,7 +148,8 @@ public class Main extends JavaPlugin {
         this.playerManager.LoadData(playerDataFileConfig);
         getServer().getPluginManager().registerEvents(this.playerManager, this);
 
-        // 도감 리스너 등록
+        // 도감 리스트 및 리스너 등록
+        Hez.Encyclopedia.DefaultEncyclopediaRegistry.init();
         getServer().getPluginManager().registerEvents(new Hez.Encyclopedia.EncyclopediaListener(), this);
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
