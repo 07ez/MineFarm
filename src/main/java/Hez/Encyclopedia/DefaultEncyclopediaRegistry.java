@@ -52,7 +52,8 @@ public class DefaultEncyclopediaRegistry {
                 String name = line.substring(dotIdx + 1).trim();
 
                 Material mat = resolveMaterial(index, name);
-                EncyclopediaItem item = new EncyclopediaItem(index, name, mat);
+                int reqAmount = resolveRequiredAmount(index);
+                EncyclopediaItem item = new EncyclopediaItem(index, name, mat, reqAmount);
 
                 ITEMS_BY_INDEX.put(index, item);
                 ITEMS_BY_NAME.put(name, item);
@@ -130,7 +131,12 @@ public class DefaultEncyclopediaRegistry {
             return ITEMS_BY_INDEX.get(400);
         }
 
-        // 5. 바닐라 Material 매칭
+        // 5. 침대(Bed) 매칭: 16가지 어떤 색상의 침대든 380번 "침대"로 등록
+        if (stack.getType().name().endsWith("_BED")) {
+            return ITEMS_BY_INDEX.get(380);
+        }
+
+        // 6. 바닐라 Material 매칭
         return ITEMS_BY_MATERIAL.get(stack.getType());
     }
 
@@ -629,5 +635,78 @@ public class DefaultEncyclopediaRegistry {
             if (mat != null) return mat;
         }
         return Material.PAPER;
+    }
+
+    /**
+     * 도감 아이템별 등록에 필요한 수량 산정
+     * - 기본: 10개
+     * - 황금 사과 (292번): 3개
+     * - 희귀/비적재 아이템 및 특정 장식/무늬/특수 아이템: 1개
+     */
+    public static int resolveRequiredAmount(int index) {
+        // 1개 필요 품목들
+        return switch (index) {
+            // 네더라이트 관련
+            case 170, // 고대 잔해
+                 171, // 네더라이트 파편
+                 172, // 네더라이트 주괴
+                 173, // 네더라이트 블록
+                 174, // 네더라이트 강화
+                 195, // 리스폰 정박기
+                 200, // 가스트 눈물 (또는 마른 가스트)
+                 201, // 피글린 머리
+                 202, // 위더 스켈레톤 해골
+                 203, // 네더의 별
+                 204, // 신호기
+                 214, // 엔더의 눈
+                 215, // 셜커 껍데기
+                 216, // 셜커 상자
+                 217, // 엔드 수정
+                 218, // 드래곤 머리
+                 219, // 드래곤의 숨결
+                 220, // 겉날개
+                 228, // 시련 열쇠
+                 229, // 불길한 시련 열쇠
+                 230, // 철퇴
+                 231, // 거북 알
+                 232, // 거북 인갑
+                 233, // 거북 등딱지
+                 234, // 스니퍼 알
+                 241, // 바다의 심장
+                 242, // 앵무조개 껍데기
+                 244, // 전달체
+                 245, // 삼지창
+                 // 각 양동이들
+                 246, 247, 248, 249, 250, 251, 252, 394, 395, 396,
+                 293, // 마법이 부여된 황금 사과
+                 318, // 스켈레톤 해골
+                 319, // 좀비 머리
+                 320, // 크리퍼 머리
+                 361, // 마른 가스트
+                 380, // 침대
+                 389, // 나침반
+                 390, // 만회 나침반
+                 391, // 시계
+                 392, // 망원경
+                 393, // 화염구
+                 397, // 꾸러미
+                 398, // 방패
+                 399, // 네더라이트 괭이
+                 400, // 염소 뿔
+                 401, // 음반
+                 402, // 불사의 토템
+                 403, // 경험치 병
+                 // 각 형판(갑옷 장식 405 ~ 422)
+                 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 420, 421, 422,
+                 // 각 현수막 무늬 (423 ~ 432)
+                 423, 424, 425, 426, 427, 428, 429, 430, 431, 432
+                 -> 1;
+
+            // 황금 사과 (292번): 3개
+            case 292 -> 3;
+
+            // 그 외 모든 기본 도감 아이템: 10개
+            default -> 10;
+        };
     }
 }

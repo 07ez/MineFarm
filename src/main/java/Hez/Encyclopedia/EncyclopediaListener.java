@@ -50,15 +50,51 @@ public class EncyclopediaListener implements Listener {
                 return;
             }
 
-            // 아이템 1개 차감
-            clicked.subtract(1);
+            int required = match.requiredAmount();
+
+            // 1. 클릭한 스택 단독으로 수량을 만족하는 경우
+            if (clicked.getAmount() >= required) {
+                clicked.subtract(required);
+            } else {
+                // 2. 여러 슬롯에 나뉘어 있을 경우 전체 인벤토리에서 동일 아이템 수량 합산 확인
+                int totalOwned = 0;
+                for (ItemStack invItem : player.getInventory().getContents()) {
+                    if (invItem != null && !invItem.getType().isAir()) {
+                        EncyclopediaItem itemMatch = DefaultEncyclopediaRegistry.findMatchingItem(invItem);
+                        if (itemMatch != null && itemMatch.index() == match.index()) {
+                            totalOwned += invItem.getAmount();
+                        }
+                    }
+                }
+
+                if (totalOwned < required) {
+                    player.sendMessage(Component.text("§c" + match.name() + " 이(가) 부족합니다. (" + totalOwned + "/" + required + "개 보유)"));
+                    return;
+                }
+
+                // 전체 인벤토리에서 차감 진행
+                int toDeduct = required;
+                ItemStack[] contents = player.getInventory().getContents();
+                for (int i = 0; i < contents.length; i++) {
+                    ItemStack invItem = contents[i];
+                    if (invItem != null && !invItem.getType().isAir()) {
+                        EncyclopediaItem itemMatch = DefaultEncyclopediaRegistry.findMatchingItem(invItem);
+                        if (itemMatch != null && itemMatch.index() == match.index()) {
+                            int take = Math.min(toDeduct, invItem.getAmount());
+                            invItem.subtract(take);
+                            toDeduct -= take;
+                            if (toDeduct <= 0) break;
+                        }
+                    }
+                }
+            }
 
             // 비트마스크 등록 (1 << bit)
             enc.setUnlocked(EncyclopediaType.DEFAULT, match.index(), true);
 
             // 성공 피드백
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
-            player.sendMessage(Component.text("§a[도감] " + match.name() + " 이(가) 도감에 등록되었습니다! (" + enc.getUnlockedCount(EncyclopediaType.DEFAULT) + "/432)"));
+            player.sendMessage(Component.text("§a[도감] " + match.name() + " (" + required + "개) 이(가) 도감에 등록되었습니다! (" + enc.getUnlockedCount(EncyclopediaType.DEFAULT) + "/432)"));
 
             // 현재 열려있는 도감 GUI 슬롯 즉시 갱신 (customModelData 0 -> 1 로 보여짐)
             EncyclopediaMenu.renderPage(player, event.getView().getTopInventory(), holder.getPage());

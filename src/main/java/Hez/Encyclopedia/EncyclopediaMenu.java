@@ -116,6 +116,7 @@ public class EncyclopediaMenu {
     private static ItemStack createEncyclopediaSlotItem(EncyclopediaItem info, boolean unlocked) {
         if (!unlocked) {
             ItemStack item = Hez.CustomItem.CreateItem.create(Material.PAPER, "1001", info.name());
+            item.setAmount(info.requiredAmount());
             ItemMeta meta = item.getItemMeta();
             if (meta != null) {
                 meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
@@ -124,8 +125,8 @@ public class EncyclopediaMenu {
             return item;
         }
 
-        // 등록된 아이템: 실제 Material 사용
-        ItemStack item = new ItemStack(info.material());
+        // 등록된 아이템: 실제 Material 사용 (수량은 1개 또는 등록 완료 표시)
+        ItemStack item = new ItemStack(info.material(), 1);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.displayName(Component.text(info.name(), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
