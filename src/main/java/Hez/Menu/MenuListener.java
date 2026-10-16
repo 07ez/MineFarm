@@ -2,17 +2,27 @@ package Hez.Menu;
 
 import Hez.House.HouseData;
 import Hez.House.HouseManager;
+import Hez.Quest.QuestMenu;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 public class MenuListener implements Listener {
+
+    // 중복 호출 방지용 쿨다운 (Shift+F 및 마우스 연타/더블클릭 방지)
+    private static final Map<UUID, Long> openCooldown = new ConcurrentHashMap<>();
+    private static final Map<UUID, Long> clickCooldown = new ConcurrentHashMap<>();
 
     /**
      * 웅크리기(Shift) + F키 (스왑 핸드) 감지 시 9x6 커스텀 GUI 메뉴 오픈
@@ -23,6 +33,13 @@ public class MenuListener implements Listener {
 
         if (player.isSneaking()) {
             event.setCancelled(true);
+
+            long now = System.currentTimeMillis();
+            if (now - openCooldown.getOrDefault(player.getUniqueId(), 0L) < 250) {
+                return;
+            }
+            openCooldown.put(player.getUniqueId(), now);
+
             CustomMenu.open(player);
         }
     }
@@ -34,6 +51,23 @@ public class MenuListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMenuClick(InventoryClickEvent event) {
+
+        // 마인크래프트의 더블클릭(아이템 모으기) 패킷 무시
+        if (event.getClick() == ClickType.DOUBLE_CLICK) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (event.getInventory().getHolder() instanceof MailboxMenu) {
+            // 우편함 메뉴창 안의 아이템 조작 금지
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getInventory().getHolder() instanceof QuestMenu) {
+            // 퀘스트 메뉴창 안의 아이템 조작 금지
+            event.setCancelled(true);
+            return;
+        }
         if (event.getInventory().getHolder() instanceof HouseMemberActionMenu actionMenu) {
             // 1x5 멤버 관리 확인창 조작 금지
             event.setCancelled(true);
@@ -142,7 +176,16 @@ public class MenuListener implements Listener {
 
         Player player = (Player) event.getWhoClicked();
 
+        // 마우스 클릭 쿨다운 (0.15초 이내 중복 클릭 차단)
+        long now = System.currentTimeMillis();
+        if (now - clickCooldown.getOrDefault(player.getUniqueId(), 0L) < 150) {
+            return;
+        }
+        clickCooldown.put(player.getUniqueId(), now);
+
         boolean isWarp = false;
+        boolean isSubMenu = false;
+
         String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
         if (action != null) {
             switch (action) {
@@ -158,13 +201,21 @@ public class MenuListener implements Listener {
                     WarpManager.teleport(player, action);
                     break;
                 case "encyclopedia":
+                    isSubMenu = true;
                     Hez.Encyclopedia.EncyclopediaMenu.openDefaultEncyclopedia(player);
                     break;
                 case "house_manage":
+                    isSubMenu = true;
                     HouseManageMenu.open(player);
                     break;
                 case "mailbox":
+                    isSubMenu = true;
+                    MailboxMenu.open(player);
+                    break;
                 case "quest":
+                    isSubMenu = true;
+                    QuestMenu.open(player);
+                    break;
                 case "pet":
                 case "house":
                 case "wiki":
@@ -175,8 +226,8 @@ public class MenuListener implements Listener {
             }
         }
 
-        // 텔레포트(워프)를 제외한 메뉴 버튼을 클릭했을 때 "띵" 효과음 재생!
-        if (!isWarp) {
+        // 워프(엔더맨 소리)와 서브메뉴(오픈 소리)를 제외한 일반 버튼 클릭 시에만 "띵" 소리 1회 재생!
+        if (!isWarp && !isSubMenu) {
             player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, 1.4f);
         }
     }
