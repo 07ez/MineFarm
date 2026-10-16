@@ -274,8 +274,20 @@ public class HouseManager {
 
             config.set("houses." + uuidStr + ".chunks", chunkList);
             config.set("houses." + uuidStr + ".members", memberList);
-            config.set("houses." + uuidStr + ".allowVisitorDoor", house.isAllowVisitorDoor());
-            config.set("houses." + uuidStr + ".allowVisitorContainer", house.isAllowVisitorContainer());
+            config.set("houses." + uuidStr + ".doorAccessMode", house.getDoorAccessMode().name());
+            config.set("houses." + uuidStr + ".containerAccessMode", house.getContainerAccessMode().name());
+
+            if (house.getSpawnLocation() != null) {
+                Location loc = house.getSpawnLocation();
+                config.set("houses." + uuidStr + ".spawn.world", loc.getWorld().getName());
+                config.set("houses." + uuidStr + ".spawn.x", loc.getX());
+                config.set("houses." + uuidStr + ".spawn.y", loc.getY());
+                config.set("houses." + uuidStr + ".spawn.z", loc.getZ());
+                config.set("houses." + uuidStr + ".spawn.yaw", loc.getYaw());
+                config.set("houses." + uuidStr + ".spawn.pitch", loc.getPitch());
+            } else {
+                config.set("houses." + uuidStr + ".spawn", null);
+            }
         }
     }
 
@@ -296,8 +308,40 @@ public class HouseManager {
                 UUID owner = UUID.fromString(uuidStr);
                 HouseData house = new HouseData(owner);
 
-                house.setAllowVisitorDoor(section.getBoolean(uuidStr + ".allowVisitorDoor", false));
-                house.setAllowVisitorContainer(section.getBoolean(uuidStr + ".allowVisitorContainer", false));
+                String doorMode = section.getString(uuidStr + ".doorAccessMode");
+                if (doorMode != null) {
+                    try {
+                        house.setDoorAccessMode(HouseData.AccessMode.valueOf(doorMode));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                } else {
+                    // 구버전 호환
+                    house.setAllowVisitorDoor(section.getBoolean(uuidStr + ".allowVisitorDoor", false));
+                }
+
+                String containerMode = section.getString(uuidStr + ".containerAccessMode");
+                if (containerMode != null) {
+                    try {
+                        house.setContainerAccessMode(HouseData.AccessMode.valueOf(containerMode));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                } else {
+                    // 구버전 호환
+                    house.setAllowVisitorContainer(section.getBoolean(uuidStr + ".allowVisitorContainer", false));
+                }
+
+                if (section.contains(uuidStr + ".spawn.world")) {
+                    String worldName = section.getString(uuidStr + ".spawn.world", "world");
+                    World w = org.bukkit.Bukkit.getWorld(worldName);
+                    if (w != null) {
+                        double x = section.getDouble(uuidStr + ".spawn.x");
+                        double y = section.getDouble(uuidStr + ".spawn.y");
+                        double z = section.getDouble(uuidStr + ".spawn.z");
+                        float yaw = (float) section.getDouble(uuidStr + ".spawn.yaw");
+                        float pitch = (float) section.getDouble(uuidStr + ".spawn.pitch");
+                        house.setSpawnLocation(new Location(w, x, y, z, yaw, pitch));
+                    }
+                }
 
                 List<String> chunkStrings = section.getStringList(uuidStr + ".chunks");
                 for (String chunkStr : chunkStrings) {
@@ -320,5 +364,9 @@ public class HouseManager {
             } catch (IllegalArgumentException ignored) {
             }
         }
+    }
+
+    public HouseData getOrCreateHouseData(UUID owner) {
+        return houseByOwner.computeIfAbsent(owner, HouseData::new);
     }
 }

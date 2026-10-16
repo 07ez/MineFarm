@@ -1,5 +1,6 @@
 package Hez.Menu;
 
+import Hez.House.HouseData;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -32,9 +33,45 @@ public class MenuListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onMenuClick(InventoryClickEvent event) {
-        if (event.getInventory().getHolder() instanceof HouseManageMenu) {
+        if (event.getInventory().getHolder() instanceof HouseManageMenu houseMenu) {
             // 집관리 메뉴창 안의 아이템 조작 금지
             event.setCancelled(true);
+
+            ItemStack clicked = event.getCurrentItem();
+            if (clicked == null || !clicked.hasItemMeta()) {
+                return;
+            }
+
+            Player player = (Player) event.getWhoClicked();
+            String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
+            if (action == null) return;
+
+            HouseData house = houseMenu.getHouse();
+
+            switch (action) {
+                case "house_set_tp":
+                    // 28번: 현재 서 있는 위치를 집 TP 위치로 저장
+                    house.setSpawnLocation(player.getLocation().clone());
+                    houseMenu.updateTpItem();
+                    player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
+                    player.sendMessage(String.format("§a[집관리] 현재 위치(X: %d, Y: %d, Z: %d)가 집 TP 위치로 설정되었습니다!",
+                            player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
+                    break;
+                case "house_toggle_door":
+                    // 29번: 아무도 허용x > 멤버만 가능 > 모두다 가능 > 아무도 허용x
+                    house.setDoorAccessMode(house.getDoorAccessMode().next());
+                    houseMenu.updateDoorItem();
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+                    player.sendMessage("§a[집관리] 문 권한이 " + house.getDoorAccessMode().getFormatted() + "§a(으)로 변경되었습니다.");
+                    break;
+                case "house_toggle_container":
+                    // 30번: 아무도 허용x > 멤버만 가능 > 모두다 가능 > 아무도 허용x
+                    house.setContainerAccessMode(house.getContainerAccessMode().next());
+                    houseMenu.updateContainerItem();
+                    player.playSound(player.getLocation(), org.bukkit.Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
+                    player.sendMessage("§a[집관리] 상자 권한이 " + house.getContainerAccessMode().getFormatted() + "§a(으)로 변경되었습니다.");
+                    break;
+            }
             return;
         }
 
