@@ -36,7 +36,7 @@ public class QuestMenu implements InventoryHolder {
         this.inventory = Bukkit.createInventory(this, 54, title);
 
         // 상단 상자 6개 행 (Row 0 ~ Row 5) 배치
-        int[] slots = QuestLayoutManager.getInstance().getOrGenerateSlots(player.getUniqueId());
+        int[] slots = QuestLayoutManager.getInstance().getSlots();
         for (int row = 0; row < 6; row++) {
             int col = slots[row];
             int slot = row * 9 + col;
@@ -58,7 +58,7 @@ public class QuestMenu implements InventoryHolder {
         QuestMenu menu = new QuestMenu(player);
 
         // 3. 하단 플레이어 인벤토리 배치 (6~9행)
-        int[] slots = QuestLayoutManager.getInstance().getOrGenerateSlots(player.getUniqueId());
+        int[] slots = QuestLayoutManager.getInstance().getSlots();
         PlayerInventory playerInv = player.getInventory();
 
         // 행 7 (보관함 1행, 슬롯 9 ~ 17): 랜덤 위치에 1008 아이템
