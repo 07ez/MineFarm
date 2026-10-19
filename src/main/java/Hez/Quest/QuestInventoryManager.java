@@ -16,6 +16,7 @@ import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 
@@ -38,6 +39,8 @@ public class QuestInventoryManager implements Listener {
     private final Map<UUID, ItemStack> backupCursorMap = new ConcurrentHashMap<>();
     // 현재 퀘스트 창을 열고 있는 플레이어 집합
     private final Set<UUID> activeQuestPlayers = ConcurrentHashMap.newKeySet();
+    // 퀘스트 창 이용 중 사망하여 리스폰 시 복구를 대기하는 플레이어 집합
+    private final Set<UUID> pendingRespawnRestore = ConcurrentHashMap.newKeySet();
 
     // 서버 크래시/정전 대비 디스크 영구 저장 파일 (quest_inventory_backup.yml)
     private final File backupFile;
@@ -164,6 +167,7 @@ public class QuestInventoryManager implements Listener {
         if (player == null) return;
         UUID uuid = player.getUniqueId();
         activeQuestPlayers.remove(uuid);
+        pendingRespawnRestore.remove(uuid);
 
         ItemStack[] storage = backupStorageMap.remove(uuid);
         ItemStack cursor = backupCursorMap.remove(uuid);
@@ -256,17 +260,41 @@ public class QuestInventoryManager implements Listener {
     public void onInventoryClose(InventoryCloseEvent event) {
         if (event.getInventory().getHolder() instanceof QuestMenu) {
             Player player = (Player) event.getPlayer();
-            restore(player);
+            UUID uuid = player.getUniqueId();
+
+            // 사망(체력 <= 0 또는 isDead)으로 인해 창이 닫힌 경우:
+            // 지금 복원하면 마인크래프트 바닐라 사망 처리 과정에서 아이템이 바닥에 떨어지거나
+            // 리스폰 시 clear되어 증발하므로, 리스폰 시점(PlayerRespawnEvent)까지 대기합니다.
+            if (player.isDead() || player.getHealth() <= 0.0001) {
+                pendingRespawnRestore.add(uuid);
+                return;
+            }
+
+            // 사망 틱과 창 닫힘 틱의 경합을 완벽히 방어하기 위해 다음 틱에 생존 여부 확인 후 복원
+            Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
+                if (!player.isOnline()) return;
+                if (pendingRespawnRestore.contains(uuid) || player.isDead() || player.getHealth() <= 0.0001) {
+                    pendingRespawnRestore.add(uuid);
+                    return;
+                }
+                restore(player);
+            });
         }
     }
 
     /**
-     * 플레이어 퇴장/튕김 시 즉시 인벤토리 복구
+     * 플레이어 퇴장/튕김 시 인벤토리 복구
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        if (hasBackup(player.getUniqueId())) {
+        UUID uuid = player.getUniqueId();
+        // 사망 상태에서 나가는 경우엔 복원하지 않고 디스크에 백업을 보존 (재접속 시 복구)
+        if (player.isDead() || player.getHealth() <= 0.0001) {
+            pendingRespawnRestore.add(uuid);
+            return;
+        }
+        if (hasBackup(uuid)) {
             restore(player);
         }
     }
@@ -277,21 +305,51 @@ public class QuestInventoryManager implements Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
-        if (hasBackup(player.getUniqueId())) {
-            restore(player);
-            player.sendMessage("§e[퀘스트] 이전 세션에서 보관 중이던 인벤토리 아이템이 안전하게 복구되었습니다.");
+        UUID uuid = player.getUniqueId();
+        if (hasBackup(uuid)) {
+            Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
+                if (player.isOnline() && hasBackup(uuid)) {
+                    restore(player);
+                    player.sendMessage("§e[퀘스트] 이전 세션에서 보관 중이던 인벤토리 아이템이 안전하게 복구되었습니다.");
+                }
+            });
         }
     }
 
     /**
      * 퀘스트 창을 열고 있는 도중 플레이어 사망 시:
-     * 원래 아이템을 즉시 복원하여 사망 시 아이템이 유실되지 않도록 보장
+     * 지금 복원하지 않고, 아이템 드랍을 차단한 뒤 리스폰(Respawn) 시 인벤토리에 안전 복원 대기
      */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerDeath(PlayerDeathEvent event) {
         Player player = event.getPlayer();
-        if (hasBackup(player.getUniqueId())) {
-            restore(player);
+        UUID uuid = player.getUniqueId();
+        if (hasBackup(uuid)) {
+            pendingRespawnRestore.add(uuid);
+            // 바닥에 임시 보관 아이템이 엉뚱하게 쏟아져 분실되는 것을 차단
+            event.getDrops().clear();
+        }
+    }
+
+    /**
+     * 플레이어 리스폰(부활) 시:
+     * 퀘스트 창 이용 중 사망했던 플레이어의 원래 인벤토리 아이템을 100% 안전 복원!
+     */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onPlayerRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        if (hasBackup(uuid) || pendingRespawnRestore.contains(uuid)) {
+            pendingRespawnRestore.remove(uuid);
+
+            // 리스폰 처리 완료 직후 (1틱 뒤) 보관함 36칸 복원
+            Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
+                if (player.isOnline() && hasBackup(uuid)) {
+                    restore(player);
+                    player.sendMessage("§a[퀘스트] 사망 후 리스폰되어 보관함 아이템이 안전하게 복구되었습니다.");
+                }
+            });
         }
     }
 
