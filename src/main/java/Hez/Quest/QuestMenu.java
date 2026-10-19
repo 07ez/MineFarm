@@ -143,15 +143,13 @@ public class QuestMenu implements InventoryHolder {
         ItemStack item = CreateItem.create(Material.PAPER, cmd, "");
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
-            // 제목을 아이템 이름으로 설정
-            meta.displayName(Component.text("§e" + quest.getId() + ". " + quest.getTitle())
+            // 제목: 카테고리 (예: 1. 야생으로!)
+            meta.displayName(Component.text("§e" + quest.getCategory())
                     .decoration(TextDecoration.ITALIC, false));
 
-            // 내용을 Lore로 설정 + 마지막 줄에 상태 추가
+            // 내용: 세부 목표 1줄 + 빈 줄 + 마지막 줄에 진행 상태
             List<Component> lore = new ArrayList<>();
-            for (String obj : quest.getObjectives()) {
-                lore.add(Component.text("§7- " + obj).decoration(TextDecoration.ITALIC, false));
-            }
+            lore.add(Component.text("§f- " + quest.getDescription()).decoration(TextDecoration.ITALIC, false));
             lore.add(Component.empty());
             lore.add(Component.text(status.getFormattedText()).decoration(TextDecoration.ITALIC, false));
 

@@ -1,20 +1,18 @@
 package Hez.Quest;
 
-import java.util.List;
-
 public class QuestData {
     private final int id;
     private final int page;
     private final int row;
-    private final String title;
-    private final List<String> objectives;
+    private final String category;
+    private final String description;
 
-    public QuestData(int id, int page, int row, String title, List<String> objectives) {
+    public QuestData(int id, int page, int row, String category, String description) {
         this.id = id;
         this.page = page;
         this.row = row;
-        this.title = title;
-        this.objectives = objectives;
+        this.category = category;
+        this.description = description;
     }
 
     public int getId() {
@@ -29,11 +27,11 @@ public class QuestData {
         return row;
     }
 
-    public String getTitle() {
-        return title;
+    public String getCategory() {
+        return category;
     }
 
-    public List<String> getObjectives() {
-        return objectives;
+    public String getDescription() {
+        return description;
     }
 }

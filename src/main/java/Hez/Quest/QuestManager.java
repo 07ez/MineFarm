@@ -80,14 +80,9 @@ public class QuestManager {
                 int id = obj.get("id").getAsInt();
                 int page = obj.get("page").getAsInt();
                 int row = obj.get("row").getAsInt();
-                String title = obj.get("title").getAsString();
-                List<String> objectives = new ArrayList<>();
-                if (obj.has("objectives")) {
-                    for (JsonElement o : obj.getAsJsonArray("objectives")) {
-                        objectives.add(o.getAsString());
-                    }
-                }
-                QuestData data = new QuestData(id, page, row, title, objectives);
+                String category = obj.get("category").getAsString();
+                String description = obj.get("description").getAsString();
+                QuestData data = new QuestData(id, page, row, category, description);
                 questMap.put(id, data);
                 questByPageRowMap.put(page + "_" + row, data);
             }
