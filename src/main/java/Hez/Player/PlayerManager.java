@@ -25,9 +25,11 @@ public class PlayerManager implements Listener {
 
     @EventHandler
     public void OnJoin(PlayerJoinEvent event) {
-        UUID playerUUID  = event.getPlayer().getUniqueId();
-        getOrCreatePlayerData(playerUUID);
-        moneyManager.LoadPlayerMoney(playerUUID, 0); // 돈 정보 전달
+        UUID playerUUID = event.getPlayer().getUniqueId();
+        PlayerData data = getOrCreatePlayerData(playerUUID);
+        if (moneyManager != null) {
+            moneyManager.LoadPlayerMoney(playerUUID, data.money()); // 저장된 돈 정보 로드
+        }
     }
 
     public void LoadData(FileConfiguration file) {
@@ -79,7 +81,8 @@ public class PlayerManager implements Listener {
             PlayerData data = entry.getValue();
 
             // 저장
-            file.set(uuidStr + ".money", data.money()); // 돈
+            int currentMoney = MoneyManager.getMoney(entry.getKey());
+            file.set(uuidStr + ".money", currentMoney); // 최신 돈 저장
             for (String chunkKey : data.chunkList()) {
                 file.set(uuidStr + ".chunkKey", chunkKey); // 보유한 집
             }

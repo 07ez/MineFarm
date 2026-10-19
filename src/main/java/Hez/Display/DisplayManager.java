@@ -60,10 +60,11 @@ public class DisplayManager {
         }, 0L, 1L);
     }
 
-    private void checkPlayerLook(Player player) {
-        UUID uuid = player.getUniqueId();
+    public Display getCurrentDisplay(UUID uuid) {
+        return currentDisplays.get(uuid);
+    }
 
-        // 플레이어 눈 위치에서 최대 5블록 거리까지 엔티티 레이트레이스 (개인 클론 발광 엔티티 및 텍스트 제외)
+    public Display rayTraceShopDisplay(Player player) {
         RayTraceResult result = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
@@ -82,33 +83,48 @@ public class DisplayManager {
                 true
         );
 
-        Display prevTarget = currentDisplays.get(uuid);
-
-        // 바라보고 있는 target 엔티티가 있는 경우
         if (result != null && result.getHitEntity() instanceof Display hitDisplay) {
-            // 블럭에 막혀있는지 확인
             if (blockResult != null && blockResult.getHitBlock() != null) {
                 double blockDistance = player.getEyeLocation().distance(blockResult.getHitPosition().toLocation(player.getWorld()));
                 double entityDistance = player.getEyeLocation().distance(result.getHitPosition().toLocation(player.getWorld()));
                 if (blockDistance < entityDistance) {
-                    if (prevTarget != null) {
-                        removeTextDisplay(player);
-                    }
-                    return;
+                    return null;
                 }
             }
+            if (hitDisplay.getScoreboardTags().contains("none")) {
+                return null;
+            }
+            return hitDisplay;
+        }
+        return null;
+    }
 
+    public DisplayTextInfo getDisplayTextInfo(Set<String> tags) {
+        if (tags == null) return null;
+        if (tags.contains("tree")) {
+            return treeTextDisplay.getTexts(tags);
+        } else if (tags.contains("sellCrop")) {
+            return sellCropTextDisplay.getTexts(tags);
+        } else if (tags.contains("buyCrop")) {
+            return buyCropTextDisplay.getTexts(tags);
+        } else if (tags.contains("fish")) {
+            return fishTextDisplay.getTexts(tags);
+        } else if (tags.contains("ore")) {
+            return oreTextDisplay.getTexts(tags);
+        }
+        return null;
+    }
+
+    private void checkPlayerLook(Player player) {
+        UUID uuid = player.getUniqueId();
+        Display prevTarget = currentDisplays.get(uuid);
+        Display hitDisplay = rayTraceShopDisplay(player);
+
+        // 바라보고 있는 target 엔티티가 있는 경우
+        if (hitDisplay != null) {
             // 바라보는 디스플레이가 이전과 달라졌다면 기존 개인 텍스트/발광 제거
             if (prevTarget != null && !prevTarget.equals(hitDisplay)) {
                 removeTextDisplay(player);
-            }
-
-            Set<String> tags = hitDisplay.getScoreboardTags();
-            if (tags.contains("none")) {
-                if (prevTarget != null) {
-                    removeTextDisplay(player);
-                }
-                return;
             }
 
             // 이미 현재 타깃에 대한 개인 텍스트가 떠 있다면 유지
@@ -116,26 +132,26 @@ public class DisplayManager {
                 return;
             }
 
-            DisplayTextInfo texts;
+            Set<String> tags = hitDisplay.getScoreboardTags();
+            DisplayTextInfo texts = getDisplayTextInfo(tags);
             float textYPos;
             if (tags.contains("tree")) {
-                texts = treeTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
             } else if (tags.contains("sellCrop")) {
-                texts = sellCropTextDisplay.getTexts(tags);
                 textYPos = 0.3f;
             } else if (tags.contains("buyCrop")) {
-                texts = buyCropTextDisplay.getTexts(tags);
                 textYPos = 0.3f;
             } else if (tags.contains("fish")) {
-                texts = fishTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
             } else if (tags.contains("ore")) {
-                texts = oreTextDisplay.getTexts(tags);
                 textYPos = 0.7f;
             } else {
-                texts = new DisplayTextInfo(0, 0, 0);
+                if (texts == null) texts = new DisplayTextInfo(0, 0, 0);
                 textYPos = 0.6f;
+            }
+
+            if (texts == null) {
+                texts = new DisplayTextInfo(0, 0, 0);
             }
 
             // 이 플레이어에게만 보이는 개인 전용 텍스트 및 개인 전용 발광 적용!

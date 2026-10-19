@@ -124,9 +124,10 @@ public class Main extends JavaPlugin {
         this.fishManager.Init();
         getServer().getPluginManager().registerEvents(new FishingListener(), this);
 
-        // 디스플레이 등록
+        // 디스플레이 등록 및 상점 빠른 거래 리스너 등록
         this.displayManager.InitDisplay();
         this.displayManager.startRaytraceTask();
+        getServer().getPluginManager().registerEvents(new Hez.Display.ShopDisplayListener(this, this.displayManager), this);
 
         // 농사 데이터 로딩 및 리스너 등록
         this.cropsManager.loadData(cropsDataConfig);

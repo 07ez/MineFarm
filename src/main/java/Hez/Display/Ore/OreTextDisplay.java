@@ -17,14 +17,14 @@ public class OreTextDisplay {
         return null;
     }
     public void Init() {
-        texts.put("netheriteIngot", new DisplayTextInfo(100, 100, 0));
-        texts.put("goldIngot", new DisplayTextInfo(100, 100, 0));
-        texts.put("copperIngot", new DisplayTextInfo(100, 100, 0));
-        texts.put("ironIngot", new DisplayTextInfo(100, 100, 0));
-        texts.put("netheriteScrap", new DisplayTextInfo(100, 100, 0));
-        texts.put("rawGold", new DisplayTextInfo(100, 100, 0));
-        texts.put("rawCopper", new DisplayTextInfo(100, 100, 0));
-        texts.put("rawIron", new DisplayTextInfo(100, 100, 0));
+        texts.put("netheriteIngot", new DisplayTextInfo(100, 100, 180));
+        texts.put("goldIngot", new DisplayTextInfo(100, 100, 180));
+        texts.put("copperIngot", new DisplayTextInfo(100, 100, 180));
+        texts.put("ironIngot", new DisplayTextInfo(100, 100, 180));
+        texts.put("netheriteScrap", new DisplayTextInfo(100, 100, 180));
+        texts.put("rawGold", new DisplayTextInfo(100, 100, 180));
+        texts.put("rawCopper", new DisplayTextInfo(100, 100, 180));
+        texts.put("rawIron", new DisplayTextInfo(100, 100, 180));
         texts.put("emerald", new DisplayTextInfo(100, 100, 0));
         texts.put("diamond", new DisplayTextInfo(100, 100, 0));
         texts.put("coal", new DisplayTextInfo(100, 100, 0));

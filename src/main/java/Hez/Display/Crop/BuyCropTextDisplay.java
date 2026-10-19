@@ -20,7 +20,7 @@ public class BuyCropTextDisplay {
     public void Init() {
         // [1] 씨앗류
         texts.put("beetrootSeeds", new DisplayTextInfo(100, 100, 180));
-        texts.put("wheatSeeds", new DisplayTextInfo(100, 100, 180));
+        texts.put("wheatSeeds", new DisplayTextInfo(100, 10000, 180));
         texts.put("pitcherPod", new DisplayTextInfo(100, 100, 180));
         texts.put("torchflowerSeeds", new DisplayTextInfo(100, 100, 180));
         texts.put("melonSeeds", new DisplayTextInfo(100, 100, 180));
