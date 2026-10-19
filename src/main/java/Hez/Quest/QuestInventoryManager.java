@@ -18,7 +18,9 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import Hez.Menu.CustomMenu;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.io.File;
 import java.io.IOException;
@@ -354,16 +356,43 @@ public class QuestInventoryManager implements Listener {
     }
 
     /**
-     * 퀘스트 창 열려있는 동안 인벤토리 조작 방지 (상단/하단 모두)
+     * 퀘스트 창 열려있는 동안 인벤토리 조작 방지 (상단/하단 모두) 및 이전/다음 화살표 클릭 시 페이징 처리
      */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getInventory().getHolder() instanceof QuestMenu) {
-            event.setCancelled(true);
+        if (!(event.getInventory().getHolder() instanceof QuestMenu menu)) {
+            if (isQuestOpen(event.getWhoClicked().getUniqueId())) {
+                event.setCancelled(true);
+            }
             return;
         }
-        if (isQuestOpen(event.getWhoClicked().getUniqueId())) {
-            event.setCancelled(true);
+
+        // 퀘스트 창 안의 모든 아이템 이동/꺼내기 방지
+        event.setCancelled(true);
+
+        if (event.getClick() == org.bukkit.event.inventory.ClickType.DOUBLE_CLICK) {
+            return;
+        }
+
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || !clicked.hasItemMeta()) {
+            return;
+        }
+
+        Player player = (Player) event.getWhoClicked();
+        String action = clicked.getItemMeta().getPersistentDataContainer().get(CustomMenu.ACTION_KEY, PersistentDataType.STRING);
+        if (action == null) return;
+
+        if ("quest_item_1003".equals(action)) {
+            // 이전 화살표: 1페이지보다 클 때 이전 페이지로 이동
+            if (menu.getCurrentPage() > 1) {
+                menu.changePage(player, menu.getCurrentPage() - 1);
+            }
+        } else if ("quest_item_1004".equals(action)) {
+            // 다음 화살표: MAX_PAGE(3)보다 작을 때 다음 페이지로 이동
+            if (menu.getCurrentPage() < QuestLayoutManager.MAX_PAGE) {
+                menu.changePage(player, menu.getCurrentPage() + 1);
+            }
         }
     }
 
