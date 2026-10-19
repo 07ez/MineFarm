@@ -18,6 +18,9 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class QuestMenu implements InventoryHolder {
 
     private static final Key FONT_DEFAULT = Key.key("minecraft", "default");
@@ -48,12 +51,12 @@ public class QuestMenu implements InventoryHolder {
         this.currentPage = Math.max(1, Math.min(QuestLayoutManager.MAX_PAGE, page));
         int[] slots = QuestLayoutManager.getInstance().getSlots(this.currentPage);
 
-        // 1. 상단 상자 (0~5행, 54칸) 렌더링
+        // 1. 상단 상자 (0~5행, 54칸) 렌더링 (1~6행 퀘스트 노드)
         this.inventory.clear();
         for (int row = 0; row < 6; row++) {
             int col = slots[row];
             int slot = row * 9 + col;
-            this.inventory.setItem(slot, createQuestItem("1008"));
+            this.inventory.setItem(slot, createQuestNodeItem(player, this.currentPage, row + 1));
         }
 
         // 2. 하단 플레이어 인벤토리 (6~9행) 렌더링
@@ -64,14 +67,14 @@ public class QuestMenu implements InventoryHolder {
             playerInv.setItem(s, null);
         }
 
-        // 행 7 (보관함 1행, 슬롯 9 ~ 17): 랜덤 위치에 1008 아이템
-        playerInv.setItem(9 + slots[6], createQuestItem("1008"));
+        // 행 7 (보관함 1행, 슬롯 9 ~ 17): 7행 퀘스트 노드
+        playerInv.setItem(9 + slots[6], createQuestNodeItem(player, this.currentPage, 7));
 
-        // 행 8 (보관함 2행, 슬롯 18 ~ 26): 랜덤 위치에 1008 아이템
-        playerInv.setItem(18 + slots[7], createQuestItem("1008"));
+        // 행 8 (보관함 2행, 슬롯 18 ~ 26): 8행 퀘스트 노드
+        playerInv.setItem(18 + slots[7], createQuestNodeItem(player, this.currentPage, 8));
 
-        // 행 9 (보관함 3행, 슬롯 27 ~ 35): 랜덤 위치에 1008 아이템
-        playerInv.setItem(27 + slots[8], createQuestItem("1008"));
+        // 행 9 (보관함 3행, 슬롯 27 ~ 35): 9행 퀘스트 노드
+        playerInv.setItem(27 + slots[8], createQuestNodeItem(player, this.currentPage, 9));
 
         // 행 10 (핫바 / 메인손 라인, 슬롯 0 ~ 8):
         // 핫바 슬롯 초기화
@@ -124,7 +127,43 @@ public class QuestMenu implements InventoryHolder {
     }
 
     /**
-     * 커스텀 퀘스트 페이퍼 아이템 생성 (Material.PAPER, CustomModelData)
+     * 퀘스트 노드 아이템 생성 (제목: 이름, 내용: lore, 마지막 줄: 상태)
+     * - 클리어 시: 1007 (별)
+     * - 미완료/진행중 시: 1008 (어두운별)
+     */
+    public static ItemStack createQuestNodeItem(Player player, int page, int row) {
+        QuestData quest = QuestManager.getInstance().getQuest(page, row);
+        if (quest == null) {
+            return createQuestItem("1008");
+        }
+
+        QuestStatus status = QuestManager.getInstance().getQuestStatus(player.getUniqueId(), quest.getId());
+        String cmd = (status == QuestStatus.COMPLETED) ? "1007" : "1008";
+
+        ItemStack item = CreateItem.create(Material.PAPER, cmd, "");
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            // 제목을 아이템 이름으로 설정
+            meta.displayName(Component.text("§e" + quest.getId() + ". " + quest.getTitle())
+                    .decoration(TextDecoration.ITALIC, false));
+
+            // 내용을 Lore로 설정 + 마지막 줄에 상태 추가
+            List<Component> lore = new ArrayList<>();
+            for (String obj : quest.getObjectives()) {
+                lore.add(Component.text("§7- " + obj).decoration(TextDecoration.ITALIC, false));
+            }
+            lore.add(Component.empty());
+            lore.add(Component.text(status.getFormattedText()).decoration(TextDecoration.ITALIC, false));
+
+            meta.lore(lore);
+            meta.getPersistentDataContainer().set(CustomMenu.ACTION_KEY, PersistentDataType.STRING, "quest_node_" + quest.getId());
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    /**
+     * 커스텀 퀘스트 페이퍼 아이템 생성 (버튼용)
      */
     public static ItemStack createQuestItem(String cmd) {
         ItemStack item = CreateItem.create(Material.PAPER, cmd, "");

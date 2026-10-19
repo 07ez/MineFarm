@@ -156,6 +156,9 @@ public class Main extends JavaPlugin {
         // 퀘스트 인벤토리 백업/복원 및 안전 리스너 등록
         getServer().getPluginManager().registerEvents(Hez.Quest.QuestInventoryManager.getInstance(), this);
 
+        // 퀘스트 데이터(quests.json) 로드
+        Hez.Quest.QuestManager.getInstance().loadQuestsJson();
+
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();
     }
