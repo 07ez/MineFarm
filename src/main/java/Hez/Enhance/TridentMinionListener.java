@@ -19,8 +19,14 @@ public class TridentMinionListener implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTridentLaunch(ProjectileLaunchEvent event) {
-        if (!(event.getEntity() instanceof Trident)) return;
-        if (!(event.getEntity().getShooter() instanceof Player player)) return;
+        if (!(event.getEntity() instanceof Trident trident)) return;
+
+        // 미니언 사출 삼지창은 발사를 허용하여 실제로 시원하게 날아가도록 함!
+        if (trident.getScoreboardTags().contains("minion_trident")) {
+            return;
+        }
+
+        if (!(trident.getShooter() instanceof Player player)) return;
 
         ItemStack held = player.getInventory().getItemInMainHand();
         if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.TRIDENT) return;
@@ -31,8 +37,33 @@ public class TridentMinionListener implements Listener {
         // 바닐라 삼지창 투척 취소 (손에 든 삼지창 본체 보존!)
         event.setCancelled(true);
 
-        // 뒤에 소환되어 있던 미니언 삼지창들을 에임 방향으로 발사!
+        // 손에 든 삼지창 본체 인벤토리 보존
+        ItemStack tridentClone = held.clone();
+        org.bukkit.Bukkit.getScheduler().runTask(Hez.MineFarm.Main.getInstance(), () -> {
+            if (player.isOnline()) {
+                ItemStack cur = player.getInventory().getItemInMainHand();
+                if (cur.getType() == Material.AIR || EnhanceEquipmentType.fromItem(cur) != EnhanceEquipmentType.TRIDENT) {
+                    player.getInventory().setItemInMainHand(tridentClone);
+                }
+            }
+        });
+
+        // 뒤에서 회전/대기하던 미니언 삼지창들을 에임 방향으로 발사!
         TridentMinionManager.fireMinions(player, held);
+    }
+
+    /**
+     * 사출된 미니언 삼지창이 적이나 블록에 적중했을 때 타격 연출 후 깔끔하게 소멸
+     */
+    @EventHandler
+    public void onTridentHit(org.bukkit.event.entity.ProjectileHitEvent event) {
+        if (event.getEntity() instanceof Trident trident && trident.getScoreboardTags().contains("minion_trident")) {
+            org.bukkit.Location loc = trident.getLocation();
+            loc.getWorld().spawnParticle(org.bukkit.Particle.CRIT, loc, 12, 0.2, 0.2, 0.2, 0.1);
+            loc.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, loc, 8, 0.2, 0.2, 0.2, 0.05);
+            loc.getWorld().playSound(loc, org.bukkit.Sound.ITEM_TRIDENT_HIT, 1.0f, 1.2f);
+            trident.remove(); // 바닥에 박혀 남아있지 않도록 즉시 소멸
+        }
     }
 
     /**

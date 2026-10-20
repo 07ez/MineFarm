@@ -56,11 +56,11 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
         // 3. /강화 지급 <장비종류> <레벨>
         if (args[0].equalsIgnoreCase("지급") || args[0].equalsIgnoreCase("give")) {
             if (args.length < 3) {
-                player.sendMessage("§e사용법: /" + label + " 지급 <검|도끼|곡괭이|활|삼지창|철퇴> <1~10>");
+                player.sendMessage("§e사용법: /" + label + " 지급 <검|도끼|곡괭이|창|활|삼지창|철퇴> <1~10>");
                 return true;
             }
 
-            String type = args[1];
+            String type = args[1].toLowerCase();
             int level;
             try {
                 level = Integer.parseInt(args[2]);
@@ -77,6 +77,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
                 case "검", "sword" -> EnhanceManager.createEnhancedSword(Material.NETHERITE_SWORD, level);
                 case "도끼", "axe" -> EnhanceManager.createEnhancedAxe(Material.NETHERITE_AXE, level);
                 case "곡괭이", "pickaxe" -> EnhanceManager.createEnhancedPickaxe(Material.NETHERITE_PICKAXE, level);
+                case "창", "spear" -> EnhanceManager.createEnhancedSpear(level);
                 case "활", "bow" -> EnhanceManager.createEnhancedBow(Material.BOW, level);
                 case "삼지창", "trident" -> EnhanceManager.createEnhancedTrident(level);
                 case "철퇴", "mace" -> EnhanceManager.createEnhancedMace(level);
@@ -84,7 +85,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
             };
 
             if (item == null) {
-                player.sendMessage("§c유효하지 않은 장비 종류입니다. (검, 도끼, 곡괭이, 활, 삼지창, 철퇴)");
+                player.sendMessage("§c유효하지 않은 장비 종류입니다. (검, 도끼, 곡괭이, 창, 활, 삼지창, 철퇴)");
                 return true;
             }
 
@@ -109,7 +110,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
                 if (s.startsWith(args[0])) completions.add(s);
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("지급")) {
-            List<String> types = List.of("검", "도끼", "곡괭이", "활", "삼지창", "철퇴");
+            List<String> types = List.of("검", "도끼", "곡괭이", "창", "활", "삼지창", "철퇴");
             for (String t : types) {
                 if (t.startsWith(args[1])) completions.add(t);
             }

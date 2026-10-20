@@ -80,7 +80,7 @@ public class EnhanceManager {
         PICKAXE_CONFIGS.put(7,  new PickaxeMiningConfig(7,   50.0, 43.0,  7.0, 2.70, AreaMiningType.AREA_3x3,       false, 18000));
         PICKAXE_CONFIGS.put(8,  new PickaxeMiningConfig(8,   40.0, 48.0, 12.0, 3.40, AreaMiningType.DEPTH_3x3x2,     false, 25000));
         PICKAXE_CONFIGS.put(9,  new PickaxeMiningConfig(9,   30.0, 52.0, 18.0, 4.20, AreaMiningType.CUBE_3x3x3,      false, 35000));
-        PICKAXE_CONFIGS.put(10, new PickaxeMiningConfig(10,  20.0, 55.0, 25.0, 5.00, AreaMiningType.CUBE_3x3x3,      true,  50000));
+        PICKAXE_CONFIGS.put(10, new PickaxeMiningConfig(10,  20.0, 55.0, 25.0, 5.00, AreaMiningType.CUBE_3x3x3,      false, 50000));
 
         // --- [창] (targetLevel, success, fail, destroy, armorPenetrationRate, bleedChance, bleedDuration, damagePerTick, slownessAmp, cost) ---
         SPEAR_CONFIGS.put(1,  new SpearBleedConfig(1,  100.0,  0.0,  0.0, 0.10,   0.0, 0.0, 0.0, -1, 1000));
@@ -581,6 +581,17 @@ public class EnhanceManager {
 
     public static ItemStack createEnhancedTrident(int level) {
         ItemStack item = new ItemStack(Material.TRIDENT);
+        applyEnhanceMeta(item, level);
+        return item;
+    }
+
+    public static ItemStack createEnhancedSpear(int level) {
+        ItemStack item = new ItemStack(Material.TRIDENT);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§b강화된 창");
+            item.setItemMeta(meta);
+        }
         applyEnhanceMeta(item, level);
         return item;
     }
