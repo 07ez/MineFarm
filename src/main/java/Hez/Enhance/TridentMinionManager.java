@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class TridentMinionManager {
     private static final Map<UUID, List<ItemDisplay>> playerMinions = new ConcurrentHashMap<>();
+    private static final Map<UUID, Integer> flyingMinions = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> firingCooldowns = new ConcurrentHashMap<>();
     private static final Set<UUID> isFiring = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private static BukkitTask updateTask = null;
@@ -90,12 +91,27 @@ public class TridentMinionManager {
 
         int targetCount = config.getMinionCount();
         List<ItemDisplay> current = playerMinions.computeIfAbsent(uuid, k -> new ArrayList<>());
+        int flying = flyingMinions.getOrDefault(uuid, 0);
 
-        // 개수가 다르면 기존 것 정리 후 새로 생성
-        if (current.size() != targetCount || current.stream().anyMatch(d -> !d.isValid())) {
-            clearMinions(player);
+        // 유효하지 않은 디스플레이 정리
+        current.removeIf(d -> d == null || !d.isValid());
+
+        // 처음 삼지창을 장착했거나 리셋된 경우 targetCount만큼 생성
+        if (current.isEmpty() && flying == 0) {
             current = createMinions(player, targetCount);
             playerMinions.put(uuid, current);
+        } else if (current.size() + flying < targetCount) {
+            // 강화 단계 상승 등으로 미니언이 부족한 경우 차이만큼 보충
+            int diff = targetCount - (current.size() + flying);
+            for (int i = 0; i < diff; i++) {
+                current.add(spawnSingleMinion(player));
+            }
+        } else if (current.size() + flying > targetCount && !current.isEmpty()) {
+            // 강화 단계 하락 등으로 초과된 경우 초과분 제거
+            while (current.size() + flying > targetCount && !current.isEmpty()) {
+                ItemDisplay last = current.remove(current.size() - 1);
+                if (last != null && last.isValid()) last.remove();
+            }
         }
 
         // 우클릭 차징 중인지 확인 (손을 올리고 투척 차징 상태인지)
@@ -103,22 +119,54 @@ public class TridentMinionManager {
         updateMinionPositions(player, current, isCharging);
     }
 
+    public static ItemDisplay spawnSingleMinion(Player player) {
+        return player.getWorld().spawn(player.getEyeLocation(), ItemDisplay.class, d -> {
+            d.setItemStack(new ItemStack(Material.TRIDENT));
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.THIRDPERSON_RIGHTHAND);
+            d.setTransformation(IDLE_TRANSFORMATION);
+            d.setInterpolationDuration(2);
+            d.setInterpolationDelay(0);
+            d.setViewRange(64.0f);
+        });
+    }
+
     private static List<ItemDisplay> createMinions(Player player, int count) {
         List<ItemDisplay> list = new ArrayList<>();
-        Location eyeLoc = player.getEyeLocation();
-
         for (int i = 0; i < count; i++) {
-            ItemDisplay display = player.getWorld().spawn(eyeLoc, ItemDisplay.class, d -> {
-                d.setItemStack(new ItemStack(Material.TRIDENT));
-                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.THIRDPERSON_RIGHTHAND);
-                d.setTransformation(IDLE_TRANSFORMATION);
-                d.setInterpolationDuration(2);
-                d.setInterpolationDelay(0);
-                d.setViewRange(64.0f);
-            });
-            list.add(display);
+            list.add(spawnSingleMinion(player));
         }
         return list;
+    }
+
+    /**
+     * 충성 복귀한 삼지창이 플레이어에게 도달했을 때 주운 순서대로 등 뒤에 1자루씩 복귀!
+     */
+    public static void onMinionReturned(Player player) {
+        if (player == null || !player.isOnline()) return;
+        UUID uuid = player.getUniqueId();
+
+        int flying = flyingMinions.getOrDefault(uuid, 0);
+        if (flying > 0) {
+            flyingMinions.put(uuid, flying - 1);
+        }
+
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.TRIDENT) return;
+
+        int level = EnhanceManager.getEnhanceLevel(held);
+        if (level <= 0) return;
+        TridentMinionConfig config = EnhanceManager.getTridentConfig(level);
+        if (config == null) return;
+
+        List<ItemDisplay> current = playerMinions.computeIfAbsent(uuid, k -> new ArrayList<>());
+        if (current.size() < config.getMinionCount()) {
+            ItemDisplay minion = spawnSingleMinion(player);
+            current.add(minion);
+
+            player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 0.6f, 1.25f + (current.size() * 0.05f));
+            player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, minion.getLocation(), 10, 0.15, 0.15, 0.15, 0.05);
+            player.sendActionBar(Component.text("§b[삼지창 미니언] §f복귀 완료 §e(" + current.size() + "/" + config.getMinionCount() + ")"));
+        }
     }
 
     /**
@@ -192,6 +240,7 @@ public class TridentMinionManager {
 
         List<ItemDisplay> current = playerMinions.get(uuid);
         if (current == null || current.isEmpty()) {
+            player.sendActionBar(Component.text("§c[삼지창 미니언] 아직 복귀한 미니언이 없습니다!"));
             return false;
         }
 
@@ -199,23 +248,12 @@ public class TridentMinionManager {
         isFiring.add(uuid);
 
         List<ItemDisplay> toShoot = new ArrayList<>(current);
-        current.clear(); // 소환된 디스플레이는 사출 처리
+        current.clear(); // 등 뒤에서 모두 사출 처리
+
+        // 날아가서 복귀해야 할 개수 기록
+        flyingMinions.put(uuid, flyingMinions.getOrDefault(uuid, 0) + toShoot.size());
 
         player.sendActionBar(Component.text("§b[삼지창 미니언] §e" + toShoot.size() + "자루 §f일제 사출!"));
-
-        // 플레이어가 조준하고 있는 정확한 에임 목표 지점(targetPoint) 계산
-        Location eye = player.getEyeLocation();
-        Vector aimDir = eye.getDirection().normalize();
-
-        org.bukkit.util.RayTraceResult hit = player.getWorld().rayTrace(
-                eye, aimDir, 50.0,
-                org.bukkit.FluidCollisionMode.NEVER, true, 0.5,
-                e -> !e.equals(player) && !(e instanceof ItemDisplay) && !e.getScoreboardTags().contains("minion_trident")
-        );
-
-        Location targetPoint = (hit != null && hit.getHitPosition() != null)
-                ? hit.getHitPosition().toLocation(player.getWorld())
-                : eye.clone().add(aimDir.clone().multiply(40.0));
 
         // 1틱(0.05초) 시차를 두고 순차 사출 (머신건 연사 손맛 연출)
         new BukkitRunnable() {
@@ -225,47 +263,69 @@ public class TridentMinionManager {
             public void run() {
                 if (index >= toShoot.size() || !player.isOnline()) {
                     isFiring.remove(uuid);
-                    // 사출 종료 후 남은 디스플레이 정리
                     toShoot.forEach(ItemDisplay::remove);
                     cancel();
                     return;
                 }
 
                 ItemDisplay display = toShoot.get(index);
+                Location eye = player.getEyeLocation();
                 Location spawnLoc = display.isValid() ? display.getLocation() : eye;
                 display.remove(); // 디스플레이 삼지창 삭제
 
-                // 각 미니언의 스폰 위치에서 플레이어의 에임 목표점(targetPoint)을 향해 정확히 사출!
-                Vector toTarget = targetPoint.toVector().subtract(spawnLoc.toVector()).normalize();
+                // [실시간 에임 추적] 발사 순간의 최신 시선 방향과 타겟 포인트를 실시간으로 계산!
+                Vector currentAimDir = eye.getDirection().normalize();
+                org.bukkit.util.RayTraceResult hit = player.getWorld().rayTrace(
+                        eye, currentAimDir, 50.0,
+                        org.bukkit.FluidCollisionMode.NEVER, true, 0.5,
+                        e -> !e.equals(player) && !(e instanceof ItemDisplay) && !e.getScoreboardTags().contains("minion_trident")
+                );
+
+                Location currentTargetPoint = (hit != null && hit.getHitPosition() != null)
+                        ? hit.getHitPosition().toLocation(player.getWorld())
+                        : eye.clone().add(currentAimDir.clone().multiply(40.0));
+
+                // 각 미니언의 스폰 위치에서 그 순간의 플레이어 에임 목표점(currentTargetPoint)을 향해 정확히 사출!
+                Vector toTarget = currentTargetPoint.toVector().subtract(spawnLoc.toVector()).normalize();
 
                 Trident fired = player.getWorld().spawn(spawnLoc, Trident.class, t -> {
                     t.addScoreboardTag("minion_trident"); // 미니언 삼지창 태그 부여 (리스너 취소 방지!)
                     t.setShooter(player);
-                    t.setVelocity(toTarget.multiply(2.8)); // 조준점에 정확히 꽂힘!
+                    t.setVelocity(toTarget.multiply(2.8)); // 그 순간 조준점에 정확히 꽂힘!
                     t.setDamage(config.getDamagePerMinion());
                     t.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
                     t.setLoyaltyLevel(3); // [충성 3레벨 적용: 땅에 박히면 플레이어에게 날아오는 애니메이션!]
                     t.setCritical(true);
                 });
 
-                // 충성 복귀 추적: 날아갔다가 플레이어 1.6m 이내로 복귀하면 자연스럽게 흡수 소멸
+                // 충성 복귀 추적: 날아갔다가 플레이어에게 복귀하면 인벤토리 들어가지 않게 즉시 제거 & 등 뒤로 1자루 복귀!
                 new BukkitRunnable() {
                     int ticks = 0;
+                    boolean processed = false;
 
                     @Override
                     public void run() {
                         ticks++;
-                        if (ticks > 200 || !fired.isValid() || !player.isOnline()) {
-                            if (fired.isValid()) fired.remove();
+                        if (processed) {
                             cancel();
                             return;
                         }
 
-                        // 발사 직후 8틱 이후부터 플레이어 근접 검사 (플레이어에게 복귀 완료 시 회수)
-                        if (ticks > 8 && fired.getLocation().distanceSquared(player.getLocation().add(0, 1, 0)) <= 2.56) {
-                            player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 0.6f, 1.3f);
-                            player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, fired.getLocation(), 8, 0.2, 0.2, 0.2, 0.05);
-                            fired.remove();
+                        // 8초(160틱) 경과하거나 유효하지 않으면 안전 복귀 처리
+                        if (ticks > 160 || !fired.isValid() || !player.isOnline()) {
+                            if (fired.isValid()) fired.remove();
+                            processed = true;
+                            onMinionReturned(player);
+                            cancel();
+                            return;
+                        }
+
+                        // 발사 직후 6틱 이후부터 플레이어 근접 검사 (충성 복귀 완료)
+                        // 반경 2.5m (거리제곱 6.25) 이내 도달 시 바닐라가 인벤토리에 넣기 전에 가로채서 안전 제거!
+                        if (ticks > 6 && fired.getLocation().distanceSquared(player.getLocation().add(0, 1, 0)) <= 6.25) {
+                            processed = true;
+                            fired.remove(); // 엔티티 즉각 소멸 (인벤토리 복제 100% 차단)
+                            onMinionReturned(player); // 등 뒤에 1자루 복귀 소환!
                             cancel();
                         }
                     }
@@ -281,7 +341,9 @@ public class TridentMinionManager {
 
     public static void clearMinions(Player player) {
         if (player == null) return;
-        List<ItemDisplay> list = playerMinions.remove(player.getUniqueId());
+        UUID uuid = player.getUniqueId();
+        flyingMinions.remove(uuid);
+        List<ItemDisplay> list = playerMinions.remove(uuid);
         if (list != null) {
             list.forEach(display -> {
                 if (display != null && display.isValid()) {
@@ -306,6 +368,7 @@ public class TridentMinionManager {
             }
         }
         playerMinions.clear();
+        flyingMinions.clear();
         firingCooldowns.clear();
         isFiring.clear();
     }

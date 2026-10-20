@@ -69,11 +69,12 @@ public class TridentMinionListener implements Listener {
     /**
      * 충성 효과로 복귀한 미니언 삼지창이 플레이어에게 닿을 때 인벤토리 픽업 방지 및 안전 소멸
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerPickupArrow(org.bukkit.event.player.PlayerPickupArrowEvent event) {
         if (event.getArrow() instanceof Trident trident && trident.getScoreboardTags().contains("minion_trident")) {
             event.setCancelled(true);
             trident.remove();
+            TridentMinionManager.onMinionReturned(event.getPlayer());
         }
     }
 
