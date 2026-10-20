@@ -73,6 +73,12 @@ public class WarpManager {
      * 플레이어를 워프 지점으로 이동
      */
     public static boolean teleport(Player player, String actionId) {
+        if ("wild".equalsIgnoreCase(actionId)) {
+            if (Hez.MineFarm.Main.getInstance() != null && Hez.MineFarm.Main.getInstance().getWildManager() != null) {
+                return Hez.MineFarm.Main.getInstance().getWildManager().teleportToWild(player);
+            }
+        }
+
         WarpPoint warp = WARPS.get(actionId);
         if (warp == null) {
             return false;

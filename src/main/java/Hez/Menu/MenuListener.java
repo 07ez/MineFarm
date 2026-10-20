@@ -137,12 +137,22 @@ public class MenuListener implements Listener {
 
             switch (action) {
                 case "house_set_tp":
-                    // 28번: 현재 서 있는 위치를 집 TP 위치로 저장
-                    house.setSpawnLocation(player.getLocation().clone());
+                    // 28번: 본인이 소유한 영지(집) 안에서만 TP 위치 설정 가능
+                    HouseManager houseMgr = Hez.MineFarm.Main.getInstance().getHouseManager();
+                    org.bukkit.Location currentLoc = player.getLocation();
+                    HouseData locHouse = houseMgr.GetHouseData(currentLoc);
+
+                    if (locHouse == null || !locHouse.isOwner(player.getUniqueId())) {
+                        player.sendMessage("§c집 TP 위치는 본인이 소유한 영지(집) 안에서만 설정할 수 있습니다!");
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        break;
+                    }
+
+                    house.setSpawnLocation(currentLoc.clone());
                     houseMenu.updateTpItem();
                     player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
                     player.sendMessage(String.format("§a[집관리] 현재 위치(X: %d, Y: %d, Z: %d)가 집 TP 위치로 설정되었습니다!",
-                            player.getLocation().getBlockX(), player.getLocation().getBlockY(), player.getLocation().getBlockZ()));
+                            currentLoc.getBlockX(), currentLoc.getBlockY(), currentLoc.getBlockZ()));
                     break;
                 case "house_toggle_door":
                     // 29번: 아무도 허용x > 멤버만 가능 > 모두다 가능 > 아무도 허용x
@@ -217,7 +227,24 @@ public class MenuListener implements Listener {
                     QuestMenu.open(player);
                     break;
                 case "pet":
+                    break;
                 case "house":
+                    HouseManager hMgr = Hez.MineFarm.Main.getInstance().getHouseManager();
+                    HouseData pHouse = hMgr.getHouseByOwner(player.getUniqueId());
+                    org.bukkit.Location homeSpawn = (pHouse != null) ? pHouse.getSpawnLocation() : null;
+
+                    if (homeSpawn == null || homeSpawn.getWorld() == null) {
+                        player.sendMessage("§c설정된 집 위치가 없습니다! 먼저 집관리 메뉴에서 TP 위치를 설정해주세요.");
+                        player.playSound(player.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_NO, 1.0f, 1.0f);
+                        break;
+                    }
+
+                    isWarp = true;
+                    player.closeInventory();
+                    player.teleport(homeSpawn);
+                    player.sendMessage("§a집으로 순간이동했습니다!");
+                    player.playSound(homeSpawn, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+                    break;
                 case "wiki":
                 case "discord":
                 case "bug_report":

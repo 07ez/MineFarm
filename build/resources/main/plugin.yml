@@ -1,5 +1,5 @@
 name: MineFarm
-version: '0.5.3'
+version: '0.5.5'
 
 main: Hez.MineFarm.Main
 api-version: '26.3'
@@ -13,5 +13,21 @@ commands:
     description: 직업 관련 op명령어입니다.
   house:
     description: 집 관련 op명령어.
+  menu:
+    description: 마인팜 책 메뉴 GUI를 엽니다.
+    aliases: [메뉴, m]
+  fish:
+    description: 낚시 테스트 및 관리 명령어입니다.
+    aliases: [낚시]
+  encyclopedia:
+    description: 도감 GUI를 엽니다.
+    aliases: [도감, guide]
+  mf:
+    description: 마인팜 플러그인 관리 및 리로드 명령어입니다.
+    aliases: [minefarm]
+    permission: minefarm.admin
+  enhance:
+    description: 장비 강화 및 테스트 명령어입니다.
+    aliases: [강화]
 
 softdepend: [PlaceholderAPI]

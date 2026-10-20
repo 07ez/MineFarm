@@ -72,6 +72,7 @@ public class HouseProtector implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
+        if (!houseManager.isTownWorld(event.getBlock().getLocation())) return;
         if (!houseManager.hasBuildPermission(event.getPlayer(), event.getBlock().getLocation())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c이곳은 보호된 구역입니다. 블록을 파괴할 수 없습니다.");
@@ -85,6 +86,8 @@ public class HouseProtector implements Listener {
     public void onPlace(BlockPlaceEvent event) {
         Player player = event.getPlayer();
         Block block = event.getBlockPlaced();
+
+        if (!houseManager.isTownWorld(block.getLocation())) return;
 
         // 기본 설치 위치 권한 확인
         if (!houseManager.hasBuildPermission(player, block.getLocation())) {
@@ -105,6 +108,7 @@ public class HouseProtector implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onMultiPlace(BlockMultiPlaceEvent event) {
+        if (!houseManager.isTownWorld(event.getBlock().getLocation())) return;
         Player player = event.getPlayer();
         for (BlockState state : event.getReplacedBlockStates()) {
             if (!houseManager.hasBuildPermission(player, state.getLocation())) {
@@ -121,9 +125,11 @@ public class HouseProtector implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBucketEmpty(PlayerBucketEmptyEvent event) {
-        Player player = event.getPlayer();
         // event.getBlock()이 실제로 유체가 생성될 대상 블록!
         Block fluidTargetBlock = event.getBlock();
+        if (!houseManager.isTownWorld(fluidTargetBlock.getLocation())) return;
+
+        Player player = event.getPlayer();
         Block clickedBlock = event.getBlockClicked();
 
         if (!houseManager.hasBuildPermission(player, fluidTargetBlock.getLocation())
@@ -135,6 +141,7 @@ public class HouseProtector implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBucketFill(PlayerBucketFillEvent event) {
+        if (!houseManager.isTownWorld(event.getBlock().getLocation())) return;
         Player player = event.getPlayer();
         if (!houseManager.hasBuildPermission(player, event.getBlock().getLocation())
                 || !houseManager.hasBuildPermission(player, event.getBlockClicked().getLocation())) {
@@ -145,6 +152,7 @@ public class HouseProtector implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onBucketEntity(PlayerBucketEntityEvent event) {
+        if (!houseManager.isTownWorld(event.getEntity().getLocation())) return;
         Player player = event.getPlayer();
         if (!houseManager.hasEntityInteractPermission(player, event.getEntity())) {
             event.setCancelled(true);
@@ -159,10 +167,10 @@ public class HouseProtector implements Listener {
     public void onInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
 
-        // 4-1. 경작지(Farmland) 짓밟기(점프) 방지: 모든 플레이어 대상
+        // 4-1. 경작지(Farmland) 짓밟기(점프) 방지: 마을 월드 대상
         if (event.getAction() == Action.PHYSICAL) {
             Block block = event.getClickedBlock();
-            if (block != null && block.getType() == Material.FARMLAND) {
+            if (block != null && block.getType() == Material.FARMLAND && houseManager.isTownWorld(block.getLocation())) {
                 event.setCancelled(true);
             }
             return;
@@ -249,6 +257,8 @@ public class HouseProtector implements Listener {
     public void onEntityPlace(EntityPlaceEvent event) {
         Player player = event.getPlayer();
         if (player == null) return;
+        if (!houseManager.isTownWorld(event.getEntity().getLocation())) return;
+
         if (!houseManager.hasBuildPermission(player, event.getEntity().getLocation())
                 || !houseManager.hasBuildPermission(player, event.getBlock().getLocation())) {
             event.setCancelled(true);
@@ -260,6 +270,8 @@ public class HouseProtector implements Listener {
     public void onHangingPlace(HangingPlaceEvent event) {
         Player player = event.getPlayer();
         if (player == null) return;
+        if (!houseManager.isTownWorld(event.getEntity().getLocation())) return;
+
         if (!houseManager.hasBuildPermission(player, event.getEntity().getLocation())) {
             event.setCancelled(true);
             player.sendMessage("§c이곳에 전시물을 설치할 권한이 없습니다.");
@@ -430,6 +442,7 @@ public class HouseProtector implements Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onEntityInteract(PlayerInteractEntityEvent event) {
+        if (!houseManager.isTownWorld(event.getRightClicked().getLocation())) return;
         if (!houseManager.hasEntityInteractPermission(event.getPlayer(), event.getRightClicked())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c이 엔티티와 상호작용할 권한이 없습니다.");
@@ -438,6 +451,7 @@ public class HouseProtector implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onArmorStandInteract(PlayerInteractAtEntityEvent event) {
+        if (!houseManager.isTownWorld(event.getRightClicked().getLocation())) return;
         if (!houseManager.hasEntityInteractPermission(event.getPlayer(), event.getRightClicked())) {
             event.setCancelled(true);
             event.getPlayer().sendMessage("§c이 엔티티와 상호작용할 권한이 없습니다.");

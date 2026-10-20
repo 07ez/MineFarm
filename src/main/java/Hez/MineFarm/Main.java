@@ -30,6 +30,7 @@ public class Main extends JavaPlugin {
     private DisplayManager displayManager;
     private PlayerManager playerManager;
     private Hez.Crops.CropsManager cropsManager;
+    private Hez.Wilderness.WildManager wildManager;
 
     // 파일들
     private File playerDataFile;
@@ -62,6 +63,9 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (this.wildManager != null) {
+            this.wildManager.cleanup();
+        }
         SaveData();
         if (this.cropsManager != null) {
             this.cropsManager.clearAllDisplays();
@@ -71,6 +75,7 @@ public class Main extends JavaPlugin {
         }
         Hez.CustomItem.Fish.FishingMinigame.clearAll();
         Hez.Quest.QuestInventoryManager.getInstance().restoreAll();
+        Hez.Enhance.TridentMinionManager.clearAllMinions();
     }
 
     private void InitFiles() {
@@ -109,6 +114,9 @@ public class Main extends JavaPlugin {
 
         // 농사 관리 시스템
         this.cropsManager = new Hez.Crops.CropsManager();
+
+        // 야생 관리 시스템
+        this.wildManager = new Hez.Wilderness.WildManager(this);
     }
 
     private void LoadPapi(){
@@ -120,6 +128,9 @@ public class Main extends JavaPlugin {
     }
 
     private void LoadData(){
+        // 야생 월드 생성 및 아이템 청소기 초기화
+        this.wildManager.init();
+
         // 물고기 등록
         this.fishManager.Init();
         getServer().getPluginManager().registerEvents(new FishingListener(), this);
@@ -145,6 +156,15 @@ public class Main extends JavaPlugin {
         // 커스텀 요리 섭취 및 레시피 자동 해금 리스너 등록
         getServer().getPluginManager().registerEvents(new Hez.CustomItem.FoodListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.CustomItem.RecipeUntil(), this);
+
+        // 강화 도끼 찹트리, 강화 곡괭이 범위 채굴, 강화 창 방어관통/출혈, 강화 활 속사/멀티샷, 강화 삼지창 미니언, 강화 철퇴 도약강타 리스너 등록
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.ChopTreeListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.AreaMiningListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.SpearAttackListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.BowShootListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.TridentMinionListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.MaceSmashListener(), this);
+        Hez.Enhance.TridentMinionManager.startTask();
 
         // 플레이어 데이터 파일 로딩 및 접속 리스너 등록
         this.playerManager.LoadData(playerDataFileConfig);
@@ -183,6 +203,10 @@ public class Main extends JavaPlugin {
      * 플러그인의 모든 데이터, 설정, 리스너, 스케줄러 태스크, 레시피를 안전하게 전체 리로드합니다.
      */
     public void reloadPlugin() {
+        if (this.wildManager != null) {
+            this.wildManager.cleanup();
+        }
+
         // 1. 현재 데이터 파일로 안전하게 저장
         SaveData();
 
@@ -240,4 +264,5 @@ public class Main extends JavaPlugin {
     public DisplayManager getDisplayManager() { return displayManager; }
     public PlayerManager getPlayerManager() { return playerManager; }
     public Hez.Crops.CropsManager getCropsManager() { return cropsManager; }
+    public Hez.Wilderness.WildManager getWildManager() { return wildManager; }
 }

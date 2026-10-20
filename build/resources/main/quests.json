@@ -1,0 +1,177 @@
+[
+  {
+    "id": 1,
+    "page": 1,
+    "row": 1,
+    "category": "1. 야생으로!",
+    "description": "야생서버로 들어가보기"
+  },
+  {
+    "id": 2,
+    "page": 1,
+    "row": 2,
+    "category": "1. 야생으로!",
+    "description": "도감 1개 채우기"
+  },
+  {
+    "id": 3,
+    "page": 1,
+    "row": 3,
+    "category": "1. 야생으로!",
+    "description": "철 곡괭이 또는 낚시대만들기"
+  },
+  {
+    "id": 4,
+    "page": 1,
+    "row": 4,
+    "category": "1. 야생으로!",
+    "description": "다이아 캐기 or 낚시하기(전퀘를 철곡괭이 만들기했으면 다이아, 낚시대면 낚시)"
+  },
+  {
+    "id": 5,
+    "page": 1,
+    "row": 5,
+    "category": "1. 야생으로!",
+    "description": "도감 10개 채우기"
+  },
+  {
+    "id": 6,
+    "page": 1,
+    "row": 6,
+    "category": "1. 야생으로!",
+    "description": "마을로 돌아가기"
+  },
+  {
+    "id": 7,
+    "page": 1,
+    "row": 7,
+    "category": "1. 야생으로!",
+    "description": "000와 대화하기(이름 미정 나중에 정할때 적음)"
+  },
+  {
+    "id": 8,
+    "page": 1,
+    "row": 8,
+    "category": "2. 돈을 버는방법",
+    "description": "광물상점 또는 낚시상점 또는 목장상점에서 아이템팔기"
+  },
+  {
+    "id": 9,
+    "page": 1,
+    "row": 9,
+    "category": "2. 돈을 버는방법",
+    "description": "000와 대화하기"
+  },
+  {
+    "id": 10,
+    "page": 2,
+    "row": 1,
+    "category": "3. 도구 업그레이드",
+    "description": "도구 하나 강화해보기"
+  },
+  {
+    "id": 11,
+    "page": 2,
+    "row": 2,
+    "category": "3. 도구 업그레이드",
+    "description": "도구하나 인첸트해보기"
+  },
+  {
+    "id": 12,
+    "page": 2,
+    "row": 3,
+    "category": "3. 도구 업그레이드",
+    "description": "000와 대화하기"
+  },
+  {
+    "id": 13,
+    "page": 2,
+    "row": 4,
+    "category": "4. 나의땅",
+    "description": "야생으로 돌아가기"
+  },
+  {
+    "id": 14,
+    "page": 2,
+    "row": 5,
+    "category": "4. 나의땅",
+    "description": "도감 20개 채우기"
+  },
+  {
+    "id": 15,
+    "page": 2,
+    "row": 6,
+    "category": "4. 나의땅",
+    "description": "마을로 돌아가기"
+  },
+  {
+    "id": 16,
+    "page": 2,
+    "row": 7,
+    "category": "4. 나의땅",
+    "description": "땅문서 하나 사용하기"
+  },
+  {
+    "id": 17,
+    "page": 2,
+    "row": 8,
+    "category": "5. 농사시작",
+    "description": "감자 하나 구매해보고 심어보기"
+  },
+  {
+    "id": 18,
+    "page": 2,
+    "row": 9,
+    "category": "5. 농사시작",
+    "description": "감자 하나 팔아보기"
+  },
+  {
+    "id": 19,
+    "page": 3,
+    "row": 1,
+    "category": "6. 돈벌어서 어디에 쓰지?",
+    "description": "도박장 들어가기"
+  },
+  {
+    "id": 20,
+    "page": 3,
+    "row": 2,
+    "category": "6. 돈벌어서 어디에 쓰지?",
+    "description": "특수상점 들어가기"
+  },
+  {
+    "id": 21,
+    "page": 3,
+    "row": 3,
+    "category": "6. 돈벌어서 어디에 쓰지?",
+    "description": "펫 상점 들어가기"
+  },
+  {
+    "id": 22,
+    "page": 3,
+    "row": 4,
+    "category": "7. 저축을 해야지",
+    "description": "은행 들어가기"
+  },
+  {
+    "id": 23,
+    "page": 3,
+    "row": 5,
+    "category": "7. 저축을 해야지",
+    "description": "계좌에 돈 넣기"
+  },
+  {
+    "id": 24,
+    "page": 3,
+    "row": 6,
+    "category": "8. 여기는 어디지?",
+    "description": "은행의 비밀공간 들어가기"
+  },
+  {
+    "id": 25,
+    "page": 3,
+    "row": 7,
+    "category": "9. 미술관?",
+    "description": "미술관 들어가기"
+  }
+]

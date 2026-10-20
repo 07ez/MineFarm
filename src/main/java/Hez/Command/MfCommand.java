@@ -35,8 +35,48 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("wild")) {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                return true;
+            }
+            if (plugin.getWildManager() != null) {
+                plugin.getWildManager().teleportToWild(player);
+            } else {
+                sender.sendMessage("§c[MineFarm] 야생 시스템이 활성화되지 않았습니다.");
+            }
+            return true;
+        }
+
+        if (args.length > 0 && args[0].equalsIgnoreCase("setwildspawn")) {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                return true;
+            }
+            if (plugin.getWildManager() != null) {
+                plugin.getWildManager().setSpawnLocation(player.getLocation());
+                sender.sendMessage("§a[MineFarm] 현재 위치가 야생 고정 스폰으로 설정되었습니다!");
+            } else {
+                sender.sendMessage("§c[MineFarm] 야생 시스템이 활성화되지 않았습니다.");
+            }
+            return true;
+        }
+
+        if (args.length > 0 && args[0].equalsIgnoreCase("cleanitems")) {
+            if (plugin.getWildManager() != null && plugin.getWildManager().getItemCleaner() != null) {
+                int count = plugin.getWildManager().getItemCleaner().cleanItems();
+                sender.sendMessage("§a[MineFarm] 바닥 아이템 " + count + "개를 청소했습니다.");
+            } else {
+                sender.sendMessage("§c[MineFarm] 야생 아이템 청소기가 활성화되지 않았습니다.");
+            }
+            return true;
+        }
+
         sender.sendMessage("§6=== MineFarm 관리 명령어 ===");
-        sender.sendMessage("§e/" + label + " reload §f- 플러그인 데이터, 레시피, 디스플레이 및 설정을 전체 리로드합니다.");
+        sender.sendMessage("§e/" + label + " reload §f- 플러그인 전체를 리로드합니다.");
+        sender.sendMessage("§e/" + label + " wild §f- 야생 고정 스폰으로 이동합니다.");
+        sender.sendMessage("§e/" + label + " setwildspawn §f- 현재 위치를 야생 고정 스폰으로 지정합니다.");
+        sender.sendMessage("§e/" + label + " cleanitems §f- 야생 월드 바닥 아이템을 즉시 청소합니다.");
         return true;
     }
 }
