@@ -157,13 +157,14 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new Hez.CustomItem.FoodListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.CustomItem.RecipeUntil(), this);
 
-        // 강화 도끼 찹트리, 강화 곡괭이 범위 채굴, 강화 창 방어관통/출혈, 강화 활 속사/멀티샷, 강화 삼지창 미니언, 강화 철퇴 도약강타 리스너 등록
+        // 강화 도끼 찹트리, 강화 곡괭이 범위 채굴, 강화 창 방어관통/출혈, 강화 활 속사/멀티샷, 강화 삼지창 미니언, 강화 철퇴 도약강타, 강화대 디스플레이 리스너 등록
         getServer().getPluginManager().registerEvents(new Hez.Enhance.ChopTreeListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.Enhance.AreaMiningListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.Enhance.SpearAttackListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.Enhance.BowShootListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.Enhance.TridentMinionListener(), this);
         getServer().getPluginManager().registerEvents(new Hez.Enhance.MaceSmashListener(), this);
+        getServer().getPluginManager().registerEvents(new Hez.Enhance.EnhanceDisplayListener(), this);
         Hez.Enhance.TridentMinionManager.startTask();
 
         // 플레이어 데이터 파일 로딩 및 접속 리스너 등록
