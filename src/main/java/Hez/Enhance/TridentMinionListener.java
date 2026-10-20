@@ -52,14 +52,34 @@ public class TridentMinionListener implements Listener {
     /**
      * 사출된 미니언 삼지창이 적이나 블록에 적중했을 때 타격 연출 (충성 복귀가 작동하도록 remove()하지 않음)
      */
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onTridentHit(org.bukkit.event.entity.ProjectileHitEvent event) {
+        // [달리기 투척 자해 방지] 자신이 던진 투사체가 발사자 본인과 충돌하면 즉시 취소하여 투사체가 앞으로 통과하도록 처리
+        if (event.getEntity().getShooter() instanceof Player shooter && event.getHitEntity() != null) {
+            if (shooter.getUniqueId().equals(event.getHitEntity().getUniqueId())) {
+                event.setCancelled(true);
+                return;
+            }
+        }
+
         if (event.getEntity() instanceof Trident trident && trident.getScoreboardTags().contains("minion_trident")) {
             org.bukkit.Location loc = trident.getLocation();
             loc.getWorld().spawnParticle(org.bukkit.Particle.CRIT, loc, 10, 0.2, 0.2, 0.2, 0.1);
             loc.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, loc, 6, 0.2, 0.2, 0.2, 0.05);
             loc.getWorld().playSound(loc, org.bukkit.Sound.ITEM_TRIDENT_HIT, 1.0f, 1.2f);
             // 충성(Loyalty) 효과에 의해 플레이어에게 빙글빙글 날아오도록 엔티티를 유지합니다.
+        }
+    }
+
+    /**
+     * [달리기 투척 자해 방지] 플레이어가 자신이 던진 투사체로부터 피해를 입는 것을 100% 차단
+     */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onSelfDamageByProjectile(org.bukkit.event.entity.EntityDamageByEntityEvent event) {
+        if (event.getEntity() instanceof Player player && event.getDamager() instanceof org.bukkit.entity.Projectile proj) {
+            if (proj.getShooter() instanceof Player shooter && player.getUniqueId().equals(shooter.getUniqueId())) {
+                event.setCancelled(true);
+            }
         }
     }
 

@@ -68,7 +68,14 @@ public enum EnhanceEquipmentType {
         }
 
         Material type = item.getType();
-        if (type.name().toLowerCase().contains("spear")) {
+        if (type == Material.WOODEN_SPEAR
+                || type == Material.STONE_SPEAR
+                || type == Material.COPPER_SPEAR
+                || type == Material.IRON_SPEAR
+                || type == Material.GOLDEN_SPEAR
+                || type == Material.DIAMOND_SPEAR
+                || type == Material.NETHERITE_SPEAR
+                || type.name().toLowerCase().contains("spear")) {
             return SPEAR;
         }
 

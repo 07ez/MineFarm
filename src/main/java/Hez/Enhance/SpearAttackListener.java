@@ -47,7 +47,7 @@ public class SpearAttackListener implements Listener {
             spearItem = trident.getItem();
         }
 
-        if (attacker == null || spearItem == null) return;
+        if (attacker == null || spearItem == null || attacker.getUniqueId().equals(target.getUniqueId())) return;
         if (EnhanceEquipmentType.fromItem(spearItem) != EnhanceEquipmentType.SPEAR) return;
 
         int level = EnhanceManager.getEnhanceLevel(spearItem);

@@ -283,8 +283,6 @@ public class TridentMinionManager {
 
                 ItemDisplay display = toShoot.get(index);
                 Location eye = player.getEyeLocation();
-                Location spawnLoc = display.isValid() ? display.getLocation() : eye;
-                display.remove(); // 디스플레이 삼지창 삭제
 
                 // [실시간 에임 추적] 발사 순간의 최신 시선 방향과 타겟 포인트를 실시간으로 계산!
                 Vector currentAimDir = eye.getDirection().normalize();
@@ -298,7 +296,12 @@ public class TridentMinionManager {
                         ? hit.getHitPosition().toLocation(player.getWorld())
                         : eye.clone().add(currentAimDir.clone().multiply(40.0));
 
-                // 각 미니언의 스폰 위치에서 그 순간의 플레이어 에임 목표점(currentTargetPoint)을 향해 정확히 사출!
+                // [달리면서 던질 때 몸통 관통/자해 방지]
+                // 등 뒤에서 앞으로 뚫고 나가지 않도록, 플레이어 시선 전방 1.2m 안전 위치에서 사출!
+                Location spawnLoc = eye.clone().add(currentAimDir.clone().multiply(1.2));
+                display.remove(); // 디스플레이 삼지창 삭제
+
+                // 스폰 위치에서 그 순간의 플레이어 에임 목표점(currentTargetPoint)을 향해 정확히 사출!
                 Vector toTarget = currentTargetPoint.toVector().subtract(spawnLoc.toVector()).normalize();
 
                 Trident fired = player.getWorld().spawn(spawnLoc, Trident.class, t -> {

@@ -332,7 +332,9 @@ public class EnhanceManager {
             applySwordAttributes(meta, item.getType(), level);
         } else if (eqType == EnhanceEquipmentType.PICKAXE) {
             applyPickaxeAttributes(meta, item.getType(), level);
-        } else if (eqType == EnhanceEquipmentType.TRIDENT || eqType == EnhanceEquipmentType.SPEAR) {
+        } else if (eqType == EnhanceEquipmentType.SPEAR) {
+            applySpearAttributes(meta, item.getType(), level);
+        } else if (eqType == EnhanceEquipmentType.TRIDENT) {
             applyTridentAttributes(meta, level);
         } else if (eqType == EnhanceEquipmentType.MACE) {
             applyMaceAttributes(meta, level);
@@ -341,6 +343,39 @@ public class EnhanceManager {
         updateLore(meta, eqType, level);
 
         item.setItemMeta(meta);
+    }
+
+    private static void applySpearAttributes(ItemMeta meta, Material material, int level) {
+        meta.removeAttributeModifier(Attribute.ATTACK_DAMAGE);
+        meta.removeAttributeModifier(Attribute.ATTACK_SPEED);
+
+        double baseDamage = getSpearBaseDamage(material);
+        AttributeModifier damageMod = new AttributeModifier(
+                ATTACK_DAMAGE_KEY,
+                baseDamage - 1.0,
+                AttributeModifier.Operation.ADD_NUMBER,
+                EquipmentSlotGroup.MAINHAND
+        );
+        meta.addAttributeModifier(Attribute.ATTACK_DAMAGE, damageMod);
+
+        AttributeModifier speedMod = new AttributeModifier(
+                ATTACK_SPEED_KEY,
+                -2.8,
+                AttributeModifier.Operation.ADD_NUMBER,
+                EquipmentSlotGroup.MAINHAND
+        );
+        meta.addAttributeModifier(Attribute.ATTACK_SPEED, speedMod);
+    }
+
+    public static double getSpearBaseDamage(Material material) {
+        return switch (material) {
+            case WOODEN_SPEAR, GOLDEN_SPEAR -> 4.0;
+            case STONE_SPEAR, COPPER_SPEAR -> 5.0;
+            case IRON_SPEAR -> 6.0;
+            case DIAMOND_SPEAR -> 7.0;
+            case NETHERITE_SPEAR -> 8.0;
+            default -> 6.0;
+        };
     }
 
     private static void applySwordAttributes(ItemMeta meta, Material material, int level) {
@@ -586,26 +621,24 @@ public class EnhanceManager {
     }
 
     public static ItemStack createEnhancedSpear(int level) {
-        ItemStack item = new ItemStack(Material.TRIDENT);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§b강화된 창");
-            meta.setItemModel(org.bukkit.NamespacedKey.minecraft("00_spear"));
-            try {
-                org.bukkit.inventory.meta.components.CustomModelDataComponent cmd = meta.getCustomModelDataComponent();
-                cmd.setStrings(java.util.List.of("00_spear"));
-                meta.setCustomModelDataComponent(cmd);
-            } catch (Throwable ignored) {}
-            item.setItemMeta(meta);
-        }
-        applyEnhanceMeta(item, level);
-        return item;
+        return createEnhancedSpear(Material.IRON_SPEAR, level);
     }
 
     public static ItemStack createEnhancedSpear(Material material, int level) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
+            String name = switch (material) {
+                case WOODEN_SPEAR -> "나무 창";
+                case STONE_SPEAR -> "돌 창";
+                case COPPER_SPEAR -> "구리 창";
+                case IRON_SPEAR -> "철 창";
+                case GOLDEN_SPEAR -> "금 창";
+                case DIAMOND_SPEAR -> "다이아몬드 창";
+                case NETHERITE_SPEAR -> "네더라이트 창";
+                default -> "창";
+            };
+            meta.setDisplayName("§b강화된 " + name);
             meta.setItemModel(org.bukkit.NamespacedKey.minecraft("00_spear"));
             try {
                 org.bukkit.inventory.meta.components.CustomModelDataComponent cmd = meta.getCustomModelDataComponent();

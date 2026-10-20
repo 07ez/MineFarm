@@ -77,7 +77,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
                 case "검", "sword" -> EnhanceManager.createEnhancedSword(Material.NETHERITE_SWORD, level);
                 case "도끼", "axe" -> EnhanceManager.createEnhancedAxe(Material.NETHERITE_AXE, level);
                 case "곡괭이", "pickaxe" -> EnhanceManager.createEnhancedPickaxe(Material.NETHERITE_PICKAXE, level);
-                case "창", "spear" -> EnhanceManager.createEnhancedSpear(level);
+                case "창", "spear" -> EnhanceManager.createEnhancedSpear(Material.NETHERITE_SPEAR, level);
                 case "활", "bow" -> EnhanceManager.createEnhancedBow(Material.BOW, level);
                 case "삼지창", "trident" -> EnhanceManager.createEnhancedTrident(level);
                 case "철퇴", "mace" -> EnhanceManager.createEnhancedMace(level);
