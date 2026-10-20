@@ -53,16 +53,27 @@ public class TridentMinionListener implements Listener {
     }
 
     /**
-     * 사출된 미니언 삼지창이 적이나 블록에 적중했을 때 타격 연출 후 깔끔하게 소멸
+     * 사출된 미니언 삼지창이 적이나 블록에 적중했을 때 타격 연출 (충성 복귀가 작동하도록 remove()하지 않음)
      */
     @EventHandler
     public void onTridentHit(org.bukkit.event.entity.ProjectileHitEvent event) {
         if (event.getEntity() instanceof Trident trident && trident.getScoreboardTags().contains("minion_trident")) {
             org.bukkit.Location loc = trident.getLocation();
-            loc.getWorld().spawnParticle(org.bukkit.Particle.CRIT, loc, 12, 0.2, 0.2, 0.2, 0.1);
-            loc.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, loc, 8, 0.2, 0.2, 0.2, 0.05);
+            loc.getWorld().spawnParticle(org.bukkit.Particle.CRIT, loc, 10, 0.2, 0.2, 0.2, 0.1);
+            loc.getWorld().spawnParticle(org.bukkit.Particle.ELECTRIC_SPARK, loc, 6, 0.2, 0.2, 0.2, 0.05);
             loc.getWorld().playSound(loc, org.bukkit.Sound.ITEM_TRIDENT_HIT, 1.0f, 1.2f);
-            trident.remove(); // 바닥에 박혀 남아있지 않도록 즉시 소멸
+            // 충성(Loyalty) 효과에 의해 플레이어에게 빙글빙글 날아오도록 엔티티를 유지합니다.
+        }
+    }
+
+    /**
+     * 충성 효과로 복귀한 미니언 삼지창이 플레이어에게 닿을 때 인벤토리 픽업 방지 및 안전 소멸
+     */
+    @EventHandler
+    public void onPlayerPickupArrow(org.bukkit.event.player.PlayerPickupArrowEvent event) {
+        if (event.getArrow() instanceof Trident trident && trident.getScoreboardTags().contains("minion_trident")) {
+            event.setCancelled(true);
+            trident.remove();
         }
     }
 

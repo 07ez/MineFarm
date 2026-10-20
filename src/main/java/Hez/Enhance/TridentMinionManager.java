@@ -16,6 +16,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.*;
@@ -43,7 +44,21 @@ public class TridentMinionManager {
         }.runTaskTimer(Main.getInstance(), 1L, 1L);
     }
 
-    private static final Map<UUID, Integer> chargeTicks = new ConcurrentHashMap<>();
+    // 평상시(대기): 세워진 기본 각도
+    private static final Transformation IDLE_TRANSFORMATION = new Transformation(
+            new Vector3f(0, 0, 0),
+            new Quaternionf().rotateXYZ(0f, 0f, 0f),
+            new Vector3f(0.85f, 0.85f, 0.85f),
+            new Quaternionf()
+    );
+
+    // 차징 시: 그 자리에서 동시에 X축 90도 회전! (정면 공격 조준)
+    private static final Transformation CHARGE_TRANSFORMATION = new Transformation(
+            new Vector3f(0, 0, 0),
+            new Quaternionf().rotateXYZ((float) Math.toRadians(90.0), 0f, 0f),
+            new Vector3f(0.85f, 0.85f, 0.85f),
+            new Quaternionf()
+    );
 
     /**
      * 플레이어 주변 미니언 상태 업데이트 (들고 있는 손 확인 및 위치 동기화)
@@ -58,21 +73,18 @@ public class TridentMinionManager {
         // 삼지창을 들고 있지 않거나 강화 레벨이 없으면 제거
         if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.TRIDENT) {
             clearMinions(player);
-            chargeTicks.remove(uuid);
             return;
         }
 
         int level = EnhanceManager.getEnhanceLevel(held);
         if (level <= 0) {
             clearMinions(player);
-            chargeTicks.remove(uuid);
             return;
         }
 
         TridentMinionConfig config = EnhanceManager.getTridentConfig(level);
         if (config == null) {
             clearMinions(player);
-            chargeTicks.remove(uuid);
             return;
         }
 
@@ -88,14 +100,7 @@ public class TridentMinionManager {
 
         // 우클릭 차징 중인지 확인 (손을 올리고 투척 차징 상태인지)
         boolean isCharging = player.isHandRaised();
-
-        if (isCharging) {
-            int ticks = chargeTicks.compute(uuid, (k, v) -> (v == null ? 0 : v + 1));
-            updateChargingMinionPositions(player, current, ticks);
-        } else {
-            chargeTicks.remove(uuid);
-            updateIdleMinionPositions(player, current);
-        }
+        updateMinionPositions(player, current, isCharging);
     }
 
     private static List<ItemDisplay> createMinions(Player player, int count) {
@@ -106,13 +111,8 @@ public class TridentMinionManager {
             ItemDisplay display = player.getWorld().spawn(eyeLoc, ItemDisplay.class, d -> {
                 d.setItemStack(new ItemStack(Material.TRIDENT));
                 d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.THIRDPERSON_RIGHTHAND);
-                d.setTransformation(new Transformation(
-                        new Vector3f(0, 0, 0),
-                        new AxisAngle4f(0, 0, 0, 1),
-                        new Vector3f(0.85f, 0.85f, 0.85f), // 크기 조정
-                        new AxisAngle4f(0, 0, 0, 1)
-                ));
-                d.setInterpolationDuration(1);
+                d.setTransformation(IDLE_TRANSFORMATION);
+                d.setInterpolationDuration(2);
                 d.setInterpolationDelay(0);
                 d.setViewRange(64.0f);
             });
@@ -122,9 +122,10 @@ public class TridentMinionManager {
     }
 
     /**
-     * 평상시(대기 상태): 플레이어 등 뒤 부채꼴 호버링
+     * 플레이어 등 뒤 부채꼴 호버링 위치 갱신
+     * isCharging이 true이면 그 자리에서 동시에 X축이 90도 회전하여 공격 조준 자세로 전환!
      */
-    private static void updateIdleMinionPositions(Player player, List<ItemDisplay> minions) {
+    private static void updateMinionPositions(Player player, List<ItemDisplay> minions, boolean isCharging) {
         int n = minions.size();
         if (n == 0) return;
 
@@ -135,6 +136,8 @@ public class TridentMinionManager {
         double spreadAngle = 140.0; // 등 뒤 부채꼴 총 각도
         double startAngle = -spreadAngle / 2.0;
         double step = (n > 1) ? spreadAngle / (n - 1) : 0;
+
+        Transformation targetTransform = isCharging ? CHARGE_TRANSFORMATION : IDLE_TRANSFORMATION;
 
         for (int i = 0; i < n; i++) {
             ItemDisplay display = minions.get(i);
@@ -151,58 +154,18 @@ public class TridentMinionManager {
 
             Location targetLoc = new Location(player.getWorld(), x, y, z, yaw, pitch);
             display.teleport(targetLoc);
-        }
-    }
 
-    /**
-     * 우클릭 차징 시: 플레이어 전방 에임 축을 중심으로 미니언들이 맹렬하게 고속 회전 (공격 태세!)
-     */
-    private static void updateChargingMinionPositions(Player player, List<ItemDisplay> minions, int ticks) {
-        int n = minions.size();
-        if (n == 0) return;
-
-        Location eye = player.getEyeLocation();
-        Vector dir = eye.getDirection().normalize();
-
-        // 회전 중심: 플레이어 전방 1.6m (시야를 방해하지 않는 이상적인 공격 거리)
-        Location center = eye.clone().add(dir.clone().multiply(1.6));
-
-        // 에임 축 dir에 수직인 평면 기저 벡터(Right, Up) 계산
-        Vector upRef = (Math.abs(dir.getY()) > 0.92) ? new Vector(0, 0, 1) : new Vector(0, 1, 0);
-        Vector right = dir.clone().crossProduct(upRef).normalize();
-        Vector up = right.clone().crossProduct(dir).normalize();
-
-        // 틱당 24도씩 고속 회전 (소용돌이 치듯 공격적으로 회전!)
-        double spinBase = Math.toRadians((ticks * 24.0) % 360.0);
-        double radius = 1.15; // 궤도 반경
-
-        for (int i = 0; i < n; i++) {
-            ItemDisplay display = minions.get(i);
-            if (!display.isValid()) continue;
-
-            double angle = spinBase + (i * 2.0 * Math.PI / n);
-            double cos = Math.cos(angle);
-            double sin = Math.sin(angle);
-
-            double x = center.getX() + (right.getX() * cos + up.getX() * sin) * radius;
-            double y = center.getY() + (right.getY() * cos + up.getY() * sin) * radius;
-            double z = center.getZ() + (right.getZ() * cos + up.getZ() * sin) * radius;
-
-            Location targetLoc = new Location(player.getWorld(), x, y, z);
-            // 삼지창 날(촉)이 플레이어의 에임(전방)을 똑바로 노려보도록 설정!
-            targetLoc.setDirection(dir);
-
-            display.teleport(targetLoc);
+            // 그 자리에서 각도 변환 (차징 시 X축 90도)
+            display.setTransformation(targetTransform);
 
             // 차징 중 미니언 위치에서 마력 파티클 방출 (공격 감각 극대화)
-            if (ticks % 2 == 0) {
+            if (isCharging) {
                 player.getWorld().spawnParticle(org.bukkit.Particle.CRIT, targetLoc, 1, 0.05, 0.05, 0.05, 0.02);
             }
         }
 
-        // 회전 음향 효과 (3틱 주기)
-        if (ticks % 4 == 0) {
-            player.playSound(center, Sound.ITEM_TRIDENT_RETURN, 0.4f, 1.8f);
+        if (isCharging) {
+            player.playSound(eye, Sound.ITEM_TRIDENT_RETURN, 0.2f, 1.8f);
         }
     }
 
@@ -234,12 +197,25 @@ public class TridentMinionManager {
 
         firingCooldowns.put(uuid, now);
         isFiring.add(uuid);
-        chargeTicks.remove(uuid);
 
         List<ItemDisplay> toShoot = new ArrayList<>(current);
         current.clear(); // 소환된 디스플레이는 사출 처리
 
         player.sendActionBar(Component.text("§b[삼지창 미니언] §e" + toShoot.size() + "자루 §f일제 사출!"));
+
+        // 플레이어가 조준하고 있는 정확한 에임 목표 지점(targetPoint) 계산
+        Location eye = player.getEyeLocation();
+        Vector aimDir = eye.getDirection().normalize();
+
+        org.bukkit.util.RayTraceResult hit = player.getWorld().rayTrace(
+                eye, aimDir, 50.0,
+                org.bukkit.FluidCollisionMode.NEVER, true, 0.5,
+                e -> !e.equals(player) && !(e instanceof ItemDisplay) && !e.getScoreboardTags().contains("minion_trident")
+        );
+
+        Location targetPoint = (hit != null && hit.getHitPosition() != null)
+                ? hit.getHitPosition().toLocation(player.getWorld())
+                : eye.clone().add(aimDir.clone().multiply(40.0));
 
         // 1틱(0.05초) 시차를 두고 순차 사출 (머신건 연사 손맛 연출)
         new BukkitRunnable() {
@@ -256,26 +232,44 @@ public class TridentMinionManager {
                 }
 
                 ItemDisplay display = toShoot.get(index);
-                Location spawnLoc = display.isValid() ? display.getLocation() : player.getEyeLocation();
+                Location spawnLoc = display.isValid() ? display.getLocation() : eye;
                 display.remove(); // 디스플레이 삼지창 삭제
 
-                // 실제 삼지창 발사체 생성 및 플레이어 에임 방향 사출
-                Vector dir = player.getEyeLocation().getDirection().normalize();
+                // 각 미니언의 스폰 위치에서 플레이어의 에임 목표점(targetPoint)을 향해 정확히 사출!
+                Vector toTarget = targetPoint.toVector().subtract(spawnLoc.toVector()).normalize();
+
                 Trident fired = player.getWorld().spawn(spawnLoc, Trident.class, t -> {
                     t.addScoreboardTag("minion_trident"); // 미니언 삼지창 태그 부여 (리스너 취소 방지!)
                     t.setShooter(player);
-                    t.setVelocity(dir.multiply(2.8));
+                    t.setVelocity(toTarget.multiply(2.8)); // 조준점에 정확히 꽂힘!
                     t.setDamage(config.getDamagePerMinion());
                     t.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+                    t.setLoyaltyLevel(3); // [충성 3레벨 적용: 땅에 박히면 플레이어에게 날아오는 애니메이션!]
                     t.setCritical(true);
                 });
 
-                // 허공에 날아간 삼지창 4초 후 자동 소멸 안전장치
-                Bukkit.getScheduler().runTaskLater(Main.getInstance(), () -> {
-                    if (fired.isValid()) {
-                        fired.remove();
+                // 충성 복귀 추적: 날아갔다가 플레이어 1.6m 이내로 복귀하면 자연스럽게 흡수 소멸
+                new BukkitRunnable() {
+                    int ticks = 0;
+
+                    @Override
+                    public void run() {
+                        ticks++;
+                        if (ticks > 200 || !fired.isValid() || !player.isOnline()) {
+                            if (fired.isValid()) fired.remove();
+                            cancel();
+                            return;
+                        }
+
+                        // 발사 직후 8틱 이후부터 플레이어 근접 검사 (플레이어에게 복귀 완료 시 회수)
+                        if (ticks > 8 && fired.getLocation().distanceSquared(player.getLocation().add(0, 1, 0)) <= 2.56) {
+                            player.playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 0.6f, 1.3f);
+                            player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, fired.getLocation(), 8, 0.2, 0.2, 0.2, 0.05);
+                            fired.remove();
+                            cancel();
+                        }
                     }
-                }, 80L);
+                }.runTaskTimer(Main.getInstance(), 2L, 1L);
 
                 player.getWorld().playSound(spawnLoc, Sound.ITEM_TRIDENT_THROW, 1.0f, 1.2f + (index * 0.05f));
                 index++;
