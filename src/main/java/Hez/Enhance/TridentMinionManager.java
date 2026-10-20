@@ -167,6 +167,19 @@ public class TridentMinionManager {
             player.getWorld().spawnParticle(org.bukkit.Particle.ENCHANTED_HIT, minion.getLocation(), 10, 0.15, 0.15, 0.15, 0.05);
             player.sendActionBar(Component.text("§b[삼지창 미니언] §f복귀 완료 §e(" + current.size() + "/" + config.getMinionCount() + ")"));
         }
+
+        // [안전망] 충성으로 인벤토리에 혹시 유입된 0강 일반 바닐라 삼지창이 있다면 즉시 제거
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack stack = player.getInventory().getItem(slot);
+            if (stack != null && stack.getType() == Material.TRIDENT) {
+                // 손에 든 현재 슬롯이 아니고, 강화가 안 되어있고 이름도 없는 바닐라 삼지창이면 복제 유입물이므로 제거
+                if (slot != player.getInventory().getHeldItemSlot() && EnhanceManager.getEnhanceLevel(stack) <= 0) {
+                    if (!stack.hasItemMeta() || !stack.getItemMeta().hasDisplayName()) {
+                        player.getInventory().setItem(slot, null);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -296,12 +309,18 @@ public class TridentMinionManager {
                     t.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
                     t.setLoyaltyLevel(3); // [충성 3레벨 적용: 땅에 박히면 플레이어에게 날아오는 애니메이션!]
                     t.setCritical(true);
+                    // [중요: 내부 아이템을 AIR로 설정하여 충성 복귀 시 인벤토리 침투를 원천 차단!]
+                    try {
+                        t.setItemStack(new ItemStack(Material.AIR));
+                        t.setItem(new ItemStack(Material.AIR));
+                    } catch (Throwable ignored) {}
                 });
 
                 // 충성 복귀 추적: 날아갔다가 플레이어에게 복귀하면 인벤토리 들어가지 않게 즉시 제거 & 등 뒤로 1자루 복귀!
                 new BukkitRunnable() {
                     int ticks = 0;
                     boolean processed = false;
+                    boolean hasLeftPlayer = false; // 발사 후 플레이어 품을 벗어났는지 여부
 
                     @Override
                     public void run() {
@@ -320,16 +339,23 @@ public class TridentMinionManager {
                             return;
                         }
 
-                        // 발사 직후 6틱 이후부터 플레이어 근접 검사 (충성 복귀 완료)
-                        // 반경 2.5m (거리제곱 6.25) 이내 도달 시 바닐라가 인벤토리에 넣기 전에 가로채서 안전 제거!
-                        if (ticks > 6 && fired.getLocation().distanceSquared(player.getLocation().add(0, 1, 0)) <= 6.25) {
+                        double distSq = fired.getLocation().distanceSquared(player.getLocation().add(0, 1, 0));
+
+                        // 발사 후 3m 이상 멀어지면 벗어남 플래그 true
+                        if (distSq > 9.0) {
+                            hasLeftPlayer = true;
+                        }
+
+                        // 복귀 판정: 블록에 박혔거나 피해를 입힌 후, 또는 멀어졌다가 플레이어 반경 3.8m(distSq <= 14.44) 내로 복귀했을 때!
+                        boolean isReturning = fired.isInBlock() || fired.hasDealtDamage() || hasLeftPlayer || ticks > 15;
+                        if (isReturning && distSq <= 14.44) {
                             processed = true;
-                            fired.remove(); // 엔티티 즉각 소멸 (인벤토리 복제 100% 차단)
+                            fired.remove(); // 바닐라 playerTouch(0.8m)에 닿기 전 공중 분해 (인벤토리 복제 100% 차단)
                             onMinionReturned(player); // 등 뒤에 1자루 복귀 소환!
                             cancel();
                         }
                     }
-                }.runTaskTimer(Main.getInstance(), 2L, 1L);
+                }.runTaskTimer(Main.getInstance(), 1L, 1L);
 
                 player.getWorld().playSound(spawnLoc, Sound.ITEM_TRIDENT_THROW, 1.0f, 1.2f + (index * 0.05f));
                 index++;

@@ -31,7 +31,46 @@ public enum EnhanceEquipmentType {
 
     public static EnhanceEquipmentType fromItem(ItemStack item) {
         if (item == null || item.getType() == Material.AIR) return UNKNOWN;
+
+        // 1. 커스텀 아이템 '00_spear' (창) 최우선 판별
+        if (item.hasItemMeta()) {
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            // (1) 1.21.4+ ItemModel 컴포넌트 검사
+            if (meta.hasItemModel()) {
+                String modelStr = meta.getItemModel().asString().toLowerCase();
+                String modelKey = meta.getItemModel().getKey().toLowerCase();
+                if (modelStr.contains("00_spear") || modelKey.contains("00_spear") || modelKey.equals("spear")) {
+                    return SPEAR;
+                }
+            }
+            // (2) CustomModelDataComponent의 strings 검사
+            if (meta.hasCustomModelDataComponent()) {
+                org.bukkit.inventory.meta.components.CustomModelDataComponent comp = meta.getCustomModelDataComponent();
+                if (comp.getStrings().stream().anyMatch(s -> s.equalsIgnoreCase("00_spear") || s.toLowerCase().contains("spear"))) {
+                    return SPEAR;
+                }
+            }
+            // (3) 삼지창이면서 이름에 "창"이 들어간 경우
+            if (item.getType() == Material.TRIDENT && meta.hasDisplayName() && meta.getDisplayName().contains("창")) {
+                return SPEAR;
+            }
+            // (4) 디스플레이 이름이나 로어에 00_spear 가 들어간 경우
+            if (meta.hasDisplayName() && meta.getDisplayName().toLowerCase().contains("00_spear")) {
+                return SPEAR;
+            }
+            if (meta.hasLore()) {
+                for (String line : meta.getLore()) {
+                    if (line.toLowerCase().contains("00_spear")) {
+                        return SPEAR;
+                    }
+                }
+            }
+        }
+
         Material type = item.getType();
+        if (type.name().toLowerCase().contains("spear")) {
+            return SPEAR;
+        }
 
         if (type == Material.WOODEN_SWORD
                 || type == Material.STONE_SWORD
@@ -69,9 +108,6 @@ public enum EnhanceEquipmentType {
         }
 
         if (type == Material.TRIDENT) {
-            if (item.hasItemMeta() && item.getItemMeta().hasDisplayName() && item.getItemMeta().getDisplayName().contains("창")) {
-                return SPEAR;
-            }
             return TRIDENT;
         }
 

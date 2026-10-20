@@ -590,6 +590,12 @@ public class EnhanceManager {
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName("§b강화된 창");
+            meta.setItemModel(org.bukkit.NamespacedKey.minecraft("00_spear"));
+            try {
+                org.bukkit.inventory.meta.components.CustomModelDataComponent cmd = meta.getCustomModelDataComponent();
+                cmd.setStrings(java.util.List.of("00_spear"));
+                meta.setCustomModelDataComponent(cmd);
+            } catch (Throwable ignored) {}
             item.setItemMeta(meta);
         }
         applyEnhanceMeta(item, level);
@@ -598,6 +604,16 @@ public class EnhanceManager {
 
     public static ItemStack createEnhancedSpear(Material material, int level) {
         ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setItemModel(org.bukkit.NamespacedKey.minecraft("00_spear"));
+            try {
+                org.bukkit.inventory.meta.components.CustomModelDataComponent cmd = meta.getCustomModelDataComponent();
+                cmd.setStrings(java.util.List.of("00_spear"));
+                meta.setCustomModelDataComponent(cmd);
+            } catch (Throwable ignored) {}
+            item.setItemMeta(meta);
+        }
         applyEnhanceMeta(item, level);
         return item;
     }

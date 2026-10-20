@@ -35,16 +35,13 @@ public class TridentMinionListener implements Listener {
         if (level <= 0) return;
 
         // 바닐라 삼지창 투척 취소 (손에 든 삼지창 본체 보존!)
+        // Paper에서 이벤트를 취소하면 손에 든 삼지창이 소모되지 않고 안전하게 보존됩니다.
         event.setCancelled(true);
 
-        // 손에 든 삼지창 본체 인벤토리 보존
-        ItemStack tridentClone = held.clone();
+        // 클라이언트와 서버의 손 아이템 상태 동기화
         org.bukkit.Bukkit.getScheduler().runTask(Hez.MineFarm.Main.getInstance(), () -> {
             if (player.isOnline()) {
-                ItemStack cur = player.getInventory().getItemInMainHand();
-                if (cur.getType() == Material.AIR || EnhanceEquipmentType.fromItem(cur) != EnhanceEquipmentType.TRIDENT) {
-                    player.getInventory().setItemInMainHand(tridentClone);
-                }
+                player.updateInventory();
             }
         });
 
@@ -75,6 +72,17 @@ public class TridentMinionListener implements Listener {
             event.setCancelled(true);
             trident.remove();
             TridentMinionManager.onMinionReturned(event.getPlayer());
+        }
+    }
+
+    /**
+     * 혹시라도 미니언 삼지창이 드롭 아이템화되었을 때의 픽업 방지
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onEntityPickupItem(org.bukkit.event.entity.EntityPickupItemEvent event) {
+        if (event.getItem().getScoreboardTags().contains("minion_trident")) {
+            event.setCancelled(true);
+            event.getItem().remove();
         }
     }
 
