@@ -32,19 +32,42 @@ public class MaceSmashListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
+        if (triggerMaceJump(player)) {
+            event.setCancelled(true);
+        }
+    }
 
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerInteractEntity(org.bukkit.event.player.PlayerInteractEntityEvent event) {
+        Player player = event.getPlayer();
+        if (triggerMaceJump(player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerInteractAtEntity(org.bukkit.event.player.PlayerInteractAtEntityEvent event) {
+        Player player = event.getPlayer();
+        if (triggerMaceJump(player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    /**
+     * 철퇴 도약 스킬 공통 발동 로직 (블록, 공중, 엔티티 조준 시 모두 지원)
+     */
+    private boolean triggerMaceJump(Player player) {
         // 강화대(ItemDisplay)를 조준하고 우클릭할 때는 철퇴 도약 스킬 발동 방지!
-        if (EnhanceDisplayListener.getTargetEnhanceDisplay(player) != null) return;
+        if (EnhanceDisplayListener.getTargetEnhanceDisplay(player) != null) return false;
 
         ItemStack held = player.getInventory().getItemInMainHand();
-
-        if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.MACE) return;
+        if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.MACE) return false;
 
         int level = EnhanceManager.getEnhanceLevel(held);
-        if (level <= 0) return;
+        if (level <= 0) return false;
 
         MaceSmashConfig config = EnhanceManager.getMaceConfig(level);
-        if (config == null) return;
+        if (config == null) return false;
 
         long now = System.currentTimeMillis();
         long lastUsed = cooldowns.getOrDefault(player.getUniqueId(), 0L);
@@ -53,7 +76,7 @@ public class MaceSmashListener implements Listener {
         if (now - lastUsed < cdMillis) {
             double remaining = (cdMillis - (now - lastUsed)) / 1000.0;
             player.sendActionBar(Component.text(String.format("§c[도약 강타] 쿨타임 중입니다! (%.1f초 남음)", remaining)));
-            return;
+            return false;
         }
 
         cooldowns.put(player.getUniqueId(), now);
@@ -96,6 +119,8 @@ public class MaceSmashListener implements Listener {
                 }
             }
         }.runTaskTimer(Main.getInstance(), 5L, 1L);
+
+        return true;
     }
 
     /**

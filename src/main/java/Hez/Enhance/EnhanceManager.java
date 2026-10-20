@@ -483,6 +483,15 @@ public class EnhanceManager {
                 EquipmentSlotGroup.MAINHAND
         );
         meta.addAttributeModifier(Attribute.ATTACK_SPEED, speedMod);
+
+        // 공중 우클릭 시에도 클라이언트가 서버로 즉시 상호작용 패킷을 보내도록 설정
+        try {
+            org.bukkit.inventory.meta.components.FoodComponent food = meta.getFood();
+            food.setCanAlwaysEat(true);
+            food.setNutrition(0);
+            food.setSaturation(0f);
+            meta.setFood(food);
+        } catch (Throwable ignored) {}
     }
 
     public static double getSwordBaseDamage(Material material) {
