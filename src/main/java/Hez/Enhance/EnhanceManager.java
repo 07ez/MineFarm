@@ -621,32 +621,11 @@ public class EnhanceManager {
     }
 
     public static ItemStack createEnhancedSpear(int level) {
-        return createEnhancedSpear(Material.IRON_SPEAR, level);
+        return createEnhancedSpear(Material.NETHERITE_SPEAR, level);
     }
 
     public static ItemStack createEnhancedSpear(Material material, int level) {
         ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta != null) {
-            String name = switch (material) {
-                case WOODEN_SPEAR -> "나무 창";
-                case STONE_SPEAR -> "돌 창";
-                case COPPER_SPEAR -> "구리 창";
-                case IRON_SPEAR -> "철 창";
-                case GOLDEN_SPEAR -> "금 창";
-                case DIAMOND_SPEAR -> "다이아몬드 창";
-                case NETHERITE_SPEAR -> "네더라이트 창";
-                default -> "창";
-            };
-            meta.setDisplayName("§b강화된 " + name);
-            meta.setItemModel(org.bukkit.NamespacedKey.minecraft("00_spear"));
-            try {
-                org.bukkit.inventory.meta.components.CustomModelDataComponent cmd = meta.getCustomModelDataComponent();
-                cmd.setStrings(java.util.List.of("00_spear"));
-                meta.setCustomModelDataComponent(cmd);
-            } catch (Throwable ignored) {}
-            item.setItemMeta(meta);
-        }
         applyEnhanceMeta(item, level);
         return item;
     }

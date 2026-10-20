@@ -27,11 +27,15 @@ public class MaceSmashListener implements Listener {
     private static final Map<UUID, Long> cooldowns = new ConcurrentHashMap<>();
     private static final Map<UUID, MaceSmashConfig> activeJumps = new ConcurrentHashMap<>();
 
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
+
+        // 강화대(ItemDisplay)를 조준하고 우클릭할 때는 철퇴 도약 스킬 발동 방지!
+        if (EnhanceDisplayListener.getTargetEnhanceDisplay(player) != null) return;
+
         ItemStack held = player.getInventory().getItemInMainHand();
 
         if (EnhanceEquipmentType.fromItem(held) != EnhanceEquipmentType.MACE) return;

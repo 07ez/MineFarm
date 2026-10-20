@@ -36,7 +36,7 @@ public class EnhanceDisplayListener implements Listener {
     /**
      * 허공 / 블록 우클릭 시 플레이어 시선에 있는 enhance ItemDisplay 감지
      */
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.LOW)
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
@@ -146,17 +146,46 @@ public class EnhanceDisplayListener implements Listener {
     }
 
     /**
-     * 요구하신 회전 각도 적용: X 90도, Y 0도, Z 45도
+     * 장비 종류별 트랜스폼 적용:
+     * - 삼지창: translation(-1, -0.5, 0.5), rotation(x: 90, z: 90)
+     * - 창: z 회전 없이 rotation(x: 90, z: 0)
+     * - 기타 장비: rotation(x: 90, z: 45)
      */
     public static void applyEnhanceTransformation(ItemDisplay display) {
-        Quaternionf rotation = new Quaternionf().rotateXYZ(
-                (float) Math.toRadians(90.0),
-                (float) Math.toRadians(0.0),
-                (float) Math.toRadians(45.0)
-        );
+        ItemStack item = display.getItemStack();
+        EnhanceEquipmentType eqType = EnhanceEquipmentType.fromItem(item);
+
+        Vector3f translation;
+        Quaternionf rotation;
+
+        if (eqType == EnhanceEquipmentType.TRIDENT) {
+            // 삼지창 전용: x: -1, y: -0.5, z: 0.5 / rotation x: 90, z: 90
+            translation = new Vector3f(-1.0f, -0.5f, 0.5f);
+            rotation = new Quaternionf().rotateXYZ(
+                    (float) Math.toRadians(90.0),
+                    (float) Math.toRadians(0.0),
+                    (float) Math.toRadians(90.0)
+            );
+        } else if (eqType == EnhanceEquipmentType.SPEAR) {
+            // 창 전용: z 회전 없이 x: 90, z: 0
+            translation = new Vector3f(0f, 0f, 0f);
+            rotation = new Quaternionf().rotateXYZ(
+                    (float) Math.toRadians(90.0),
+                    (float) Math.toRadians(0.0),
+                    (float) Math.toRadians(0.0)
+            );
+        } else {
+            // 기타 일반 장비(검, 도끼, 곡괭이, 활, 철퇴 등): x: 90, z: 45
+            translation = new Vector3f(0f, 0f, 0f);
+            rotation = new Quaternionf().rotateXYZ(
+                    (float) Math.toRadians(90.0),
+                    (float) Math.toRadians(0.0),
+                    (float) Math.toRadians(45.0)
+            );
+        }
 
         Transformation transformation = new Transformation(
-                new Vector3f(0f, 0f, 0f),
+                translation,
                 rotation,
                 new Vector3f(0.85f, 0.85f, 0.85f), // 알맞은 크기 배율
                 new Quaternionf()
@@ -170,7 +199,7 @@ public class EnhanceDisplayListener implements Listener {
     /**
      * 시선 경로 상의 enhance 태그를 가진 ItemDisplay 탐색
      */
-    private ItemDisplay getTargetEnhanceDisplay(Player player) {
+    public static ItemDisplay getTargetEnhanceDisplay(Player player) {
         Location eye = player.getEyeLocation();
         Vector dir = eye.getDirection();
 
