@@ -20,6 +20,8 @@ import java.util.concurrent.ThreadLocalRandom;
 public class EnhanceManager {
     public static final int MAX_LEVEL = 10;
     private static final NamespacedKey ENHANCE_LEVEL_KEY = new NamespacedKey(Main.getInstance(), "enhance_level");
+    public static final NamespacedKey ENHANCE_STONE_KEY = new NamespacedKey(Main.getInstance(), "enhance_stone");
+    public static final String ENHANCE_STONE_MODEL_DATA = "1009";
     private static final NamespacedKey ATTACK_DAMAGE_KEY = new NamespacedKey(Main.getInstance(), "tool_base_damage");
     private static final NamespacedKey ATTACK_SPEED_KEY = new NamespacedKey(Main.getInstance(), "tool_attack_speed");
     private static final NamespacedKey MINING_SPEED_KEY = new NamespacedKey(Main.getInstance(), "tool_mining_speed");
@@ -631,5 +633,54 @@ public class EnhanceManager {
         ItemStack item = new ItemStack(Material.MACE);
         applyEnhanceMeta(item, level);
         return item;
+    }
+
+    /**
+     * 강화석 아이템 생성 (Material.PAPER + CustomModelData 1009)
+     */
+    public static ItemStack createEnhanceStone(int amount) {
+        ItemStack item = Hez.CustomItem.CreateItem.create(Material.PAPER, ENHANCE_STONE_MODEL_DATA, "강화석");
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§b강화석");
+            meta.setLore(List.of(
+                    "§7장비 강화에 사용되는 신비로운 돌입니다.",
+                    "§7강화대(ItemDisplay)를 보고 우클릭하여 사용합니다."
+            ));
+            meta.getPersistentDataContainer().set(ENHANCE_STONE_KEY, PersistentDataType.BYTE, (byte) 1);
+            item.setItemMeta(meta);
+        }
+        item.setAmount(Math.max(1, amount));
+        return item;
+    }
+
+    /**
+     * 해당 아이템이 강화석인지 확인
+     */
+    public static boolean isEnhanceStone(ItemStack item) {
+        if (item == null || item.getType() != Material.PAPER) return false;
+        if (!item.hasItemMeta()) return false;
+        ItemMeta meta = item.getItemMeta();
+        if (meta == null) return false;
+
+        // 1. PDC 태그 확인
+        if (meta.getPersistentDataContainer().has(ENHANCE_STONE_KEY, PersistentDataType.BYTE)) {
+            return true;
+        }
+
+        // 2. CustomModelData 1009 확인
+        if (meta.hasCustomModelDataComponent()) {
+            List<String> strings = meta.getCustomModelDataComponent().getStrings();
+            if (strings.contains(ENHANCE_STONE_MODEL_DATA)) {
+                return true;
+            }
+        }
+
+        // 3. 디스플레이 이름 확인 (보조)
+        if (meta.hasDisplayName() && meta.getDisplayName().contains("강화석")) {
+            return true;
+        }
+
+        return false;
     }
 }

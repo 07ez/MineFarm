@@ -53,14 +53,36 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // 3. /강화 지급 <장비종류> <레벨>
+        // 3. /강화 지급 <장비종류> <레벨> 또는 /강화 지급 강화석 [개수]
         if (args[0].equalsIgnoreCase("지급") || args[0].equalsIgnoreCase("give")) {
+            if (args.length < 2) {
+                player.sendMessage("§e사용법:");
+                player.sendMessage("§7- §f/" + label + " 지급 강화석 [개수]");
+                player.sendMessage("§7- §f/" + label + " 지급 <검|도끼|곡괭이|창|활|삼지창|철퇴> <1~10>");
+                return true;
+            }
+
+            String type = args[1].toLowerCase();
+
+            // 강화석 지급 처리
+            if (type.equals("강화석") || type.equals("stone")) {
+                int amount = 1;
+                if (args.length >= 3) {
+                    try {
+                        amount = Math.max(1, Integer.parseInt(args[2]));
+                    } catch (NumberFormatException ignored) {}
+                }
+                ItemStack stone = EnhanceManager.createEnhanceStone(amount);
+                player.getInventory().addItem(stone);
+                player.sendMessage("§a[강화] §f강화석 §e" + amount + "개§f를 지급받았습니다!");
+                return true;
+            }
+
             if (args.length < 3) {
                 player.sendMessage("§e사용법: /" + label + " 지급 <검|도끼|곡괭이|창|활|삼지창|철퇴> <1~10>");
                 return true;
             }
 
-            String type = args[1].toLowerCase();
             int level;
             try {
                 level = Integer.parseInt(args[2]);
@@ -85,7 +107,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
             };
 
             if (item == null) {
-                player.sendMessage("§c유효하지 않은 장비 종류입니다. (검, 도끼, 곡괭이, 창, 활, 삼지창, 철퇴)");
+                player.sendMessage("§c유효하지 않은 장비 종류입니다. (검, 도끼, 곡괭이, 창, 활, 삼지창, 철퇴, 강화석)");
                 return true;
             }
 
@@ -97,6 +119,7 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
         player.sendMessage("§e사용법:");
         player.sendMessage("§7- §f/" + label + " §8: 손에 든 장비 강화 시도");
         player.sendMessage("§7- §f/" + label + " 생성 §8: 현재 위치에 강화대 ItemDisplay 생성");
+        player.sendMessage("§7- §f/" + label + " 지급 강화석 [개수] §8: 강화석 지급");
         player.sendMessage("§7- §f/" + label + " 지급 <종류> <1~10> §8: 특정 강화 장비 즉시 지급");
         return true;
     }
@@ -110,13 +133,20 @@ public class EnhanceCommand implements CommandExecutor, TabCompleter {
                 if (s.startsWith(args[0])) completions.add(s);
             }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("지급")) {
-            List<String> types = List.of("검", "도끼", "곡괭이", "창", "활", "삼지창", "철퇴");
+            List<String> types = List.of("검", "도끼", "곡괭이", "창", "활", "삼지창", "철퇴", "강화석");
             for (String t : types) {
                 if (t.startsWith(args[1])) completions.add(t);
             }
         } else if (args.length == 3 && args[0].equalsIgnoreCase("지급")) {
-            for (int i = 1; i <= EnhanceManager.MAX_LEVEL; i++) {
-                completions.add(String.valueOf(i));
+            if (args[1].equalsIgnoreCase("강화석") || args[1].equalsIgnoreCase("stone")) {
+                List<String> amounts = List.of("1", "5", "10", "64");
+                for (String a : amounts) {
+                    if (a.startsWith(args[2])) completions.add(a);
+                }
+            } else {
+                for (int i = 1; i <= EnhanceManager.MAX_LEVEL; i++) {
+                    completions.add(String.valueOf(i));
+                }
             }
         }
         return completions;

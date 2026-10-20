@@ -44,8 +44,17 @@ public class EnhanceDisplayListener implements Listener {
         if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
 
         Player player = event.getPlayer();
+        ItemStack held = player.getInventory().getItemInMainHand();
+
         ItemDisplay display = getTargetEnhanceDisplay(player);
-        if (display == null) return;
+        if (display == null) {
+            // 강화석을 들고 허공/블록에 우클릭한 경우 안내
+            if (EnhanceManager.isEnhanceStone(held)) {
+                event.setCancelled(true);
+                player.sendActionBar(Component.text("§c강화대(ItemDisplay)를 바라보고 우클릭하여 강화하세요!"));
+            }
+            return;
+        }
 
         // 디스플레이 상호작용 성공 시 블록 설치/사용 취소
         event.setCancelled(true);
@@ -82,11 +91,17 @@ public class EnhanceDisplayListener implements Listener {
     }
 
     /**
-     * 손에 든 아이템과 강화대 디스플레이 아이템을 교환(거치)
+     * 손에 든 아이템과 강화대 디스플레이 아이템을 교환(거치) 또는 강화석 사용
      */
     private void handleItemSwap(Player player, ItemDisplay display) {
         ItemStack held = player.getInventory().getItemInMainHand();
         ItemStack currentOnDisplay = display.getItemStack();
+
+        // 0. 손에 든 아이템이 강화석인 경우: 거치된 장비 강화 시도!
+        if (EnhanceManager.isEnhanceStone(held)) {
+            handleEnhanceWithStone(player, display, held);
+            return;
+        }
 
         boolean hasHeld = held != null && held.getType() != Material.AIR;
         boolean hasOnDisplay = currentOnDisplay != null && currentOnDisplay.getType() != Material.AIR;
@@ -94,7 +109,7 @@ public class EnhanceDisplayListener implements Listener {
         // 1. 손에 든 아이템이 있을 때: 강화 가능한 아이템인지 확인 후 거치/교환
         if (hasHeld) {
             if (!EnhanceManager.isEnhanceable(held)) {
-                player.sendMessage("§c강화할 수 있는 장비(검, 도끼, 곡괭이, 삼지창, 활, 철퇴)만 거치할 수 있습니다.");
+                player.sendMessage("§c강화할 수 있는 장비(검, 도끼, 곡괭이, 삼지창, 활, 철퇴, 창)만 거치할 수 있습니다.");
                 player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.8f);
                 return;
             }
@@ -142,6 +157,50 @@ public class EnhanceDisplayListener implements Listener {
 
             player.playSound(display.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1.0f, 1.2f);
             player.sendActionBar(Component.text("§e[강화대] §f거치된 장비를 회수했습니다: §7" + getItemDisplayName(currentOnDisplay)));
+        }
+    }
+
+    /**
+     * 강화석을 사용하여 거치된 장비 강화 시도
+     */
+    private void handleEnhanceWithStone(Player player, ItemDisplay display, ItemStack heldStone) {
+        ItemStack targetItem = display.getItemStack();
+        boolean hasOnDisplay = targetItem != null && targetItem.getType() != Material.AIR;
+
+        if (!hasOnDisplay || !EnhanceManager.isEnhanceable(targetItem)) {
+            player.sendMessage("§c강화대에 강화할 장비를 먼저 거치해주세요.");
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.8f);
+            return;
+        }
+
+        int currentLevel = EnhanceManager.getEnhanceLevel(targetItem);
+        if (currentLevel >= EnhanceManager.MAX_LEVEL) {
+            player.sendMessage("§c이미 최고 강화 단계(+" + EnhanceManager.MAX_LEVEL + ")입니다.");
+            player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1.0f, 0.8f);
+            return;
+        }
+
+        // 강화석 무조건 1개만 소모
+        if (heldStone.getAmount() > 1) {
+            heldStone.setAmount(heldStone.getAmount() - 1);
+        } else {
+            player.getInventory().setItemInMainHand(new ItemStack(Material.AIR));
+        }
+
+        // 강화 실행 (성공 / 실패 유지 / 파괴 처리)
+        EnhanceResult result = EnhanceManager.enhance(player, targetItem);
+
+        // 결과에 따른 거치대 디스플레이 갱신
+        if (result.getType() == EnhanceResultType.DESTROY) {
+            display.setItemStack(new ItemStack(Material.AIR));
+        } else {
+            display.setItemStack(result.getResultItem());
+            applyEnhanceTransformation(display);
+        }
+
+        // 개인 텍스트 디스플레이(n강 및 확률) 실시간 갱신!
+        if (Hez.MineFarm.Main.getInstance().getDisplayManager() != null) {
+            Hez.MineFarm.Main.getInstance().getDisplayManager().refreshPlayerDisplay(player);
         }
     }
 
