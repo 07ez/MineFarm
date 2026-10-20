@@ -7,6 +7,7 @@ import Hez.Display.Ore.OreTextDisplay;
 import Hez.Display.Tree.TreeTextDisplay;
 import org.bukkit.*;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
@@ -115,6 +116,12 @@ public class DisplayManager {
         return null;
     }
 
+    public void refreshPlayerDisplay(Player player) {
+        if (player != null) {
+            cleanupPlayerDisplay(player.getUniqueId());
+        }
+    }
+
     private void checkPlayerLook(Player player) {
         UUID uuid = player.getUniqueId();
         Display prevTarget = currentDisplays.get(uuid);
@@ -127,12 +134,36 @@ public class DisplayManager {
                 removeTextDisplay(player);
             }
 
+            // 거치된 아이템이 변경(회수 또는 새로운 장비 거치)되었는지 실시간 감지하여 잔상 및 텍스트 갱신
+            if (hitDisplay instanceof ItemDisplay itemTarget) {
+                Display activeGlow = activeGlowDisplays.get(uuid);
+                ItemStack currentGlowItem = (activeGlow instanceof ItemDisplay ig) ? ig.getItemStack() : null;
+                ItemStack targetItem = itemTarget.getItemStack();
+
+                boolean glowItemEmpty = (currentGlowItem == null || currentGlowItem.getType() == Material.AIR);
+                boolean targetItemEmpty = (targetItem == null || targetItem.getType() == Material.AIR);
+
+                if (glowItemEmpty != targetItemEmpty || (!glowItemEmpty && !currentGlowItem.isSimilar(targetItem))) {
+                    removeTextDisplay(player);
+                }
+            }
+
             // 이미 현재 타깃에 대한 개인 텍스트가 떠 있다면 유지
             if (activeTexts.containsKey(uuid)) {
                 return;
             }
 
             Set<String> tags = hitDisplay.getScoreboardTags();
+
+            // 강화대(enhance) 디스플레이 처리: 현재 n강 및 성공/실패/파괴 확률 표시
+            if (tags.contains("enhance")) {
+                currentDisplays.put(uuid, hitDisplay);
+                activeTexts.put(uuid, enhanceTexts(player, hitDisplay.getLocation(), hitDisplay, 0.45f));
+                spawnPrivateGlow(player, hitDisplay);
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 1, 0.8f);
+                return;
+            }
+
             DisplayTextInfo texts = getDisplayTextInfo(tags);
             float textYPos;
             if (tags.contains("tree")) {
@@ -165,6 +196,59 @@ public class DisplayManager {
                 removeTextDisplay(player);
             }
         }
+    }
+
+    /**
+     * 강화대(enhance) 디스플레이 전용 텍스트: 현재 n강 및 확률 표시
+     */
+    private List<TextDisplay> enhanceTexts(Player viewer, Location baseLoc, Display hitDisplay, float textYPos) {
+        ItemStack item = (hitDisplay instanceof ItemDisplay id) ? id.getItemStack() : null;
+        boolean hasItem = item != null && item.getType() != Material.AIR && Hez.Enhance.EnhanceManager.isEnhanceable(item);
+        int level = hasItem ? Hez.Enhance.EnhanceManager.getEnhanceLevel(item) : 0;
+
+        String lineCurrent; // 위쪽: 현재 n강
+        String lineRates;   // 아래쪽: 성공, 실패, 파괴 확률
+
+        if (hasItem) {
+            lineCurrent = "§e현재 " + level + "강";
+            if (level >= Hez.Enhance.EnhanceManager.MAX_LEVEL) {
+                lineRates = "§c최고 단계 (강화 불가)";
+            } else {
+                Hez.Enhance.EnhanceStepConfig cfg = Hez.Enhance.EnhanceManager.getSwordConfig(level + 1);
+                int s = (int) cfg.getSuccessRate();
+                int f = (int) cfg.getFailureRate();
+                int d = (int) cfg.getDestroyRate();
+                lineRates = "§a성공 " + s + "%  §e실패 " + f + "%  §c파괴 " + d + "%";
+            }
+        } else {
+            lineCurrent = "§e현재 0강 §7(장비 미거치)";
+            lineRates = "§a성공 100%  §e실패 0%  §c파괴 0%";
+        }
+
+        return List.of(
+                spawnPrivateBillboardTextDisplay(viewer, baseLoc.clone().add(0, textYPos, 0), lineRates),
+                spawnPrivateBillboardTextDisplay(viewer, baseLoc.clone().add(0, textYPos + 0.3f, 0), lineCurrent)
+        );
+    }
+
+    /**
+     * 항상 플레이어를 정면으로 바라보는 개인 전용 빌보드 TextDisplay 생성
+     */
+    private TextDisplay spawnPrivateBillboardTextDisplay(Player viewer, Location loc, String content) {
+        TextDisplay display = loc.getWorld().spawn(loc, TextDisplay.class, text -> {
+            text.setVisibleByDefault(false);
+            text.setPersistent(false);
+            text.setText(content);
+            text.setBillboard(Display.Billboard.CENTER);
+            text.setSeeThrough(false);
+            text.setBackgroundColor(Color.fromARGB(80, 0, 0, 0));
+
+            org.bukkit.util.Transformation transformation = text.getTransformation();
+            transformation.getScale().set(0.7f, 0.7f, 0.7f);
+            text.setTransformation(transformation);
+        });
+        viewer.showEntity(plugin, display);
+        return display;
     }
 
     /**
@@ -207,6 +291,12 @@ public class DisplayManager {
         Display glowClone = null;
 
         if (target instanceof ItemDisplay itemTarget) {
+            ItemStack stack = itemTarget.getItemStack();
+            // 거치된 아이템이 공기이거나 없으면 발광 클론을 생성하지 않음 (잔상 원천 방지)
+            if (stack == null || stack.getType() == Material.AIR) {
+                return;
+            }
+
             glowClone = loc.getWorld().spawn(loc, ItemDisplay.class, clone -> {
                 clone.setVisibleByDefault(false);
                 clone.setPersistent(false);

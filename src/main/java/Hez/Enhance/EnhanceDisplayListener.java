@@ -118,9 +118,14 @@ public class EnhanceDisplayListener implements Listener {
                 }
             }
 
-            // 디스플레이에 아이템 설정 및 지정된 각도(X 90, Y 0, Z -45)로 회전 적용
+            // 디스플레이에 아이템 설정 및 지정된 각도(X 90, Y 0, Z 45)로 회전 적용
             display.setItemStack(toPlace);
             applyEnhanceTransformation(display);
+
+            // 개인 디스플레이 즉시 갱신 (잔상 제거 및 텍스트 실시간 반영)
+            if (Hez.MineFarm.Main.getInstance().getDisplayManager() != null) {
+                Hez.MineFarm.Main.getInstance().getDisplayManager().refreshPlayerDisplay(player);
+            }
 
             player.playSound(display.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 1.0f, 1.1f);
             player.sendActionBar(Component.text("§a[강화대] §f장비를 거치했습니다: §e" + getItemDisplayName(toPlace)));
@@ -130,19 +135,24 @@ public class EnhanceDisplayListener implements Listener {
             player.getInventory().setItemInMainHand(currentOnDisplay.clone());
             display.setItemStack(new ItemStack(Material.AIR));
 
+            // 개인 디스플레이 즉시 갱신 (잔상 제거 및 텍스트 실시간 반영)
+            if (Hez.MineFarm.Main.getInstance().getDisplayManager() != null) {
+                Hez.MineFarm.Main.getInstance().getDisplayManager().refreshPlayerDisplay(player);
+            }
+
             player.playSound(display.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 1.0f, 1.2f);
             player.sendActionBar(Component.text("§e[강화대] §f거치된 장비를 회수했습니다: §7" + getItemDisplayName(currentOnDisplay)));
         }
     }
 
     /**
-     * 요구하신 회전 각도 적용: X 90도, Y 0도, Z -45도
+     * 요구하신 회전 각도 적용: X 90도, Y 0도, Z 45도
      */
     public static void applyEnhanceTransformation(ItemDisplay display) {
         Quaternionf rotation = new Quaternionf().rotateXYZ(
                 (float) Math.toRadians(90.0),
                 (float) Math.toRadians(0.0),
-                (float) Math.toRadians(-45.0)
+                (float) Math.toRadians(45.0)
         );
 
         Transformation transformation = new Transformation(
