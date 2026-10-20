@@ -241,23 +241,12 @@ public class TridentMinionManager {
         TridentMinionConfig config = EnhanceManager.getTridentConfig(level);
         if (config == null) return false;
 
-        long now = System.currentTimeMillis();
-        long lastFired = firingCooldowns.getOrDefault(uuid, 0L);
-        long cdMillis = (long) (config.getCooldownSeconds() * 1000);
-
-        if (now - lastFired < cdMillis) {
-            double remaining = (cdMillis - (now - lastFired)) / 1000.0;
-            player.sendActionBar(Component.text(String.format("§c[삼지창 미니언] 재장전 중! (%.1f초 남음)", remaining)));
-            return false;
-        }
-
         List<ItemDisplay> current = playerMinions.get(uuid);
         if (current == null || current.isEmpty()) {
             player.sendActionBar(Component.text("§c[삼지창 미니언] 아직 복귀한 미니언이 없습니다!"));
             return false;
         }
 
-        firingCooldowns.put(uuid, now);
         isFiring.add(uuid);
 
         List<ItemDisplay> toShoot = new ArrayList<>(current);

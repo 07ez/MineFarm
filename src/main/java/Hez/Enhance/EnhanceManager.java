@@ -508,83 +508,80 @@ public class EnhanceManager {
     private static void updateLore(ItemMeta meta, EnhanceEquipmentType type, int level) {
         List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
 
-        lore.removeIf(line -> line.contains("강화 단계") || line.contains("휘두르기 쿨타임")
-                || line.contains("공격 속도:") || line.contains("찹트리") || line.contains("내구도 보호")
+        lore.removeIf(line -> line.contains("강화단계") || line.contains("강화 단계")
+                || line.contains("휘두르기 쿨타임") || line.contains("공격 속도") || line.contains("공격속도")
+                || line.contains("찹트리") || line.contains("내구도 보호")
                 || line.contains("채굴 가속") || line.contains("범위 채굴") || line.contains("자동 수거")
                 || line.contains("속사 가속") || line.contains("멀티샷")
                 || line.contains("방어력 관통") || line.contains("출혈")
-                || line.contains("삼지창 미니언") || line.contains("에임 사출")
+                || line.contains("삼지창 미니언") || line.contains("에임 사출") || line.contains("자루당 피해")
                 || line.contains("도약 강타") || line.contains("지진 스매시") || line.contains("광역 에어본")
-                || line.equals("§8───────────────"));
+                || line.contains("───────────────"));
 
         if (level > 0) {
-            lore.add("§8───────────────");
-            lore.add("§6★ 강화 단계: §e+" + level + " §7/ §c" + MAX_LEVEL);
+            lore.add("§6강화단계 +" + level);
 
             if (type == EnhanceEquipmentType.SWORD) {
                 EnhanceStepConfig config = SWORD_CONFIGS.get(level);
                 double bonusSpeed = config != null ? config.getBonusAttackSpeed() : 0.0;
                 double reduction = config != null ? config.getCooldownReductionPercentage() : 0.0;
-                lore.add(String.format("§b⚡ 공격 속도: §f+%.2f §a(휘두르기 쿨타임 -%.1f%%)", bonusSpeed, reduction));
+                lore.add(String.format("§b공격 속도: §f+%.2f §a(휘두르기 쿨타임 -%.1f%%)", bonusSpeed, reduction));
             } else if (type == EnhanceEquipmentType.AXE) {
                 AxeChopConfig config = AXE_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§a🪓 찹트리: §f최대 §e%d개 §f연쇄 벌목", config.getMaxBlocks()));
-                    String cdText = config.getCooldownSeconds() > 0 ? String.format("%.1f초", config.getCooldownSeconds()) : "§b노쿨타임";
-                    lore.add(String.format("§7- 쿨타임: §f%s §7| 나뭇잎 파괴: %s", cdText, config.isBreakLeaves() ? "§aO" : "§cX"));
+                    lore.add(String.format("§a찹트리: §f최대 §e%d개 §f연쇄 벌목", config.getMaxBlocks()));
+                    String cdText = config.getCooldownSeconds() > 0 ? String.format("%.1f초", config.getCooldownSeconds()) : "노쿨타임";
+                    lore.add(String.format("§7쿨타임: §f%s §7| 나뭇잎 파괴: %s", cdText, config.isBreakLeaves() ? "§aO" : "§cX"));
                     if (config.getSaveDurabilityRate() > 0) {
-                        lore.add(String.format("§7- 내구도 보호: §e%.0f%% 확률 미소모", config.getSaveDurabilityRate()));
+                        lore.add(String.format("§7내구도 보호: §e%.0f%% 확률 미소모", config.getSaveDurabilityRate()));
                     }
                 }
             } else if (type == EnhanceEquipmentType.PICKAXE) {
                 PickaxeMiningConfig config = PICKAXE_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§e⚡ 채굴 가속: §a+%d%% §7(인챈트 중첩 가능)", config.getSpeedPercent()));
+                    lore.add(String.format("§e채굴 가속: §a+%d%% §7(인챈트 중첩 가능)", config.getSpeedPercent()));
                     if (config.getAreaType().isAreaMining()) {
-                        lore.add(String.format("§6⛏ 범위 채굴: §f%s §7(Shift 시 1칸 단일 채굴)", config.getAreaType().getDisplayName()));
+                        lore.add(String.format("§6범위 채굴: §f%s §7(Shift 시 1칸 단일 채굴)", config.getAreaType().getDisplayName()));
                     }
                     if (config.isAutoPickup()) {
-                        lore.add("§d🧲 드롭 아이템 인벤토리 즉시 자동 수거");
+                        lore.add("§d드롭 아이템 인벤토리 즉시 자동 수거");
                     }
                 }
             } else if (type == EnhanceEquipmentType.BOW) {
                 BowRapidConfig config = BOW_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§e🏹 속사 가속: §a+%d%% §7(초고속 풀차징 & 탄속 +%d%%)",
+                    lore.add(String.format("§e속사 가속: §a+%d%% §7(초고속 풀차징 & 탄속 +%d%%)",
                             config.getChargePercent(), (int) (config.getProjectileSpeedBonus() * 100)));
                     if (config.isMultiShot()) {
                         String pierceText = config.getPierceLevel() > 0 ? " & 관통" : "";
-                        lore.add(String.format("§b🎯 멀티샷: §f화살 §e%d발 §f동시 사격%s", config.getArrowCount(), pierceText));
+                        lore.add(String.format("§b멀티샷: §f화살 §e%d발 §f동시 사격%s", config.getArrowCount(), pierceText));
                     }
                 }
             } else if (type == EnhanceEquipmentType.SPEAR) {
                 SpearBleedConfig config = SPEAR_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§c🗡 방어력 관통: §f+%d%%", config.getArmorPenetrationPercent()));
+                    lore.add(String.format("§c방어력 관통: §f+%d%%", config.getArmorPenetrationPercent()));
                     if (config.getBleedChance() > 0) {
-                        lore.add(String.format("§4🩸 출혈 부여: §e%.0f%% 확률", config.getBleedChance()));
+                        lore.add(String.format("§4출혈 부여: §e%.0f%% 확률", config.getBleedChance()));
                     }
                 }
             } else if (type == EnhanceEquipmentType.TRIDENT) {
                 TridentMinionConfig config = TRIDENT_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§b🔱 삼지창 미니언: §e%d자루 §f소환", config.getMinionCount()));
-                    lore.add(String.format("§7- 우클릭 차징 후 해제 시 에임 방향 일제 사출"));
-                    lore.add(String.format("§7- 재장전 쿨타임: §f%.1f초 §7| 자루당 피해: §c%.1f",
-                            config.getCooldownSeconds(), config.getDamagePerMinion()));
+                    lore.add(String.format("§b삼지창 미니언: §e%d자루 §f소환", config.getMinionCount()));
+                    lore.add("§7우클릭 차징 후 해제 시 에임 방향 일제 사출");
+                    lore.add(String.format("§7자루당 피해: §c%.1f", config.getDamagePerMinion()));
                 }
             } else if (type == EnhanceEquipmentType.MACE) {
                 MaceSmashConfig config = MACE_CONFIGS.get(level);
                 if (config != null) {
-                    lore.add(String.format("§6🔨 도약 강타: §e우클릭 시 하늘로 슈퍼 점프"));
+                    lore.add("§6도약 강타: §e우클릭 시 하늘로 슈퍼 점프");
                     String airText = config.hasAirborne() ? " & 광역 에어본" : "";
-                    lore.add(String.format("§7- 착지 시 반경 §e%.1fm §7지진 스매시 (피해: §c%.1f%s§7)",
+                    lore.add(String.format("§7착지 시 반경 §e%.1fm §7지진 스매시 (피해: §c%.1f%s§7)",
                             config.getEarthquakeRadius(), config.getEarthquakeDamage(), airText));
-                    lore.add(String.format("§7- 쿨타임: §f%.1f초 §7(도약 낙하 데미지 완전 면제)", config.getCooldownSeconds()));
+                    lore.add(String.format("§7쿨타임: §f%.1f초 §7(도약 낙하 데미지 완전 면제)", config.getCooldownSeconds()));
                 }
             }
-
-            lore.add("§8───────────────");
         }
 
         meta.setLore(lore);
