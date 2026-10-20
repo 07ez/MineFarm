@@ -20,6 +20,15 @@
     },
     {
       "type": "bitmap",
+      "file": "minecraft:font/mailbox.png",
+      "ascent": 13,
+      "height": 256,
+      "chars": [
+        "\uE300"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "minecraft:font/space.png",
       "ascent": -32768,
       "height": -10,

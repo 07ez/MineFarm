@@ -50,89 +50,89 @@ public class EnhanceManager {
     static {
         // --- [검] (targetLevel, successRate, failureRate, destroyRate, bonusAttackSpeed, cost) ---
         SWORD_CONFIGS.put(1,  new EnhanceStepConfig(1,  100.0,  0.0,  0.0, 0.10, 1000));
-        SWORD_CONFIGS.put(2,  new EnhanceStepConfig(2,   95.0,  5.0,  0.0, 0.20, 2000));
-        SWORD_CONFIGS.put(3,  new EnhanceStepConfig(3,   90.0, 10.0,  0.0, 0.30, 3000));
-        SWORD_CONFIGS.put(4,  new EnhanceStepConfig(4,   80.0, 20.0,  0.0, 0.45, 5000));
+        SWORD_CONFIGS.put(2,  new EnhanceStepConfig(2,   90.0,  10.0,  0.0, 0.20, 2000));
+        SWORD_CONFIGS.put(3,  new EnhanceStepConfig(3,   80.0, 20.0,  0.0, 0.30, 3000));
+        SWORD_CONFIGS.put(4,  new EnhanceStepConfig(4,   75.0, 25.0,  0.0, 0.45, 5000));
         SWORD_CONFIGS.put(5,  new EnhanceStepConfig(5,   70.0, 30.0,  0.0, 0.60, 8000));
-        SWORD_CONFIGS.put(6,  new EnhanceStepConfig(6,   60.0, 37.0,  3.0, 0.80, 12000));
+        SWORD_CONFIGS.put(6,  new EnhanceStepConfig(6,   60.0, 35.0,  5.0, 0.80, 12000));
         SWORD_CONFIGS.put(7,  new EnhanceStepConfig(7,   50.0, 43.0,  7.0, 1.00, 18000));
-        SWORD_CONFIGS.put(8,  new EnhanceStepConfig(8,   40.0, 48.0, 12.0, 1.20, 25000));
-        SWORD_CONFIGS.put(9,  new EnhanceStepConfig(9,   30.0, 52.0, 18.0, 1.40, 35000));
-        SWORD_CONFIGS.put(10, new EnhanceStepConfig(10,  20.0, 55.0, 25.0, 1.65, 50000));
+        SWORD_CONFIGS.put(8,  new EnhanceStepConfig(8,   30.0, 60.0, 10.0, 1.20, 25000));
+        SWORD_CONFIGS.put(9,  new EnhanceStepConfig(9,   15.0, 62.0, 23.0, 1.40, 35000));
+        SWORD_CONFIGS.put(10, new EnhanceStepConfig(10,  10.0, 55.0, 35.0, 1.65, 50000));
 
         // --- [도끼] 찹트리 설정 (targetLevel, success, fail, destroy, maxBlocks, cooldownSeconds, breakLeaves, saveDurabilityRate, cost) ---
         AXE_CONFIGS.put(1,  new AxeChopConfig(1,  100.0,  0.0,  0.0,   6, 5.0, false,  0.0, 1000));
-        AXE_CONFIGS.put(2,  new AxeChopConfig(2,   95.0,  5.0,  0.0,  12, 4.5, false,  5.0, 2000));
-        AXE_CONFIGS.put(3,  new AxeChopConfig(3,   90.0, 10.0,  0.0,  20, 4.0, false, 10.0, 3000));
-        AXE_CONFIGS.put(4,  new AxeChopConfig(4,   80.0, 20.0,  0.0,  30, 3.5, false, 15.0, 5000));
+        AXE_CONFIGS.put(2,  new AxeChopConfig(2,   90.0, 10.0,  0.0,  12, 4.5, false,  5.0, 2000));
+        AXE_CONFIGS.put(3,  new AxeChopConfig(3,   80.0, 20.0,  0.0,  20, 4.0, false, 10.0, 3000));
+        AXE_CONFIGS.put(4,  new AxeChopConfig(4,   75.0, 25.0,  0.0,  30, 3.5, false, 15.0, 5000));
         AXE_CONFIGS.put(5,  new AxeChopConfig(5,   70.0, 30.0,  0.0,  45, 3.0, false, 20.0, 8000));
-        AXE_CONFIGS.put(6,  new AxeChopConfig(6,   60.0, 37.0,  3.0,  65, 2.5, false, 25.0, 12000));
+        AXE_CONFIGS.put(6,  new AxeChopConfig(6,   60.0, 35.0,  5.0,  65, 2.5, false, 25.0, 12000));
         AXE_CONFIGS.put(7,  new AxeChopConfig(7,   50.0, 43.0,  7.0,  90, 2.0, true,  30.0, 18000));
-        AXE_CONFIGS.put(8,  new AxeChopConfig(8,   40.0, 48.0, 12.0, 130, 1.5, true,  35.0, 25000));
-        AXE_CONFIGS.put(9,  new AxeChopConfig(9,   30.0, 52.0, 18.0, 180, 1.0, true,  40.0, 35000));
-        AXE_CONFIGS.put(10, new AxeChopConfig(10,  20.0, 55.0, 25.0, 260, 0.0, true,  50.0, 50000));
+        AXE_CONFIGS.put(8,  new AxeChopConfig(8,   30.0, 60.0, 10.0, 130, 1.5, true,  35.0, 25000));
+        AXE_CONFIGS.put(9,  new AxeChopConfig(9,   15.0, 62.0, 23.0, 180, 1.0, true,  40.0, 35000));
+        AXE_CONFIGS.put(10, new AxeChopConfig(10,  10.0, 55.0, 35.0, 260, 0.0, true,  50.0, 50000));
 
         // --- [곡괭이] (targetLevel, success, fail, destroy, speedBonus, areaType, autoPickup, cost) ---
         PICKAXE_CONFIGS.put(1,  new PickaxeMiningConfig(1,  100.0,  0.0,  0.0, 0.20, AreaMiningType.NONE,           false, 1000));
-        PICKAXE_CONFIGS.put(2,  new PickaxeMiningConfig(2,   95.0,  5.0,  0.0, 0.45, AreaMiningType.NONE,           false, 2000));
-        PICKAXE_CONFIGS.put(3,  new PickaxeMiningConfig(3,   90.0, 10.0,  0.0, 0.75, AreaMiningType.NONE,           false, 3000));
-        PICKAXE_CONFIGS.put(4,  new PickaxeMiningConfig(4,   80.0, 20.0,  0.0, 1.15, AreaMiningType.NONE,           false, 5000));
+        PICKAXE_CONFIGS.put(2,  new PickaxeMiningConfig(2,   90.0, 10.0,  0.0, 0.45, AreaMiningType.NONE,           false, 2000));
+        PICKAXE_CONFIGS.put(3,  new PickaxeMiningConfig(3,   80.0, 20.0,  0.0, 0.75, AreaMiningType.NONE,           false, 3000));
+        PICKAXE_CONFIGS.put(4,  new PickaxeMiningConfig(4,   75.0, 25.0,  0.0, 1.15, AreaMiningType.NONE,           false, 5000));
         PICKAXE_CONFIGS.put(5,  new PickaxeMiningConfig(5,   70.0, 30.0,  0.0, 1.60, AreaMiningType.NONE,           false, 8000));
-        PICKAXE_CONFIGS.put(6,  new PickaxeMiningConfig(6,   60.0, 37.0,  3.0, 2.10, AreaMiningType.HORIZONTAL_3x1, false, 12000));
+        PICKAXE_CONFIGS.put(6,  new PickaxeMiningConfig(6,   60.0, 35.0,  5.0, 2.10, AreaMiningType.HORIZONTAL_3x1, false, 12000));
         PICKAXE_CONFIGS.put(7,  new PickaxeMiningConfig(7,   50.0, 43.0,  7.0, 2.70, AreaMiningType.AREA_3x3,       false, 18000));
-        PICKAXE_CONFIGS.put(8,  new PickaxeMiningConfig(8,   40.0, 48.0, 12.0, 3.40, AreaMiningType.DEPTH_3x3x2,     false, 25000));
-        PICKAXE_CONFIGS.put(9,  new PickaxeMiningConfig(9,   30.0, 52.0, 18.0, 4.20, AreaMiningType.CUBE_3x3x3,      false, 35000));
-        PICKAXE_CONFIGS.put(10, new PickaxeMiningConfig(10,  20.0, 55.0, 25.0, 5.00, AreaMiningType.CUBE_3x3x3,      false, 50000));
+        PICKAXE_CONFIGS.put(8,  new PickaxeMiningConfig(8,   30.0, 60.0, 10.0, 3.40, AreaMiningType.DEPTH_3x3x2,     false, 25000));
+        PICKAXE_CONFIGS.put(9,  new PickaxeMiningConfig(9,   15.0, 62.0, 23.0, 4.20, AreaMiningType.CUBE_3x3x3,      false, 35000));
+        PICKAXE_CONFIGS.put(10, new PickaxeMiningConfig(10,  10.0, 55.0, 35.0, 5.00, AreaMiningType.CUBE_3x3x3,      false, 50000));
 
         // --- [창] (targetLevel, success, fail, destroy, armorPenetrationRate, bleedChance, bleedDuration, damagePerTick, slownessAmp, cost) ---
         SPEAR_CONFIGS.put(1,  new SpearBleedConfig(1,  100.0,  0.0,  0.0, 0.10,   0.0, 0.0, 0.0, -1, 1000));
-        SPEAR_CONFIGS.put(2,  new SpearBleedConfig(2,   95.0,  5.0,  0.0, 0.20,   0.0, 0.0, 0.0, -1, 2000));
-        SPEAR_CONFIGS.put(3,  new SpearBleedConfig(3,   90.0, 10.0,  0.0, 0.30,   0.0, 0.0, 0.0, -1, 3000));
-        SPEAR_CONFIGS.put(4,  new SpearBleedConfig(4,   80.0, 20.0,  0.0, 0.40,   0.0, 0.0, 0.0, -1, 5000));
+        SPEAR_CONFIGS.put(2,  new SpearBleedConfig(2,   90.0, 10.0,  0.0, 0.20,   0.0, 0.0, 0.0, -1, 2000));
+        SPEAR_CONFIGS.put(3,  new SpearBleedConfig(3,   80.0, 20.0,  0.0, 0.30,   0.0, 0.0, 0.0, -1, 3000));
+        SPEAR_CONFIGS.put(4,  new SpearBleedConfig(4,   75.0, 25.0,  0.0, 0.40,   0.0, 0.0, 0.0, -1, 5000));
         SPEAR_CONFIGS.put(5,  new SpearBleedConfig(5,   70.0, 30.0,  0.0, 0.50,   0.0, 0.0, 0.0, -1, 8000));
-        SPEAR_CONFIGS.put(6,  new SpearBleedConfig(6,   60.0, 37.0,  3.0, 0.60,  25.0, 2.5, 1.5,  0, 12000));
+        SPEAR_CONFIGS.put(6,  new SpearBleedConfig(6,   60.0, 35.0,  5.0, 0.60,  25.0, 2.5, 1.5,  0, 12000));
         SPEAR_CONFIGS.put(7,  new SpearBleedConfig(7,   50.0, 43.0,  7.0, 0.70,  40.0, 3.0, 2.0,  0, 18000));
-        SPEAR_CONFIGS.put(8,  new SpearBleedConfig(8,   40.0, 48.0, 12.0, 0.80,  60.0, 3.5, 2.5,  1, 25000));
-        SPEAR_CONFIGS.put(9,  new SpearBleedConfig(9,   30.0, 52.0, 18.0, 0.90,  80.0, 4.0, 3.0,  1, 35000));
-        SPEAR_CONFIGS.put(10, new SpearBleedConfig(10,  20.0, 55.0, 25.0, 1.00, 100.0, 5.0, 4.0,  2, 50000));
+        SPEAR_CONFIGS.put(8,  new SpearBleedConfig(8,   30.0, 60.0, 10.0, 0.80,  60.0, 3.5, 2.5,  1, 25000));
+        SPEAR_CONFIGS.put(9,  new SpearBleedConfig(9,   15.0, 62.0, 23.0, 0.90,  80.0, 4.0, 3.0,  1, 35000));
+        SPEAR_CONFIGS.put(10, new SpearBleedConfig(10,  10.0, 55.0, 35.0, 1.00, 100.0, 5.0, 4.0,  2, 50000));
 
         // --- [활] (targetLevel, success, fail, destroy, chargeBonus, projectileSpeedBonus, arrowCount, pierceLevel, cost) ---
         BOW_CONFIGS.put(1,  new BowRapidConfig(1,  100.0,  0.0,  0.0, 0.15, 0.10, 1, 0, 1000));
-        BOW_CONFIGS.put(2,  new BowRapidConfig(2,   95.0,  5.0,  0.0, 0.30, 0.20, 1, 0, 2000));
-        BOW_CONFIGS.put(3,  new BowRapidConfig(3,   90.0, 10.0,  0.0, 0.45, 0.30, 1, 0, 3000));
-        BOW_CONFIGS.put(4,  new BowRapidConfig(4,   80.0, 20.0,  0.0, 0.60, 0.40, 1, 0, 5000));
+        BOW_CONFIGS.put(2,  new BowRapidConfig(2,   90.0, 10.0,  0.0, 0.30, 0.20, 1, 0, 2000));
+        BOW_CONFIGS.put(3,  new BowRapidConfig(3,   80.0, 20.0,  0.0, 0.45, 0.30, 1, 0, 3000));
+        BOW_CONFIGS.put(4,  new BowRapidConfig(4,   75.0, 25.0,  0.0, 0.60, 0.40, 1, 0, 5000));
         BOW_CONFIGS.put(5,  new BowRapidConfig(5,   70.0, 30.0,  0.0, 0.75, 0.50, 1, 0, 8000));
-        BOW_CONFIGS.put(6,  new BowRapidConfig(6,   60.0, 37.0,  3.0, 0.80, 0.55, 3, 0, 12000));
+        BOW_CONFIGS.put(6,  new BowRapidConfig(6,   60.0, 35.0,  5.0, 0.80, 0.55, 3, 0, 12000));
         BOW_CONFIGS.put(7,  new BowRapidConfig(7,   50.0, 43.0,  7.0, 0.85, 0.60, 3, 0, 18000));
-        BOW_CONFIGS.put(8,  new BowRapidConfig(8,   40.0, 48.0, 12.0, 0.90, 0.70, 4, 0, 25000));
-        BOW_CONFIGS.put(9,  new BowRapidConfig(9,   30.0, 52.0, 18.0, 0.95, 0.80, 5, 0, 35000));
-        BOW_CONFIGS.put(10, new BowRapidConfig(10,  20.0, 55.0, 25.0, 1.00, 1.00, 5, 1, 50000));
+        BOW_CONFIGS.put(8,  new BowRapidConfig(8,   30.0, 60.0, 10.0, 0.90, 0.70, 4, 0, 25000));
+        BOW_CONFIGS.put(9,  new BowRapidConfig(9,   15.0, 62.0, 23.0, 0.95, 0.80, 5, 0, 35000));
+        BOW_CONFIGS.put(10, new BowRapidConfig(10,  10.0, 55.0, 35.0, 1.00, 1.00, 5, 1, 50000));
 
         // --- [삼지창] (targetLevel, success, fail, destroy, minionCount, cooldownSeconds, damagePerMinion, cost) ---
         TRIDENT_CONFIGS.put(1,  new TridentMinionConfig(1,  100.0,  0.0,  0.0,  1, 3.0,  8.0, 1000));
-        TRIDENT_CONFIGS.put(2,  new TridentMinionConfig(2,   95.0,  5.0,  0.0,  2, 3.0,  8.5, 2000));
-        TRIDENT_CONFIGS.put(3,  new TridentMinionConfig(3,   90.0, 10.0,  0.0,  3, 2.8,  9.0, 3000));
-        TRIDENT_CONFIGS.put(4,  new TridentMinionConfig(4,   80.0, 20.0,  0.0,  4, 2.8,  9.5, 5000));
+        TRIDENT_CONFIGS.put(2,  new TridentMinionConfig(2,   90.0, 10.0,  0.0,  2, 3.0,  8.5, 2000));
+        TRIDENT_CONFIGS.put(3,  new TridentMinionConfig(3,   80.0, 20.0,  0.0,  3, 2.8,  9.0, 3000));
+        TRIDENT_CONFIGS.put(4,  new TridentMinionConfig(4,   75.0, 25.0,  0.0,  4, 2.8,  9.5, 5000));
         TRIDENT_CONFIGS.put(5,  new TridentMinionConfig(5,   70.0, 30.0,  0.0,  5, 2.5, 10.0, 8000));
-        TRIDENT_CONFIGS.put(6,  new TridentMinionConfig(6,   60.0, 37.0,  3.0,  6, 2.5, 10.5, 12000));
+        TRIDENT_CONFIGS.put(6,  new TridentMinionConfig(6,   60.0, 35.0,  5.0,  6, 2.5, 10.5, 12000));
         TRIDENT_CONFIGS.put(7,  new TridentMinionConfig(7,   50.0, 43.0,  7.0,  7, 2.2, 11.0, 18000));
-        TRIDENT_CONFIGS.put(8,  new TridentMinionConfig(8,   40.0, 48.0, 12.0,  8, 2.0, 11.5, 25000));
-        TRIDENT_CONFIGS.put(9,  new TridentMinionConfig(9,   30.0, 52.0, 18.0,  9, 1.8, 12.0, 35000));
-        TRIDENT_CONFIGS.put(10, new TridentMinionConfig(10,  20.0, 55.0, 25.0, 10, 1.5, 13.0, 50000));
+        TRIDENT_CONFIGS.put(8,  new TridentMinionConfig(8,   30.0, 60.0, 10.0,  8, 2.0, 11.5, 25000));
+        TRIDENT_CONFIGS.put(9,  new TridentMinionConfig(9,   15.0, 62.0, 23.0,  9, 1.8, 12.0, 35000));
+        TRIDENT_CONFIGS.put(10, new TridentMinionConfig(10,  10.0, 55.0, 35.0, 10, 1.5, 13.0, 50000));
 
         // --- [철퇴/메이스] (targetLevel, success, fail, destroy, jumpVelocity, cooldownSeconds, earthquakeRadius, earthquakeDamage, airbornePower, cost) ---
         // 1~5강: 도약 높이 및 지진 반경/피해량 증가
         // 6~10강: 광역 에어본 해금 + 반경 11m 대지진 강타
         MACE_CONFIGS.put(1,  new MaceSmashConfig(1,  100.0,  0.0,  0.0, 0.95, 8.0,  3.0,  8.0, 0.0, 1000));
-        MACE_CONFIGS.put(2,  new MaceSmashConfig(2,   95.0,  5.0,  0.0, 1.05, 7.5,  3.5, 10.0, 0.0, 2000));
-        MACE_CONFIGS.put(3,  new MaceSmashConfig(3,   90.0, 10.0,  0.0, 1.15, 7.0,  4.0, 12.0, 0.0, 3000));
-        MACE_CONFIGS.put(4,  new MaceSmashConfig(4,   80.0, 20.0,  0.0, 1.25, 6.5,  4.5, 14.0, 0.0, 5000));
+        MACE_CONFIGS.put(2,  new MaceSmashConfig(2,   90.0, 10.0,  0.0, 1.05, 7.5,  3.5, 10.0, 0.0, 2000));
+        MACE_CONFIGS.put(3,  new MaceSmashConfig(3,   80.0, 20.0,  0.0, 1.15, 7.0,  4.0, 12.0, 0.0, 3000));
+        MACE_CONFIGS.put(4,  new MaceSmashConfig(4,   75.0, 25.0,  0.0, 1.25, 6.5,  4.5, 14.0, 0.0, 5000));
         MACE_CONFIGS.put(5,  new MaceSmashConfig(5,   70.0, 30.0,  0.0, 1.35, 6.0,  5.0, 16.0, 0.0, 8000));
-        MACE_CONFIGS.put(6,  new MaceSmashConfig(6,   60.0, 37.0,  3.0, 1.45, 5.5,  6.0, 19.0, 0.6, 12000));
+        MACE_CONFIGS.put(6,  new MaceSmashConfig(6,   60.0, 35.0,  5.0, 1.45, 5.5,  6.0, 19.0, 0.6, 12000));
         MACE_CONFIGS.put(7,  new MaceSmashConfig(7,   50.0, 43.0,  7.0, 1.55, 5.0,  7.0, 22.0, 0.7, 18000));
-        MACE_CONFIGS.put(8,  new MaceSmashConfig(8,   40.0, 48.0, 12.0, 1.65, 4.5,  8.0, 26.0, 0.8, 25000));
-        MACE_CONFIGS.put(9,  new MaceSmashConfig(9,   30.0, 52.0, 18.0, 1.75, 4.0,  9.0, 30.0, 0.9, 35000));
-        MACE_CONFIGS.put(10, new MaceSmashConfig(10,  20.0, 55.0, 25.0, 1.85, 3.0, 11.0, 36.0, 1.1, 50000));
+        MACE_CONFIGS.put(8,  new MaceSmashConfig(8,   30.0, 60.0, 10.0, 1.65, 4.5,  8.0, 26.0, 0.8, 25000));
+        MACE_CONFIGS.put(9,  new MaceSmashConfig(9,   15.0, 62.0, 23.0, 1.75, 4.0,  9.0, 30.0, 0.9, 35000));
+        MACE_CONFIGS.put(10, new MaceSmashConfig(10,  10.0, 55.0, 35.0, 1.85, 3.0, 11.0, 36.0, 1.1, 50000));
     }
 
     public static EnhanceEquipmentType getEquipmentType(ItemStack item) {
