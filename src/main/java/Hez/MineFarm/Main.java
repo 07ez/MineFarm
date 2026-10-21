@@ -193,6 +193,7 @@ public class Main extends JavaPlugin {
         // 콜로세움 PvP 시스템 초기화 및 리스너 등록
         this.colosseumManager.init();
         getServer().getPluginManager().registerEvents(new ColosseumListener(this.colosseumManager), this);
+        getServer().getPluginManager().registerEvents(new Hez.PvP.Class.OnePunchManListener(this.colosseumManager), this);
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();

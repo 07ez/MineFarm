@@ -8,6 +8,8 @@ import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,12 +78,11 @@ public class ColosseumManager {
             config.set("bounds.minZ", -227);
             config.set("bounds.maxZ", -203);
 
-            // 6개 기본 직업 기본 좌표 샘플 생성
+            // 6개 기본 직업 기본 좌표 샘플 생성 (X, Z만 사용)
             int startX = 101;
             for (int i = 0; i < DEFAULT_CLASSES.size(); i++) {
                 String className = DEFAULT_CLASSES.get(i);
                 config.set("classes." + className + ".x", startX + (i * 3));
-                config.set("classes." + className + ".y", 64);
                 config.set("classes." + className + ".z", -215);
             }
 
@@ -108,15 +109,14 @@ public class ColosseumManager {
         this.minZ = Math.min(z1, z2);
         this.maxZ = Math.max(z1, z2);
 
-        // 직업별 위치 로드
+        // 직업별 위치 로드 (X, Z만)
         classPositions.clear();
         org.bukkit.configuration.ConfigurationSection classSec = config.getConfigurationSection("classes");
         if (classSec != null) {
             for (String className : classSec.getKeys(false)) {
                 int cx = classSec.getInt(className + ".x");
-                int cy = classSec.getInt(className + ".y");
                 int cz = classSec.getInt(className + ".z");
-                classPositions.put(className, new int[]{cx, cy, cz});
+                classPositions.put(className, new int[]{cx, cz});
             }
         } else {
             // 섹션이 없으면 기본 직업 6종 등록
@@ -124,11 +124,9 @@ public class ColosseumManager {
             for (int i = 0; i < DEFAULT_CLASSES.size(); i++) {
                 String className = DEFAULT_CLASSES.get(i);
                 int cx = startX + (i * 3);
-                int cy = 64;
                 int cz = -215;
-                classPositions.put(className, new int[]{cx, cy, cz});
+                classPositions.put(className, new int[]{cx, cz});
                 config.set("classes." + className + ".x", cx);
-                config.set("classes." + className + ".y", cy);
                 config.set("classes." + className + ".z", cz);
             }
             try {
@@ -240,9 +238,10 @@ public class ColosseumManager {
             return;
         }
 
-        // 액션바 즉시 비우기
+        // 액션바 즉시 비우기 및 직업 특수 효과(원펀맨 힘) 제거
         try {
             player.sendActionBar(net.kyori.adventure.text.Component.empty());
+            player.removePotionEffect(PotionEffectType.STRENGTH);
         } catch (Exception ignored) {
         }
 
@@ -256,20 +255,19 @@ public class ColosseumManager {
     }
 
     /**
-     * 플레이어 발판 위치에 따른 직업 선택 감지
+     * 플레이어 발판 위치에 따른 직업 선택 감지 (X, Z 좌표만 일치하면 선택)
      */
     public void checkClassSelection(Player player, Location loc) {
         if (player == null || loc == null) return;
         if (!isInColosseum(loc)) return;
 
         int px = loc.getBlockX();
-        int py = loc.getBlockY();
         int pz = loc.getBlockZ();
 
         for (Map.Entry<String, int[]> entry : classPositions.entrySet()) {
             int[] pos = entry.getValue();
-            // X, Z 일치 및 Y가 발 위치(py) 또는 바로 아래 블록(py - 1) 등 발판 허용 범위(±1)에 있는지 검사
-            if (pos[0] == px && pos[2] == pz && Math.abs(pos[1] - py) <= 1) {
+            // X, Z 일치 검사 (Y 좌표는 무관)
+            if (pos[0] == px && pos[1] == pz) {
                 String className = entry.getKey();
                 String current = selectedClasses.get(player.getUniqueId());
                 if (!className.equals(current)) {
@@ -279,6 +277,10 @@ public class ColosseumManager {
                         player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
                     } catch (Exception ignored) {
                     }
+
+                    // 직업별 즉시 효과 적용 (원펀맨: 힘 125lv)
+                    applyClassImmediateEffect(player, className);
+
                     updateActionBarForInsidePlayers();
                 }
                 break;
@@ -287,16 +289,30 @@ public class ColosseumManager {
     }
 
     /**
-     * 특정 직업의 발판 위치를 설정 파일에 저장
+     * 직업 선택 시 즉시 부여되는 지속 효과 (원펀맨 힘 125 등)
      */
-    public void saveClassPosition(String className, int x, int y, int z) {
-        classPositions.put(className, new int[]{x, y, z});
+    public void applyClassImmediateEffect(Player player, String className) {
+        if (player == null) return;
+        // 기존 힘 효과 초기화
+        player.removePotionEffect(PotionEffectType.STRENGTH);
+
+        if ("원펀맨".equals(className)) {
+            // amplifier 124 = 레벨 125, 무제한 지속, 입자 안보이게
+            player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 124, false, false, true));
+        }
+    }
+
+    /**
+     * 특정 직업의 발판 위치를 설정 파일에 저장 (X, Z만 저장)
+     */
+    public void saveClassPosition(String className, int x, int z) {
+        classPositions.put(className, new int[]{x, z});
         if (config == null) {
             config = YamlConfiguration.loadConfiguration(configFile);
         }
         config.set("classes." + className + ".x", x);
-        config.set("classes." + className + ".y", y);
         config.set("classes." + className + ".z", z);
+        config.set("classes." + className + ".y", null); // 혹시 남아있던 y 제거
         try {
             config.save(configFile);
         } catch (IOException e) {
@@ -350,6 +366,7 @@ public class ColosseumManager {
         for (Player p : getInsideOnlinePlayers()) {
             try {
                 p.sendActionBar(net.kyori.adventure.text.Component.empty());
+                p.removePotionEffect(PotionEffectType.STRENGTH);
             } catch (Exception ignored) {
             }
         }
