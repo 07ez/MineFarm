@@ -43,6 +43,11 @@ public class ColosseumListener implements Listener {
         } else if (fromIn && !toIn) {
             manager.handlePlayerLeave(player);
         }
+
+        // 콜로세움 내부에 있는 경우 직업 선택 발판 밟기 검사
+        if (toIn) {
+            manager.checkClassSelection(player, to);
+        }
     }
 
     /**
@@ -62,6 +67,11 @@ public class ColosseumListener implements Listener {
             manager.handlePlayerLeave(player);
         } else if (!fromIn && toIn) {
             manager.handlePlayerEnter(player);
+        }
+
+        // 콜로세움 내부로 텔레포트된 경우 발판 검사
+        if (toIn) {
+            manager.checkClassSelection(player, to);
         }
     }
 

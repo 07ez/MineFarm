@@ -26,11 +26,23 @@ public class MfTabCompleter implements TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("colosseum")) {
-            List<String> sub = List.of("info", "pos1", "pos2", "setpos", "reload");
+            List<String> sub = List.of("info", "pos1", "pos2", "setpos", "setclass", "setclasspos", "reload");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[1].toLowerCase())) {
                     result.add(s);
+                }
+            }
+            return result;
+        }
+
+        if (args.length == 3 && args[0].equalsIgnoreCase("colosseum")
+                && (args[1].equalsIgnoreCase("setclass") || args[1].equalsIgnoreCase("setclasspos"))) {
+            List<String> classList = Hez.PvP.ColosseumManager.DEFAULT_CLASSES;
+            List<String> result = new ArrayList<>();
+            for (String c : classList) {
+                if (c.toLowerCase().startsWith(args[2].toLowerCase())) {
+                    result.add(c);
                 }
             }
             return result;

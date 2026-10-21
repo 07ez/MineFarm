@@ -86,13 +86,47 @@ public class MfCommand implements CommandExecutor {
                 sender.sendMessage(String.format("§7- Z 좌표 범위: §f%d ~ %d", colosseum.getMinZ(), colosseum.getMaxZ()));
                 java.util.List<org.bukkit.entity.Player> inside = colosseum.getInsideOnlinePlayers();
                 sender.sendMessage("§7- 현재 내부 인원: §e" + inside.size() + "명" +
-                        (inside.isEmpty() ? "" : " §7(" + inside.stream().map(org.bukkit.entity.Player::getName).collect(java.util.stream.Collectors.joining(", ")) + ")"));
+                        (inside.isEmpty() ? "" : " §7(" + inside.stream().map(p -> p.getName() + (colosseum.getSelectedClass(p.getUniqueId()) != null ? "(" + colosseum.getSelectedClass(p.getUniqueId()) + ")" : "")).collect(java.util.stream.Collectors.joining(", ")) + ")"));
+                sender.sendMessage("§6--- 등록된 직업 선택 좌표 ---");
+                for (java.util.Map.Entry<String, int[]> entry : colosseum.getClassPositions().entrySet()) {
+                    int[] pos = entry.getValue();
+                    sender.sendMessage(String.format("§e- %s: §f(X: %d, Y: %d, Z: %d)", entry.getKey(), pos[0], pos[1], pos[2]));
+                }
                 return true;
             }
 
             if (args.length > 1 && args[1].equalsIgnoreCase("reload")) {
                 colosseum.loadConfig();
                 sender.sendMessage("§a[MineFarm] colosseumConfig.yml 설정을 다시 로드했습니다!");
+                return true;
+            }
+
+            if (args.length > 2 && args[1].equalsIgnoreCase("setclass")) {
+                if (!(sender instanceof org.bukkit.entity.Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                String className = args[2];
+                // 서 있는 블록 좌표 (발 밑 블록)
+                int x = player.getLocation().getBlockX();
+                int y = player.getLocation().getBlockY();
+                int z = player.getLocation().getBlockZ();
+                colosseum.saveClassPosition(className, x, y, z);
+                sender.sendMessage(String.format("§a[MineFarm] '%s' 직업의 선택 위치가 (X: %d, Y: %d, Z: %d)로 설정되었습니다!", className, x, y, z));
+                return true;
+            }
+
+            if (args.length >= 6 && args[1].equalsIgnoreCase("setclasspos")) {
+                String className = args[2];
+                try {
+                    int x = Integer.parseInt(args[3]);
+                    int y = Integer.parseInt(args[4]);
+                    int z = Integer.parseInt(args[5]);
+                    colosseum.saveClassPosition(className, x, y, z);
+                    sender.sendMessage(String.format("§a[MineFarm] '%s' 직업의 선택 위치가 (X: %d, Y: %d, Z: %d)로 설정되었습니다!", className, x, y, z));
+                } catch (NumberFormatException e) {
+                    sender.sendMessage("§c좌표는 정수로 입력해야 합니다. 사용법: /" + label + " colosseum setclasspos <직업명> <x> <y> <z>");
+                }
                 return true;
             }
 
@@ -143,10 +177,12 @@ public class MfCommand implements CommandExecutor {
             }
 
             sender.sendMessage("§6=== 콜로세움 관리 명령어 ===");
-            sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 영역 정보 및 내부 인원 확인");
+            sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 정보 및 직업별 좌표 확인");
             sender.sendMessage("§e/" + label + " colosseum pos1 §f- 현재 위치를 영역 시작 지점(Pos1)으로 지정");
             sender.sendMessage("§e/" + label + " colosseum pos2 §f- 현재 위치를 끝 지점(Pos2)으로 지정하고 저장");
             sender.sendMessage("§e/" + label + " colosseum setpos <x1> <z1> <x2> <z2> §f- 좌표 수동 설정");
+            sender.sendMessage("§e/" + label + " colosseum setclass <직업명> §f- 현재 발판 위치를 직업 선택 위치로 지정");
+            sender.sendMessage("§e/" + label + " colosseum setclasspos <직업명> <x> <y> <z> §f- 직업 위치 수동 설정");
             sender.sendMessage("§e/" + label + " colosseum reload §f- colosseumConfig.yml 다시 로드");
             return true;
         }
