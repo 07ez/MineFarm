@@ -35,7 +35,7 @@ public class ColosseumManager {
     // 관리자 위치 지정용 임시 Pos1 (UUID -> [x, z])
     private final Map<UUID, int[]> playerPos1Selection = new ConcurrentHashMap<>();
 
-    // 직업별 선택 발판/좌표 (직업명 -> [x, y, z])
+    // 직업별 선택 발판/좌표 (직업명 -> [x, z])
     private final Map<String, int[]> classPositions = new ConcurrentHashMap<>();
 
     // 플레이어별 현재 선택한 직업 (UUID -> 직업명)
@@ -45,6 +45,43 @@ public class ColosseumManager {
     public static final List<String> DEFAULT_CLASSES = List.of(
             "검투사", "원펀맨", "파머", "푸드파이터", "텔레포터", "두더지"
     );
+
+    // 팀별 선택 구역 (팀명 -> TeamArea)
+    private final Map<String, TeamArea> teamAreas = new ConcurrentHashMap<>();
+
+    // 플레이어별 현재 선택한 팀 (UUID -> 팀명)
+    private final Map<UUID, String> selectedTeams = new ConcurrentHashMap<>();
+
+    // 관리자 팀 구역 지정용 임시 Pos1 (UUID -> [x, z])
+    private final Map<UUID, int[]> playerTeamPos1Selection = new ConcurrentHashMap<>();
+
+    // 기본 팀 목록 (green, red, blue, yellow, spectator)
+    public static final List<String> DEFAULT_TEAMS = List.of(
+            "green", "red", "blue", "yellow", "spectator"
+    );
+
+    public static class TeamArea {
+        private final int minX;
+        private final int maxX;
+        private final int minZ;
+        private final int maxZ;
+
+        public TeamArea(int x1, int z1, int x2, int z2) {
+            this.minX = Math.min(x1, x2);
+            this.maxX = Math.max(x1, x2);
+            this.minZ = Math.min(z1, z2);
+            this.maxZ = Math.max(z1, z2);
+        }
+
+        public boolean contains(int x, int z) {
+            return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
+        }
+
+        public int getMinX() { return minX; }
+        public int getMaxX() { return maxX; }
+        public int getMinZ() { return minZ; }
+        public int getMaxZ() { return maxZ; }
+    }
 
     // 액션바 지속 렌더링 태스크
     private org.bukkit.scheduler.BukkitTask actionBarTask;
@@ -84,6 +121,17 @@ public class ColosseumManager {
                 String className = DEFAULT_CLASSES.get(i);
                 config.set("classes." + className + ".x", startX + (i * 3));
                 config.set("classes." + className + ".z", -215);
+            }
+
+            // 기본 팀 구역 샘플 생성 (minX ~ maxX, minZ ~ maxZ)
+            int teamStartX = 100;
+            for (int i = 0; i < DEFAULT_TEAMS.size(); i++) {
+                String teamName = DEFAULT_TEAMS.get(i);
+                int sx = teamStartX + (i * 5);
+                config.set("teams." + teamName + ".minX", sx);
+                config.set("teams." + teamName + ".maxX", sx + 3);
+                config.set("teams." + teamName + ".minZ", -225);
+                config.set("teams." + teamName + ".maxZ", -221);
             }
 
             config.save(configFile);
@@ -134,8 +182,35 @@ public class ColosseumManager {
             } catch (IOException ignored) {}
         }
 
-        plugin.getLogger().info(String.format("콜로세움 구역 로드 완료 - 마을월드: %s, X: %d ~ %d, Z: %d ~ %d, 직업 수: %d개",
-                townWorldName, minX, maxX, minZ, maxZ, classPositions.size()));
+        // 팀별 구역 로드 (minX ~ maxX, minZ ~ maxZ)
+        teamAreas.clear();
+        org.bukkit.configuration.ConfigurationSection teamSec = config.getConfigurationSection("teams");
+        if (teamSec != null) {
+            for (String teamName : teamSec.getKeys(false)) {
+                int tMinX = teamSec.getInt(teamName + ".minX");
+                int tMaxX = teamSec.getInt(teamName + ".maxX");
+                int tMinZ = teamSec.getInt(teamName + ".minZ");
+                int tMaxZ = teamSec.getInt(teamName + ".maxZ");
+                teamAreas.put(teamName.toLowerCase(), new TeamArea(tMinX, tMinZ, tMaxX, tMaxZ));
+            }
+        } else {
+            int teamStartX = 100;
+            for (int i = 0; i < DEFAULT_TEAMS.size(); i++) {
+                String teamName = DEFAULT_TEAMS.get(i);
+                int sx = teamStartX + (i * 5);
+                teamAreas.put(teamName.toLowerCase(), new TeamArea(sx, -225, sx + 3, -221));
+                config.set("teams." + teamName + ".minX", sx);
+                config.set("teams." + teamName + ".maxX", sx + 3);
+                config.set("teams." + teamName + ".minZ", -225);
+                config.set("teams." + teamName + ".maxZ", -221);
+            }
+            try {
+                config.save(configFile);
+            } catch (IOException ignored) {}
+        }
+
+        plugin.getLogger().info(String.format("콜로세움 구역 로드 완료 - 마을월드: %s, X: %d ~ %d, Z: %d ~ %d, 직업: %d개, 팀 구역: %d개",
+                townWorldName, minX, maxX, minZ, maxZ, classPositions.size(), teamAreas.size()));
     }
 
     public void saveBounds(int x1, int z1, int x2, int z2) {
@@ -251,11 +326,12 @@ public class ColosseumManager {
 
         // 남은 콜로세움 내부 플레이어들의 액션바 갱신
         selectedClasses.remove(uuid);
+        selectedTeams.remove(uuid);
         updateActionBarForInsidePlayers();
     }
 
     /**
-     * 플레이어 발판 위치에 따른 직업 선택 감지 (X, Z 좌표만 일치하면 선택)
+     * 플레이어 발판 위치에 따른 직업 선택 감지 (X, Z 좌표만 일치하면 선택, 효과는 지급하지 않음)
      */
     public void checkClassSelection(Player player, Location loc) {
         if (player == null || loc == null) return;
@@ -278,9 +354,6 @@ public class ColosseumManager {
                     } catch (Exception ignored) {
                     }
 
-                    // 직업별 즉시 효과 적용 (원펀맨: 힘 125lv)
-                    applyClassImmediateEffect(player, className);
-
                     updateActionBarForInsidePlayers();
                 }
                 break;
@@ -289,17 +362,70 @@ public class ColosseumManager {
     }
 
     /**
-     * 직업 선택 시 즉시 부여되는 지속 효과 (원펀맨 힘 125 등)
+     * 플레이어 구역(범위: minX~maxX, minZ~maxZ) 진입에 따른 팀 선택 감지
      */
-    public void applyClassImmediateEffect(Player player, String className) {
-        if (player == null) return;
-        // 기존 힘 효과 초기화
-        player.removePotionEffect(PotionEffectType.STRENGTH);
+    public void checkTeamSelection(Player player, Location loc) {
+        if (player == null || loc == null) return;
+        if (!isInColosseum(loc)) return;
 
-        if ("원펀맨".equals(className)) {
-            // amplifier 124 = 레벨 125, 무제한 지속, 입자 안보이게
-            player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 124, false, false, true));
+        int px = loc.getBlockX();
+        int pz = loc.getBlockZ();
+
+        for (Map.Entry<String, TeamArea> entry : teamAreas.entrySet()) {
+            TeamArea area = entry.getValue();
+            if (area.contains(px, pz)) {
+                String teamKey = entry.getKey();
+                String current = selectedTeams.get(player.getUniqueId());
+                if (!teamKey.equalsIgnoreCase(current)) {
+                    selectedTeams.put(player.getUniqueId(), teamKey);
+                    String formatted = formatTeamName(teamKey);
+                    if ("spectator".equalsIgnoreCase(teamKey)) {
+                        player.sendMessage("§7[콜로세움] §f관전자를 선택하였습니다.");
+                    } else {
+                        player.sendMessage("§a[콜로세움] §f" + formatted + "§f 팀을 선택하였습니다.");
+                    }
+                    try {
+                        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
+                    } catch (Exception ignored) {
+                    }
+                    updateActionBarForInsidePlayers();
+                }
+                break;
+            }
         }
+    }
+
+    /**
+     * 특정 팀의 구역 범위를 설정 파일에 저장 (X1, Z1 ~ X2, Z2)
+     */
+    public void saveTeamArea(String teamName, int x1, int z1, int x2, int z2) {
+        teamName = teamName.toLowerCase();
+        TeamArea area = new TeamArea(x1, z1, x2, z2);
+        teamAreas.put(teamName, area);
+        if (config == null) {
+            config = YamlConfiguration.loadConfiguration(configFile);
+        }
+        config.set("teams." + teamName + ".minX", area.getMinX());
+        config.set("teams." + teamName + ".maxX", area.getMaxX());
+        config.set("teams." + teamName + ".minZ", area.getMinZ());
+        config.set("teams." + teamName + ".maxZ", area.getMaxZ());
+        try {
+            config.save(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("팀 구역 저장 실패: " + e.getMessage());
+        }
+    }
+
+    public static String formatTeamName(String teamKey) {
+        if (teamKey == null) return "미선택";
+        return switch (teamKey.toLowerCase()) {
+            case "green" -> "§aGreen";
+            case "red" -> "§cRed";
+            case "blue" -> "§9Blue";
+            case "yellow" -> "§eYellow";
+            case "spectator" -> "§7관전자";
+            default -> teamKey;
+        };
     }
 
     /**
@@ -321,7 +447,7 @@ public class ColosseumManager {
     }
 
     /**
-     * 콜로세움 내부에 있는 플레이어들에게 액션바로 참가자 목록 및 본인 선택 직업 지속 전송
+     * 콜로세움 내부에 있는 플레이어들에게 액션바로 참가자 목록 및 본인 선택 직업/팀 지속 전송
      */
     private void startActionBarTask() {
         if (actionBarTask != null && !actionBarTask.isCancelled()) {
@@ -340,9 +466,11 @@ public class ColosseumManager {
 
         for (Player p : onlineInArena) {
             String myClass = selectedClasses.get(p.getUniqueId());
+            String myTeam = selectedTeams.get(p.getUniqueId());
             String classInfo = (myClass != null) ? " §7| §b직업: §f" + myClass : " §7| §7(직업 미선택)";
+            String teamInfo = (myTeam != null) ? " §7| §6팀: §f" + formatTeamName(myTeam) : " §7| §7(팀 미선택)";
             net.kyori.adventure.text.Component actionBarComponent =
-                    net.kyori.adventure.text.Component.text("§6[콜로세움] §e참가자 : §f" + playerNames + classInfo);
+                    net.kyori.adventure.text.Component.text("§6[콜로세움] §e참가자 : §f" + playerNames + classInfo + teamInfo);
             p.sendActionBar(actionBarComponent);
         }
     }
@@ -373,6 +501,8 @@ public class ColosseumManager {
         insidePlayers.clear();
         playerPos1Selection.clear();
         selectedClasses.clear();
+        selectedTeams.clear();
+        playerTeamPos1Selection.clear();
     }
 
     public void setPlayerPos1(UUID uuid, int x, int z) {
@@ -387,12 +517,32 @@ public class ColosseumManager {
         playerPos1Selection.remove(uuid);
     }
 
+    public void setPlayerTeamPos1(UUID uuid, int x, int z) {
+        playerTeamPos1Selection.put(uuid, new int[]{x, z});
+    }
+
+    public int[] getPlayerTeamPos1(UUID uuid) {
+        return playerTeamPos1Selection.get(uuid);
+    }
+
+    public void clearPlayerTeamPos1(UUID uuid) {
+        playerTeamPos1Selection.remove(uuid);
+    }
+
     public String getSelectedClass(UUID uuid) {
         return selectedClasses.get(uuid);
     }
 
+    public String getSelectedTeam(UUID uuid) {
+        return selectedTeams.get(uuid);
+    }
+
     public Map<String, int[]> getClassPositions() {
         return Collections.unmodifiableMap(classPositions);
+    }
+
+    public Map<String, TeamArea> getTeamAreas() {
+        return Collections.unmodifiableMap(teamAreas);
     }
 
     // Getters & Setters
@@ -403,4 +553,5 @@ public class ColosseumManager {
     public String getTownWorldName() { return townWorldName; }
     public Set<UUID> getInsidePlayers() { return insidePlayers; }
     public Map<UUID, String> getSelectedClasses() { return selectedClasses; }
+    public Map<UUID, String> getSelectedTeams() { return selectedTeams; }
 }

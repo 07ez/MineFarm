@@ -44,9 +44,10 @@ public class ColosseumListener implements Listener {
             manager.handlePlayerLeave(player);
         }
 
-        // 콜로세움 내부에 있는 경우 직업 선택 발판 밟기 검사
+        // 콜로세움 내부에 있는 경우 직업 및 팀 선택 검사
         if (toIn) {
             manager.checkClassSelection(player, to);
+            manager.checkTeamSelection(player, to);
         }
     }
 
@@ -69,9 +70,10 @@ public class ColosseumListener implements Listener {
             manager.handlePlayerEnter(player);
         }
 
-        // 콜로세움 내부로 텔레포트된 경우 발판 검사
+        // 콜로세움 내부로 텔레포트된 경우 직업 및 팀 검사
         if (toIn) {
             manager.checkClassSelection(player, to);
+            manager.checkTeamSelection(player, to);
         }
     }
 
