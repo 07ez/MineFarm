@@ -11,6 +11,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 
 public class ColosseumListener implements Listener {
 
@@ -18,6 +19,20 @@ public class ColosseumListener implements Listener {
 
     public ColosseumListener(ColosseumManager manager) {
         this.manager = manager;
+    }
+
+    /**
+     * 콜로세움 내부에서 웅크리기(Shift) 시 준비 상태 토글
+     * (직업과 팀이 모두 선택된 상태에서만 준비 완료 가능)
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPlayerToggleSneak(PlayerToggleSneakEvent event) {
+        if (event.isSneaking()) {
+            Player player = event.getPlayer();
+            if (manager.isInside(player.getUniqueId())) {
+                manager.toggleReady(player);
+            }
+        }
     }
 
     /**

@@ -60,6 +60,9 @@ public class ColosseumManager {
             "green", "red", "blue", "yellow", "spectator"
     );
 
+    // 준비 완료한 플레이어 UUID 목록 (직업+팀 선택 후 웅크리기)
+    private final Set<UUID> readyPlayers = ConcurrentHashMap.newKeySet();
+
     public static class TeamArea {
         private final int minX;
         private final int maxX;
@@ -327,6 +330,7 @@ public class ColosseumManager {
         // 남은 콜로세움 내부 플레이어들의 액션바 갱신
         selectedClasses.remove(uuid);
         selectedTeams.remove(uuid);
+        readyPlayers.remove(uuid);
         updateActionBarForInsidePlayers();
     }
 
@@ -362,7 +366,9 @@ public class ColosseumManager {
     }
 
     /**
-     * 플레이어 구역(범위: minX~maxX, minZ~maxZ) 진입에 따른 팀 선택 감지
+     * 플레이어 구역(범위: minX~maxX, minZ~maxZ) 진입 및 이탈에 따른 팀 선택/해제 감지
+     * - 구역에 있으면 팀 선택
+     * - 구역을 벗어나면 팀 자동 해제 및 준비 상태 자동 해제!
      */
     public void checkTeamSelection(Player player, Location loc) {
         if (player == null || loc == null) return;
@@ -371,28 +377,89 @@ public class ColosseumManager {
         int px = loc.getBlockX();
         int pz = loc.getBlockZ();
 
+        String matchedTeam = null;
         for (Map.Entry<String, TeamArea> entry : teamAreas.entrySet()) {
-            TeamArea area = entry.getValue();
-            if (area.contains(px, pz)) {
-                String teamKey = entry.getKey();
-                String current = selectedTeams.get(player.getUniqueId());
-                if (!teamKey.equalsIgnoreCase(current)) {
-                    selectedTeams.put(player.getUniqueId(), teamKey);
-                    String formatted = formatTeamName(teamKey);
-                    if ("spectator".equalsIgnoreCase(teamKey)) {
-                        player.sendMessage("§7[콜로세움] §f관전자를 선택하였습니다.");
-                    } else {
-                        player.sendMessage("§a[콜로세움] §f" + formatted + "§f 팀을 선택하였습니다.");
-                    }
-                    try {
-                        player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
-                    } catch (Exception ignored) {
-                    }
-                    updateActionBarForInsidePlayers();
-                }
+            if (entry.getValue().contains(px, pz)) {
+                matchedTeam = entry.getKey();
                 break;
             }
         }
+
+        UUID uuid = player.getUniqueId();
+        String currentTeam = selectedTeams.get(uuid);
+
+        if (matchedTeam != null) {
+            // 팀 구역 내부 진입 또는 다른 팀 구역으로 변경
+            if (!matchedTeam.equalsIgnoreCase(currentTeam)) {
+                selectedTeams.put(uuid, matchedTeam);
+                readyPlayers.remove(uuid); // 팀이 바뀌면 기존 준비 상태 해제
+
+                String formatted = formatTeamName(matchedTeam);
+                if ("spectator".equalsIgnoreCase(matchedTeam)) {
+                    player.sendMessage("§7[콜로세움] §f관전자를 선택하였습니다.");
+                } else {
+                    player.sendMessage("§a[콜로세움] §f" + formatted + "§f 팀을 선택하였습니다.");
+                }
+                try {
+                    player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
+                } catch (Exception ignored) {
+                }
+                updateActionBarForInsidePlayers();
+            }
+        } else {
+            // 어떤 팀 구역에도 속하지 않음 -> 팀 구역을 벗어났으므로 팀 해제 및 준비 해제!
+            if (currentTeam != null) {
+                selectedTeams.remove(uuid);
+                readyPlayers.remove(uuid);
+                player.sendMessage("§c[콜로세움] §f팀 구역을 벗어나 팀 선택 및 준비가 해제되었습니다.");
+                try {
+                    player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, 0.8f);
+                } catch (Exception ignored) {
+                }
+                updateActionBarForInsidePlayers();
+            }
+        }
+    }
+
+    /**
+     * 웅크리기(Shift) 시 준비 상태 토글
+     * (직업과 팀이 모두 선택된 상태에서만 가능하며, 팀 구역을 나가면 준비도 자동 해제됨)
+     */
+    public boolean toggleReady(Player player) {
+        if (player == null) return false;
+        UUID uuid = player.getUniqueId();
+
+        if (!isInColosseum(player.getLocation())) return false;
+
+        String myClass = selectedClasses.get(uuid);
+        String myTeam = selectedTeams.get(uuid);
+
+        if (myClass == null || myTeam == null) {
+            player.sendMessage("§c[콜로세움] §f직업과 팀을 모두 선택한 상태에서 웅크려야 준비할 수 있습니다!");
+            try {
+                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
+            } catch (Exception ignored) {
+            }
+            return false;
+        }
+
+        if (readyPlayers.contains(uuid)) {
+            readyPlayers.remove(uuid);
+            player.sendMessage("§e[콜로세움] §f준비를 취소하였습니다.");
+            try {
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 0.8f);
+            } catch (Exception ignored) {
+            }
+        } else {
+            readyPlayers.add(uuid);
+            player.sendMessage("§a[콜로세움] §f준비 완료! (전투 시작 대기 중)");
+            try {
+                player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.5f);
+            } catch (Exception ignored) {
+            }
+        }
+        updateActionBarForInsidePlayers();
+        return true;
     }
 
     /**
@@ -467,10 +534,12 @@ public class ColosseumManager {
         for (Player p : onlineInArena) {
             String myClass = selectedClasses.get(p.getUniqueId());
             String myTeam = selectedTeams.get(p.getUniqueId());
+            boolean isReady = readyPlayers.contains(p.getUniqueId());
             String classInfo = (myClass != null) ? " §7| §b직업: §f" + myClass : " §7| §7(직업 미선택)";
             String teamInfo = (myTeam != null) ? " §7| §6팀: §f" + formatTeamName(myTeam) : " §7| §7(팀 미선택)";
+            String readyInfo = isReady ? " §a[준비완료 ✔]" : " §7[대기중 …]";
             net.kyori.adventure.text.Component actionBarComponent =
-                    net.kyori.adventure.text.Component.text("§6[콜로세움] §e참가자 : §f" + playerNames + classInfo + teamInfo);
+                    net.kyori.adventure.text.Component.text("§6[콜로세움] §e참가자 : §f" + playerNames + classInfo + teamInfo + " " + readyInfo);
             p.sendActionBar(actionBarComponent);
         }
     }
@@ -502,6 +571,7 @@ public class ColosseumManager {
         playerPos1Selection.clear();
         selectedClasses.clear();
         selectedTeams.clear();
+        readyPlayers.clear();
         playerTeamPos1Selection.clear();
     }
 
@@ -554,4 +624,6 @@ public class ColosseumManager {
     public Set<UUID> getInsidePlayers() { return insidePlayers; }
     public Map<UUID, String> getSelectedClasses() { return selectedClasses; }
     public Map<UUID, String> getSelectedTeams() { return selectedTeams; }
+    public Set<UUID> getReadyPlayers() { return Collections.unmodifiableSet(readyPlayers); }
+    public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
 }
