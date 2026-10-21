@@ -2,9 +2,13 @@ package Hez.PvP;
 
 import Hez.MineFarm.Main;
 import org.bukkit.Bukkit;
+import org.bukkit.Difficulty;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.WorldCreator;
+import org.bukkit.WorldType;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -23,11 +27,18 @@ public class ColosseumManager {
     private File configFile;
     private FileConfiguration config;
 
+    // 마을 월드 및 콜로세움 대기실 좌표
     private String townWorldName = "world";
     private int minX = 98;
     private int maxX = 129;
     private int minZ = -227;
     private int maxZ = -203;
+
+    // 콜로세움 실제 전투 평지(Flat) 월드
+    public static final String DEFAULT_ARENA_WORLD_NAME = "colosseum";
+    private String arenaWorldName = DEFAULT_ARENA_WORLD_NAME;
+    private World arenaWorld;
+    private Location arenaSpawnLocation;
 
     // 현재 콜로세움 내부에 있는 플레이어 UUID 목록
     private final Set<UUID> insidePlayers = ConcurrentHashMap.newKeySet();
@@ -102,6 +113,7 @@ public class ColosseumManager {
             createDefaultConfig();
         }
         loadConfig();
+        initArenaWorld();
         startActionBarTask();
     }
 
@@ -113,10 +125,18 @@ public class ColosseumManager {
             configFile.createNewFile();
             config = YamlConfiguration.loadConfiguration(configFile);
             config.set("townWorldName", "world");
+            config.set("arenaWorldName", DEFAULT_ARENA_WORLD_NAME);
             config.set("bounds.minX", 98);
             config.set("bounds.maxX", 129);
             config.set("bounds.minZ", -227);
             config.set("bounds.maxZ", -203);
+
+            // 기본 결투장 스폰 좌표 (Flat 월드 y=4)
+            config.set("arenaSpawn.x", 0.5);
+            config.set("arenaSpawn.y", 4.0);
+            config.set("arenaSpawn.z", 0.5);
+            config.set("arenaSpawn.yaw", 0.0);
+            config.set("arenaSpawn.pitch", 0.0);
 
             // 6개 기본 직업 기본 좌표 샘플 생성 (X, Z만 사용)
             int startX = 101;
@@ -150,6 +170,7 @@ public class ColosseumManager {
         config = YamlConfiguration.loadConfiguration(configFile);
 
         this.townWorldName = config.getString("townWorldName", "world");
+        this.arenaWorldName = config.getString("arenaWorldName", DEFAULT_ARENA_WORLD_NAME);
         int x1 = config.getInt("bounds.minX", 98);
         int x2 = config.getInt("bounds.maxX", 129);
         int z1 = config.getInt("bounds.minZ", -227);
@@ -234,6 +255,106 @@ public class ColosseumManager {
         } catch (IOException e) {
             plugin.getLogger().severe("콜로세움 좌표 저장 실패: " + e.getMessage());
         }
+    }
+
+    /**
+     * 결투장 평지(Flat) 월드 생성 및 초기화
+     */
+    public void initArenaWorld() {
+        this.arenaWorld = Bukkit.getWorld(arenaWorldName);
+        if (this.arenaWorld == null) {
+            WorldCreator creator = new WorldCreator(arenaWorldName);
+            creator.environment(World.Environment.NORMAL);
+            creator.type(WorldType.FLAT);
+            creator.generateStructures(false);
+            this.arenaWorld = Bukkit.createWorld(creator);
+        }
+
+        if (this.arenaWorld != null) {
+            this.arenaWorld.setGameRule(GameRule.DO_MOB_SPAWNING, false);
+            this.arenaWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
+            this.arenaWorld.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+            this.arenaWorld.setTime(6000L); // 항상 맑은 낮
+            this.arenaWorld.setStorm(false);
+            this.arenaWorld.setDifficulty(Difficulty.NORMAL);
+            this.arenaWorld.setPVP(true);
+
+            loadArenaSpawnLocation();
+            plugin.getLogger().info("콜로세움 결투장 평지 월드('" + arenaWorldName + "')가 성공적으로 로드되었습니다.");
+        } else {
+            plugin.getLogger().severe("콜로세움 결투장 월드('" + arenaWorldName + "')를 생성하거나 불러오지 못했습니다!");
+        }
+    }
+
+    private void loadArenaSpawnLocation() {
+        if (config == null || arenaWorld == null) return;
+        if (config.contains("arenaSpawn.x")) {
+            double x = config.getDouble("arenaSpawn.x");
+            double y = config.getDouble("arenaSpawn.y");
+            double z = config.getDouble("arenaSpawn.z");
+            float yaw = (float) config.getDouble("arenaSpawn.yaw", 0.0);
+            float pitch = (float) config.getDouble("arenaSpawn.pitch", 0.0);
+            this.arenaSpawnLocation = new Location(arenaWorld, x, y, z, yaw, pitch);
+        } else {
+            this.arenaSpawnLocation = new Location(arenaWorld, 0.5, 4.0, 0.5, 0.0f, 0.0f);
+        }
+    }
+
+    public void setArenaSpawnLocation(Location loc) {
+        if (loc == null || loc.getWorld() == null) return;
+        this.arenaSpawnLocation = loc.clone();
+        if (config == null) {
+            config = YamlConfiguration.loadConfiguration(configFile);
+        }
+        config.set("arenaSpawn.x", loc.getX());
+        config.set("arenaSpawn.y", loc.getY());
+        config.set("arenaSpawn.z", loc.getZ());
+        config.set("arenaSpawn.yaw", loc.getYaw());
+        config.set("arenaSpawn.pitch", loc.getPitch());
+        try {
+            config.save(configFile);
+        } catch (IOException e) {
+            plugin.getLogger().severe("결투장 스폰 저장 실패: " + e.getMessage());
+        }
+    }
+
+    public Location getArenaSpawnLocation() {
+        if (arenaSpawnLocation == null && arenaWorld != null) {
+            arenaSpawnLocation = new Location(arenaWorld, 0.5, 4.0, 0.5, 0.0f, 0.0f);
+        }
+        return arenaSpawnLocation;
+    }
+
+    public boolean teleportToArena(Player player) {
+        if (player == null) return false;
+        if (arenaWorld == null) {
+            initArenaWorld();
+        }
+        if (arenaWorld == null) {
+            player.sendMessage("§c[콜로세움] 결투장 월드를 불러올 수 없습니다!");
+            return false;
+        }
+        Location target = getArenaSpawnLocation();
+        player.teleport(target);
+        player.sendMessage("§a[콜로세움] 결투장 평지 월드(" + arenaWorldName + ")로 이동했습니다.");
+        try {
+            player.playSound(target, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+        } catch (Exception ignored) {
+        }
+        return true;
+    }
+
+    public boolean isArenaWorld(World world) {
+        if (world == null) return false;
+        return world.getName().equalsIgnoreCase(arenaWorldName);
+    }
+
+    public World getArenaWorld() {
+        return arenaWorld;
+    }
+
+    public String getArenaWorldName() {
+        return arenaWorldName;
     }
 
     /**

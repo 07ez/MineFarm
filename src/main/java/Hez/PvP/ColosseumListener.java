@@ -6,6 +6,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -19,6 +20,46 @@ public class ColosseumListener implements Listener {
 
     public ColosseumListener(ColosseumManager manager) {
         this.manager = manager;
+    }
+
+    /**
+     * /tp town, /tp colosseum, /tp wild 단축어 가로채기 지원
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPlayerCommandPreprocess(PlayerCommandPreprocessEvent event) {
+        String msg = event.getMessage().trim();
+        String[] parts = msg.split("\\s+");
+        if (parts.length >= 2 && (parts[0].equalsIgnoreCase("/tp") || parts[0].equalsIgnoreCase("/teleport"))) {
+            String sub = parts[1].toLowerCase();
+            Player player = event.getPlayer();
+            if (!player.isOp() && !player.hasPermission("minefarm.admin")) {
+                return;
+            }
+
+            switch (sub) {
+                case "town", "마을" -> {
+                    event.setCancelled(true);
+                    boolean success = Hez.Menu.WarpManager.teleport(player, "town");
+                    if (success) {
+                        player.sendMessage("§a[MineFarm] 마을로 이동했습니다.");
+                    } else {
+                        player.sendMessage("§c[MineFarm] 마을 월드 스폰으로 이동하지 못했습니다.");
+                    }
+                }
+                case "colosseum", "arena", "pvp", "콜로세움" -> {
+                    event.setCancelled(true);
+                    manager.teleportToArena(player);
+                }
+                case "wild", "야생" -> {
+                    event.setCancelled(true);
+                    if (Hez.MineFarm.Main.getInstance() != null && Hez.MineFarm.Main.getInstance().getWildManager() != null) {
+                        Hez.MineFarm.Main.getInstance().getWildManager().teleportToWild(player);
+                    } else {
+                        player.sendMessage("§c[MineFarm] 야생 시스템이 활성화되지 않았습니다.");
+                    }
+                }
+            }
+        }
     }
 
     /**

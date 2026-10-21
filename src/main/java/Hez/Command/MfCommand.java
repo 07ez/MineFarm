@@ -35,6 +35,49 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("tp")) {
+            if (!(sender instanceof org.bukkit.entity.Player player)) {
+                sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                return true;
+            }
+
+            if (args.length < 2) {
+                sender.sendMessage("§e[MineFarm] 이동할 장소를 입력해주세요: §f/" + label + " tp <town | colosseum | wild>");
+                return true;
+            }
+
+            String target = args[1].toLowerCase();
+            switch (target) {
+                case "town", "마을" -> {
+                    boolean success = Hez.Menu.WarpManager.teleport(player, "town");
+                    if (success) {
+                        sender.sendMessage("§a[MineFarm] 마을로 이동했습니다.");
+                    } else {
+                        sender.sendMessage("§c[MineFarm] 마을 월드 스폰으로 이동하지 못했습니다.");
+                    }
+                }
+                case "colosseum", "arena", "pvp", "콜로세움" -> {
+                    if (plugin.getColosseumManager() != null) {
+                        plugin.getColosseumManager().teleportToArena(player);
+                    } else {
+                        sender.sendMessage("§c[MineFarm] 콜로세움 시스템이 활성화되지 않았습니다.");
+                    }
+                }
+                case "wild", "야생" -> {
+                    if (plugin.getWildManager() != null) {
+                        plugin.getWildManager().teleportToWild(player);
+                    } else {
+                        sender.sendMessage("§c[MineFarm] 야생 시스템이 활성화되지 않았습니다.");
+                    }
+                }
+                default -> {
+                    sender.sendMessage("§c[MineFarm] 알 수 없는 목적지입니다: " + args[1]);
+                    sender.sendMessage("§e사용 가능한 목적지: §ftown, colosseum, wild");
+                }
+            }
+            return true;
+        }
+
         if (args.length > 0 && args[0].equalsIgnoreCase("wild")) {
             if (!(sender instanceof org.bukkit.entity.Player player)) {
                 sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
@@ -78,6 +121,25 @@ public class MfCommand implements CommandExecutor {
                 return true;
             }
             Hez.PvP.ColosseumManager colosseum = plugin.getColosseumManager();
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("tp")) {
+                if (!(sender instanceof org.bukkit.entity.Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                colosseum.teleportToArena(player);
+                return true;
+            }
+
+            if (args.length > 1 && (args[1].equalsIgnoreCase("setarenaspawn") || args[1].equalsIgnoreCase("setspawn"))) {
+                if (!(sender instanceof org.bukkit.entity.Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                colosseum.setArenaSpawnLocation(player.getLocation());
+                sender.sendMessage("§a[콜로세움] 현재 위치가 결투장 평지 월드 스폰 위치로 설정되었습니다!");
+                return true;
+            }
 
             if (args.length > 1 && args[1].equalsIgnoreCase("info")) {
                 sender.sendMessage("§6=== 콜로세움 설정 정보 ===");
@@ -234,8 +296,10 @@ public class MfCommand implements CommandExecutor {
 
             sender.sendMessage("§6=== 콜로세움 관리 명령어 ===");
             sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 정보 및 직업/팀 구역 확인");
-            sender.sendMessage("§e/" + label + " colosseum pos1 §f- 현재 위치를 영역 시작 지점(Pos1)으로 지정");
-            sender.sendMessage("§e/" + label + " colosseum pos2 §f- 현재 위치를 끝 지점(Pos2)으로 지정하고 저장");
+            sender.sendMessage("§e/" + label + " colosseum tp §f- 결투장 평지 월드로 이동");
+            sender.sendMessage("§e/" + label + " colosseum setarenaspawn §f- 현재 위치를 결투장 스폰으로 설정");
+            sender.sendMessage("§e/" + label + " colosseum pos1 §f- 현재 위치를 대기실 시작 지점(Pos1)으로 지정");
+            sender.sendMessage("§e/" + label + " colosseum pos2 §f- 현재 위치를 대기실 끝 지점(Pos2)으로 지정하고 저장");
             sender.sendMessage("§e/" + label + " colosseum setpos <x1> <z1> <x2> <z2> §f- 좌표 수동 설정");
             sender.sendMessage("§e/" + label + " colosseum setclass <직업명> §f- 현재 위치를 직업 선택 위치로 지정");
             sender.sendMessage("§e/" + label + " colosseum setclasspos <직업명> <x> <z> §f- 직업 위치 수동 설정");
@@ -248,6 +312,7 @@ public class MfCommand implements CommandExecutor {
 
         sender.sendMessage("§6=== MineFarm 관리 명령어 ===");
         sender.sendMessage("§e/" + label + " reload §f- 플러그인 전체를 리로드합니다.");
+        sender.sendMessage("§e/" + label + " tp <town | colosseum | wild> §f- 지정된 장소로 텔레포트합니다.");
         sender.sendMessage("§e/" + label + " wild §f- 야생 고정 스폰으로 이동합니다.");
         sender.sendMessage("§e/" + label + " setwildspawn §f- 현재 위치를 야생 고정 스폰으로 지정합니다.");
         sender.sendMessage("§e/" + label + " cleanitems §f- 야생 월드 바닥 아이템을 즉시 청소합니다.");

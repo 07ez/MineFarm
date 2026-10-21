@@ -15,7 +15,7 @@ public class MfTabCompleter implements TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> sub = List.of("reload", "wild", "setwildspawn", "cleanitems", "colosseum");
+            List<String> sub = List.of("reload", "tp", "wild", "setwildspawn", "cleanitems", "colosseum");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[0].toLowerCase())) {
@@ -25,8 +25,19 @@ public class MfTabCompleter implements TabCompleter {
             return result;
         }
 
+        if (args.length == 2 && args[0].equalsIgnoreCase("tp")) {
+            List<String> sub = List.of("town", "colosseum", "wild");
+            List<String> result = new ArrayList<>();
+            for (String s : sub) {
+                if (s.toLowerCase().startsWith(args[1].toLowerCase())) {
+                    result.add(s);
+                }
+            }
+            return result;
+        }
+
         if (args.length == 2 && args[0].equalsIgnoreCase("colosseum")) {
-            List<String> sub = List.of("info", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
+            List<String> sub = List.of("info", "tp", "setarenaspawn", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[1].toLowerCase())) {
