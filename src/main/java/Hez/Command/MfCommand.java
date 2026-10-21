@@ -72,11 +72,91 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("colosseum")) {
+            if (plugin.getColosseumManager() == null) {
+                sender.sendMessage("§c[MineFarm] 콜로세움 시스템이 활성화되지 않았습니다.");
+                return true;
+            }
+            Hez.PvP.ColosseumManager colosseum = plugin.getColosseumManager();
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("info")) {
+                sender.sendMessage("§6=== 콜로세움 설정 정보 ===");
+                sender.sendMessage("§7- 대상 마을 월드: §f" + colosseum.getTownWorldName());
+                sender.sendMessage(String.format("§7- X 좌표 범위: §f%d ~ %d", colosseum.getMinX(), colosseum.getMaxX()));
+                sender.sendMessage(String.format("§7- Z 좌표 범위: §f%d ~ %d", colosseum.getMinZ(), colosseum.getMaxZ()));
+                java.util.List<org.bukkit.entity.Player> inside = colosseum.getInsideOnlinePlayers();
+                sender.sendMessage("§7- 현재 내부 인원: §e" + inside.size() + "명" +
+                        (inside.isEmpty() ? "" : " §7(" + inside.stream().map(org.bukkit.entity.Player::getName).collect(java.util.stream.Collectors.joining(", ")) + ")"));
+                return true;
+            }
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("reload")) {
+                colosseum.loadConfig();
+                sender.sendMessage("§a[MineFarm] colosseumConfig.yml 설정을 다시 로드했습니다!");
+                return true;
+            }
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("pos1")) {
+                if (!(sender instanceof org.bukkit.entity.Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                int x = player.getLocation().getBlockX();
+                int z = player.getLocation().getBlockZ();
+                colosseum.setPlayerPos1(player.getUniqueId(), x, z);
+                sender.sendMessage(String.format("§a[MineFarm] 콜로세움 Pos1 설정: (X: %d, Z: %d). 이제 Pos2 위치로 가서 '/%s colosseum pos2'를 입력하세요.", x, z, label));
+                return true;
+            }
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("pos2")) {
+                if (!(sender instanceof org.bukkit.entity.Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                int[] pos1 = colosseum.getPlayerPos1(player.getUniqueId());
+                if (pos1 == null) {
+                    sender.sendMessage("§c먼저 '/" + label + " colosseum pos1'을 실행하여 첫 번째 지점을 지정해주세요.");
+                    return true;
+                }
+                int x2 = player.getLocation().getBlockX();
+                int z2 = player.getLocation().getBlockZ();
+                colosseum.saveBounds(pos1[0], pos1[1], x2, z2);
+                colosseum.clearPlayerPos1(player.getUniqueId());
+                sender.sendMessage(String.format("§a[MineFarm] 콜로세움 영역이 성공적으로 저장되었습니다! (X: %d ~ %d, Z: %d ~ %d)",
+                        colosseum.getMinX(), colosseum.getMaxX(), colosseum.getMinZ(), colosseum.getMaxZ()));
+                return true;
+            }
+
+            if (args.length >= 6 && args[1].equalsIgnoreCase("setpos")) {
+                try {
+                    int x1 = Integer.parseInt(args[2]);
+                    int z1 = Integer.parseInt(args[3]);
+                    int x2 = Integer.parseInt(args[4]);
+                    int z2 = Integer.parseInt(args[5]);
+                    colosseum.saveBounds(x1, z1, x2, z2);
+                    sender.sendMessage(String.format("§a[MineFarm] 콜로세움 영역이 설정되었습니다: (X: %d ~ %d, Z: %d ~ %d)",
+                            colosseum.getMinX(), colosseum.getMaxX(), colosseum.getMinZ(), colosseum.getMaxZ()));
+                } catch (NumberFormatException e) {
+                    sender.sendMessage("§c좌표는 정수로 입력해야 합니다. 사용법: /" + label + " colosseum setpos <x1> <z1> <x2> <z2>");
+                }
+                return true;
+            }
+
+            sender.sendMessage("§6=== 콜로세움 관리 명령어 ===");
+            sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 영역 정보 및 내부 인원 확인");
+            sender.sendMessage("§e/" + label + " colosseum pos1 §f- 현재 위치를 영역 시작 지점(Pos1)으로 지정");
+            sender.sendMessage("§e/" + label + " colosseum pos2 §f- 현재 위치를 끝 지점(Pos2)으로 지정하고 저장");
+            sender.sendMessage("§e/" + label + " colosseum setpos <x1> <z1> <x2> <z2> §f- 좌표 수동 설정");
+            sender.sendMessage("§e/" + label + " colosseum reload §f- colosseumConfig.yml 다시 로드");
+            return true;
+        }
+
         sender.sendMessage("§6=== MineFarm 관리 명령어 ===");
         sender.sendMessage("§e/" + label + " reload §f- 플러그인 전체를 리로드합니다.");
         sender.sendMessage("§e/" + label + " wild §f- 야생 고정 스폰으로 이동합니다.");
         sender.sendMessage("§e/" + label + " setwildspawn §f- 현재 위치를 야생 고정 스폰으로 지정합니다.");
         sender.sendMessage("§e/" + label + " cleanitems §f- 야생 월드 바닥 아이템을 즉시 청소합니다.");
+        sender.sendMessage("§e/" + label + " colosseum §f- 콜로세움 영역 및 설정 관리.");
         return true;
     }
 }

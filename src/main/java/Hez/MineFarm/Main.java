@@ -11,6 +11,8 @@ import Hez.Command.CommandManager;
 import Hez.Placeholder.JobExpansion;
 import Hez.Placeholder.MoneyExpansion;
 import Hez.Player.PlayerManager;
+import Hez.PvP.ColosseumListener;
+import Hez.PvP.ColosseumManager;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -31,6 +33,7 @@ public class Main extends JavaPlugin {
     private PlayerManager playerManager;
     private Hez.Crops.CropsManager cropsManager;
     private Hez.Wilderness.WildManager wildManager;
+    private ColosseumManager colosseumManager;
 
     // 파일들
     private File playerDataFile;
@@ -65,6 +68,9 @@ public class Main extends JavaPlugin {
     public void onDisable() {
         if (this.wildManager != null) {
             this.wildManager.cleanup();
+        }
+        if (this.colosseumManager != null) {
+            this.colosseumManager.cleanup();
         }
         SaveData();
         if (this.cropsManager != null) {
@@ -117,6 +123,9 @@ public class Main extends JavaPlugin {
 
         // 야생 관리 시스템
         this.wildManager = new Hez.Wilderness.WildManager(this);
+
+        // 콜로세움 PvP 시스템
+        this.colosseumManager = new ColosseumManager(this);
     }
 
     private void LoadPapi(){
@@ -181,6 +190,10 @@ public class Main extends JavaPlugin {
         // 퀘스트 데이터(quests.json) 로드
         Hez.Quest.QuestManager.getInstance().loadQuestsJson();
 
+        // 콜로세움 PvP 시스템 초기화 및 리스너 등록
+        this.colosseumManager.init();
+        getServer().getPluginManager().registerEvents(new ColosseumListener(this.colosseumManager), this);
+
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();
     }
@@ -206,6 +219,9 @@ public class Main extends JavaPlugin {
     public void reloadPlugin() {
         if (this.wildManager != null) {
             this.wildManager.cleanup();
+        }
+        if (this.colosseumManager != null) {
+            this.colosseumManager.cleanup();
         }
 
         // 1. 현재 데이터 파일로 안전하게 저장
@@ -266,4 +282,5 @@ public class Main extends JavaPlugin {
     public PlayerManager getPlayerManager() { return playerManager; }
     public Hez.Crops.CropsManager getCropsManager() { return cropsManager; }
     public Hez.Wilderness.WildManager getWildManager() { return wildManager; }
+    public ColosseumManager getColosseumManager() { return colosseumManager; }
 }
