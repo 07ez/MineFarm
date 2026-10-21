@@ -115,6 +115,228 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && (args[0].equalsIgnoreCase("arena") || args[0].equalsIgnoreCase("아레나"))) {
+            if (plugin.getColosseumManager() == null || plugin.getColosseumManager().getTemplateManager() == null) {
+                sender.sendMessage("§c[MineFarm] 콜로세움 아레나 시스템이 활성화되지 않았습니다.");
+                return true;
+            }
+            Hez.PvP.ColosseumManager colosseum = plugin.getColosseumManager();
+            Hez.PvP.ArenaTemplateManager arena = colosseum.getTemplateManager();
+
+            if (args.length > 1) {
+                String sub = args[1].toLowerCase();
+
+                // /mf arena savemain <x1> <y1> <z1> <x2> <y2> <z2>
+                if (sub.equals("savemain")) {
+                    if (args.length < 8) {
+                        sender.sendMessage("§c사용법: /" + label + " arena savemain <x1> <y1> <z1> <x2> <y2> <z2>");
+                        return true;
+                    }
+                    try {
+                        int x1 = Integer.parseInt(args[2]);
+                        int y1 = Integer.parseInt(args[3]);
+                        int z1 = Integer.parseInt(args[4]);
+                        int x2 = Integer.parseInt(args[5]);
+                        int y2 = Integer.parseInt(args[6]);
+                        int z2 = Integer.parseInt(args[7]);
+
+                        org.bukkit.World targetWorld = (sender instanceof org.bukkit.entity.Player p) ? p.getWorld() : colosseum.getArenaWorld();
+                        if (targetWorld == null) {
+                            sender.sendMessage("§c대상 월드를 찾을 수 없습니다.");
+                            return true;
+                        }
+
+                        org.bukkit.Location loc1 = new org.bukkit.Location(targetWorld, x1, y1, z1);
+                        org.bukkit.Location loc2 = new org.bukkit.Location(targetWorld, x2, y2, z2);
+
+                        boolean ok = arena.saveTemplate("main", loc1, loc2);
+                        if (ok) {
+                            sender.sendMessage("§a[아레나] 기본 경기장(main) 템플릿이 성공적으로 저장되었습니다! (Air 무시 저장 완료)");
+                        } else {
+                            sender.sendMessage("§c[아레나] 기본 경기장 저장 중 오류가 발생했습니다.");
+                        }
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena savemain <x1> <y1> <z1> <x2> <y2> <z2>");
+                    }
+                    return true;
+                }
+
+                // /mf arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름>
+                if (sub.equals("savemap")) {
+                    if (args.length < 9) {
+                        sender.sendMessage("§c사용법: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름>");
+                        return true;
+                    }
+                    try {
+                        int x1 = Integer.parseInt(args[2]);
+                        int y1 = Integer.parseInt(args[3]);
+                        int z1 = Integer.parseInt(args[4]);
+                        int x2 = Integer.parseInt(args[5]);
+                        int y2 = Integer.parseInt(args[6]);
+                        int z2 = Integer.parseInt(args[7]);
+                        String mapName = args[8];
+
+                        org.bukkit.World targetWorld = (sender instanceof org.bukkit.entity.Player p) ? p.getWorld() : colosseum.getArenaWorld();
+                        if (targetWorld == null) {
+                            sender.sendMessage("§c대상 월드를 찾을 수 없습니다.");
+                            return true;
+                        }
+
+                        org.bukkit.Location loc1 = new org.bukkit.Location(targetWorld, x1, y1, z1);
+                        org.bukkit.Location loc2 = new org.bukkit.Location(targetWorld, x2, y2, z2);
+
+                        boolean ok = arena.saveTemplate(mapName, loc1, loc2);
+                        if (ok) {
+                            sender.sendMessage("§a[아레나] 테마 경기장(" + mapName + ") 템플릿이 성공적으로 저장되었습니다!");
+                        } else {
+                            sender.sendMessage("§c[아레나] 테마 경기장 저장 중 오류가 발생했습니다.");
+                        }
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름>");
+                    }
+                    return true;
+                }
+
+                // /mf arena setpastepos [x] [y] [z]
+                if (sub.equals("setpastepos") || sub.equals("setcenter")) {
+                    if (args.length >= 5) {
+                        try {
+                            int x = Integer.parseInt(args[2]);
+                            int y = Integer.parseInt(args[3]);
+                            int z = Integer.parseInt(args[4]);
+                            org.bukkit.World w = (sender instanceof org.bukkit.entity.Player p) ? p.getWorld() : colosseum.getArenaWorld();
+                            arena.setPasteLocation(new org.bukkit.Location(w, x, y, z));
+                            sender.sendMessage("§a[아레나] 고정 붙여넣기 기준 좌표가 설정되었습니다: (" + x + ", " + y + ", " + z + ")");
+                        } catch (NumberFormatException e) {
+                            sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena setpastepos <x> <y> <z>");
+                        }
+                    } else if (sender instanceof org.bukkit.entity.Player player) {
+                        org.bukkit.Location loc = player.getLocation().getBlock().getLocation();
+                        arena.setPasteLocation(loc);
+                        sender.sendMessage(String.format("§a[아레나] 현재 위치가 고정 붙여넣기 기준 좌표로 설정되었습니다: (%d, %d, %d)",
+                                loc.getBlockX(), loc.getBlockY(), loc.getBlockZ()));
+                    } else {
+                        sender.sendMessage("§c콘솔에서는 좌표를 입력해야 합니다: /" + label + " arena setpastepos <x> <y> <z>");
+                    }
+                    return true;
+                }
+
+                // /mf arena reset
+                if (sub.equals("reset")) {
+                    boolean ok = arena.resetToBaseArena();
+                    if (ok) {
+                        sender.sendMessage("§a[아레나] 경기장을 기본 경기장(main) 상태로 원상복구했습니다! (Air 무시 적용)");
+                    } else {
+                        sender.sendMessage("§c[아레나] 복구 실패: 기준 좌표(setpastepos) 또는 main 템플릿이 설정되었는지 확인하세요.");
+                    }
+                    return true;
+                }
+
+                // /mf arena loadmap <이름>
+                if (sub.equals("loadmap") || sub.equals("paste") || sub.equals("testmap")) {
+                    if (args.length < 3) {
+                        sender.sendMessage("§c사용법: /" + label + " arena loadmap <맵이름>");
+                        return true;
+                    }
+                    String mapName = args[2];
+                    boolean ok = arena.pasteTemplate(mapName, true);
+                    if (ok) {
+                        sender.sendMessage("§a[아레나] 테마 경기장(" + mapName + ")을 Air 무시로 붙여넣었습니다.");
+                    } else {
+                        sender.sendMessage("§c[아레나] 붙여넣기 실패: 해당 맵이 없거나 기준 좌표(setpastepos)가 설정되지 않았습니다.");
+                    }
+                    return true;
+                }
+
+                // /mf arena listmaps
+                if (sub.equals("listmaps") || sub.equals("list")) {
+                    java.util.Set<String> maps = arena.getRegisteredMaps();
+                    sender.sendMessage("§6=== 등록된 테마 경기장 목록 ===");
+                    sender.sendMessage("§7- 기본 경기장(main): " + (arena.hasMainTemplate() ? "§a등록됨" : "§c미등록"));
+                    if (maps.isEmpty()) {
+                        sender.sendMessage("§7- 등록된 테마 경기장이 없습니다.");
+                    } else {
+                        sender.sendMessage("§e- 테마 맵 (" + maps.size() + "개): §f" + String.join(", ", maps));
+                    }
+                    return true;
+                }
+
+                // /mf arena delmap <이름>
+                if (sub.equals("delmap") || sub.equals("delete")) {
+                    if (args.length < 3) {
+                        sender.sendMessage("§c사용법: /" + label + " arena delmap <맵이름>");
+                        return true;
+                    }
+                    String mapName = args[2];
+                    boolean ok = arena.deleteTemplate(mapName);
+                    if (ok) {
+                        sender.sendMessage("§a[아레나] 경기장(" + mapName + ") 템플릿이 삭제되었습니다.");
+                    } else {
+                        sender.sendMessage("§c[아레나] 해당 템플릿 파일을 찾을 수 없습니다.");
+                    }
+                    return true;
+                }
+
+                // /mf arena setspawn <team1|team2|team3|team4|spectator> [x] [y] [z]
+                if (sub.equals("setspawn")) {
+                    if (args.length < 3) {
+                        sender.sendMessage("§c사용법: /" + label + " arena setspawn <team1|team2|team3|team4|spectator> [x] [y] [z]");
+                        return true;
+                    }
+                    String teamKey = args[2].toLowerCase();
+                    if (args.length >= 6) {
+                        try {
+                            double x = Double.parseDouble(args[3]);
+                            double y = Double.parseDouble(args[4]);
+                            double z = Double.parseDouble(args[5]);
+                            org.bukkit.World w = (sender instanceof org.bukkit.entity.Player p) ? p.getWorld() : colosseum.getArenaWorld();
+                            arena.setTeamSpawn(teamKey, new org.bukkit.Location(w, x, y, z));
+                            sender.sendMessage("§a[아레나] " + teamKey + " 스폰 위치가 설정되었습니다.");
+                        } catch (NumberFormatException e) {
+                            sender.sendMessage("§c좌표는 숫자로 입력해주세요.");
+                        }
+                    } else if (sender instanceof org.bukkit.entity.Player player) {
+                        arena.setTeamSpawn(teamKey, player.getLocation());
+                        sender.sendMessage("§a[아레나] 현재 위치가 " + teamKey + " 스폰 위치로 설정되었습니다.");
+                    } else {
+                        sender.sendMessage("§c콘솔에서는 좌표를 입력해야 합니다.");
+                    }
+                    return true;
+                }
+
+                // /mf arena info
+                if (sub.equals("info")) {
+                    sender.sendMessage("§6=== 아레나 템플릿 & 스폰 설정 정보 ===");
+                    org.bukkit.Location pLoc = arena.getPasteLocation();
+                    sender.sendMessage("§7- 붙여넣기 기준점: " + (pLoc != null ? String.format("§f(X: %d, Y: %d, Z: %d)", pLoc.getBlockX(), pLoc.getBlockY(), pLoc.getBlockZ()) : "§c미설정"));
+                    sender.sendMessage("§7- 기본 경기장(main): " + (arena.hasMainTemplate() ? "§a등록됨" : "§c미등록 (/mf arena savemain 으로 등록)"));
+                    sender.sendMessage("§7- 등록된 테마 맵: §e" + arena.getRegisteredMaps().size() + "개 §f(" + String.join(", ", arena.getRegisteredMaps()) + ")");
+                    sender.sendMessage("§6--- 팀별 소환 좌표 ---");
+                    for (String key : java.util.List.of("team1", "team2", "team3", "team4", "spectator")) {
+                        org.bukkit.Location sLoc = arena.getTeamSpawn(key);
+                        if (sLoc != null) {
+                            sender.sendMessage(String.format("§e- %s: §f(X: %.1f, Y: %.1f, Z: %.1f)", key, sLoc.getX(), sLoc.getY(), sLoc.getZ()));
+                        } else {
+                            sender.sendMessage("§7- " + key + ": §c미설정");
+                        }
+                    }
+                    return true;
+                }
+            }
+
+            sender.sendMessage("§6=== 아레나 관리 명령어 ===");
+            sender.sendMessage("§e/" + label + " arena info §f- 아레나 템플릿 및 스폰 설정 정보 확인");
+            sender.sendMessage("§e/" + label + " arena setpastepos [x y z] §f- 경기장 붙여넣기 기준 좌표 설정");
+            sender.sendMessage("§e/" + label + " arena savemain <x1> <y1> <z1> <x2> <y2> <z2> §f- 기본 경기장 저장");
+            sender.sendMessage("§e/" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름> §f- 테마 경기장 저장");
+            sender.sendMessage("§e/" + label + " arena loadmap <이름> §f- 테마 경기장 Air 무시 붙여넣기 테스트");
+            sender.sendMessage("§e/" + label + " arena reset §f- 기본 경기장으로 원상복구 테스트");
+            sender.sendMessage("§e/" + label + " arena listmaps §f- 등록된 테마 맵 목록 확인");
+            sender.sendMessage("§e/" + label + " arena delmap <이름> §f- 테마 맵 삭제");
+            sender.sendMessage("§e/" + label + " arena setspawn <team1..4|spectator> [x y z] §f- 팀별 소환 위치 설정");
+            return true;
+        }
+
         if (args.length > 0 && args[0].equalsIgnoreCase("colosseum")) {
             if (plugin.getColosseumManager() == null) {
                 sender.sendMessage("§c[MineFarm] 콜로세움 시스템이 활성화되지 않았습니다.");
@@ -316,7 +538,8 @@ public class MfCommand implements CommandExecutor {
         sender.sendMessage("§e/" + label + " wild §f- 야생 고정 스폰으로 이동합니다.");
         sender.sendMessage("§e/" + label + " setwildspawn §f- 현재 위치를 야생 고정 스폰으로 지정합니다.");
         sender.sendMessage("§e/" + label + " cleanitems §f- 야생 월드 바닥 아이템을 즉시 청소합니다.");
-        sender.sendMessage("§e/" + label + " colosseum §f- 콜로세움 영역 및 설정 관리.");
+        sender.sendMessage("§e/" + label + " colosseum §f- 콜로세움 대기실 영역 및 설정 관리.");
+        sender.sendMessage("§e/" + label + " arena §f- 결투장 템플릿(main, 테마 맵) 및 스폰 관리.");
         return true;
     }
 }

@@ -100,8 +100,12 @@ public class ColosseumManager {
     // 액션바 지속 렌더링 태스크
     private org.bukkit.scheduler.BukkitTask actionBarTask;
 
+    // 경기장(메인 및 테마 맵) 템플릿 관리자
+    private final ArenaTemplateManager templateManager;
+
     public ColosseumManager(Main plugin) {
         this.plugin = plugin;
+        this.templateManager = new ArenaTemplateManager(plugin, this);
     }
 
     /**
@@ -114,6 +118,7 @@ public class ColosseumManager {
         }
         loadConfig();
         initArenaWorld();
+        this.templateManager.init();
         startActionBarTask();
     }
 
@@ -747,4 +752,5 @@ public class ColosseumManager {
     public Map<UUID, String> getSelectedTeams() { return selectedTeams; }
     public Set<UUID> getReadyPlayers() { return Collections.unmodifiableSet(readyPlayers); }
     public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
+    public ArenaTemplateManager getTemplateManager() { return templateManager; }
 }

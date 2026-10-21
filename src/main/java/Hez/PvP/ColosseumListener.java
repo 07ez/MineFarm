@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerKickEvent;
@@ -20,6 +21,16 @@ public class ColosseumListener implements Listener {
 
     public ColosseumListener(ColosseumManager manager) {
         this.manager = manager;
+    }
+
+    /**
+     * 결투장 평지 월드 내에서 플레이어가 설치한 블록 기록 (게임 리셋 시 롤백용)
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (manager.getTemplateManager() != null) {
+            manager.getTemplateManager().recordPlayerBlockPlace(event.getBlock().getLocation());
+        }
     }
 
     /**
