@@ -91,7 +91,7 @@ public class MfTabCompleter implements TabCompleter {
             }
         }
 
-        if (args.length == 2 && (args[0].equalsIgnoreCase("colosseum") || args[0].equalsIgnoreCase("콜로세움") || args[0].equalsIgnoreCase("c콜로세움"))) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("colosseum")) {
             List<String> sub = List.of("start", "info", "tp", "setarenaspawn", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
@@ -102,7 +102,7 @@ public class MfTabCompleter implements TabCompleter {
             return result;
         }
 
-        if (args.length == 3 && (args[0].equalsIgnoreCase("colosseum") || args[0].equalsIgnoreCase("콜로세움") || args[0].equalsIgnoreCase("c콜로세움"))) {
+        if (args.length == 3 && args[0].equalsIgnoreCase("colosseum")) {
             if (args[1].equalsIgnoreCase("setclass") || args[1].equalsIgnoreCase("setclasspos")) {
                 List<String> classList = Hez.PvP.ColosseumManager.DEFAULT_CLASSES;
                 List<String> result = new ArrayList<>();

@@ -399,14 +399,14 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
-        if (args.length > 0 && (args[0].equalsIgnoreCase("colosseum") || args[0].equalsIgnoreCase("콜로세움") || args[0].equalsIgnoreCase("c콜로세움"))) {
+        if (args.length > 0 && args[0].equalsIgnoreCase("colosseum")) {
             if (plugin.getColosseumManager() == null) {
                 sender.sendMessage("§c[MineFarm] 콜로세움 시스템이 활성화되지 않았습니다.");
                 return true;
             }
             Hez.PvP.ColosseumManager colosseum = plugin.getColosseumManager();
 
-            if (args.length > 1 && (args[1].equalsIgnoreCase("start") || args[1].equalsIgnoreCase("시작"))) {
+            if (args.length > 1 && args[1].equalsIgnoreCase("start")) {
                 if (colosseum.isMatchInProgress()) {
                     sender.sendMessage("§c[콜로세움] 이미 결투가 진행 중입니다.");
                     return true;
