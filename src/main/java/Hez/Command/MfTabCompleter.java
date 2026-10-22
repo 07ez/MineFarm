@@ -37,7 +37,7 @@ public class MfTabCompleter implements TabCompleter {
         }
 
         if (args.length == 2 && (args[0].equalsIgnoreCase("arena") || args[0].equalsIgnoreCase("아레나"))) {
-            List<String> sub = List.of("info", "setpastepos", "savemain", "savemap", "loadmap", "reset", "listmaps", "delmap", "setspawn");
+            List<String> sub = List.of("info", "setbounds", "setpastepos", "savemain", "savemap", "loadmap", "reset", "listmaps", "delmap", "setspawn");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[1].toLowerCase())) {

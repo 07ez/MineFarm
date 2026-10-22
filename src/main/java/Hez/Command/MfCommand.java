@@ -197,6 +197,31 @@ public class MfCommand implements CommandExecutor {
                     return true;
                 }
 
+                // /mf arena setbounds <x1> <y1> <z1> <x2> <y2> <z2>
+                if (sub.equals("setbounds") || sub.equals("bounds")) {
+                    if (args.length < 8) {
+                        sender.sendMessage("§c사용법: /" + label + " arena setbounds <x1> <y1> <z1> <x2> <y2> <z2>");
+                        return true;
+                    }
+                    try {
+                        int x1 = Integer.parseInt(args[2]);
+                        int y1 = Integer.parseInt(args[3]);
+                        int z1 = Integer.parseInt(args[4]);
+                        int x2 = Integer.parseInt(args[5]);
+                        int y2 = Integer.parseInt(args[6]);
+                        int z2 = Integer.parseInt(args[7]);
+                        arena.setBounds(x1, y1, z1, x2, y2, z2);
+                        sender.sendMessage(String.format("§a[아레나] 전투 영역 경계가 설정되었습니다: (X: %d~%d, Y: %d~%d, Z: %d~%d)",
+                                arena.getBoundsMinX(), arena.getBoundsMaxX(),
+                                arena.getBoundsMinY(), arena.getBoundsMaxY(),
+                                arena.getBoundsMinZ(), arena.getBoundsMaxZ()));
+                        sender.sendMessage("§7(이 경계 밖의 프리셋 건축물 및 외벽은 파괴 및 리셋으로부터 완전히 보호됩니다)");
+                    } catch (NumberFormatException e) {
+                        sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena setbounds <x1> <y1> <z1> <x2> <y2> <z2>");
+                    }
+                    return true;
+                }
+
                 // /mf arena setpastepos [x] [y] [z]
                 if (sub.equals("setpastepos") || sub.equals("setcenter")) {
                     if (args.length >= 5) {
@@ -307,6 +332,14 @@ public class MfCommand implements CommandExecutor {
                 // /mf arena info
                 if (sub.equals("info")) {
                     sender.sendMessage("§6=== 아레나 템플릿 & 스폰 설정 정보 ===");
+                    if (arena.hasBounds()) {
+                        sender.sendMessage(String.format("§7- 전투 영역 경계(Bounds): §fX: %d~%d, Y: %d~%d, Z: %d~%d",
+                                arena.getBoundsMinX(), arena.getBoundsMaxX(),
+                                arena.getBoundsMinY(), arena.getBoundsMaxY(),
+                                arena.getBoundsMinZ(), arena.getBoundsMaxZ()));
+                    } else {
+                        sender.sendMessage("§7- 전투 영역 경계(Bounds): §c미설정 (/mf arena setbounds 로 설정)");
+                    }
                     org.bukkit.Location pLoc = arena.getPasteLocation();
                     sender.sendMessage("§7- 붙여넣기 기준점: " + (pLoc != null ? String.format("§f(X: %d, Y: %d, Z: %d)", pLoc.getBlockX(), pLoc.getBlockY(), pLoc.getBlockZ()) : "§c미설정"));
                     sender.sendMessage("§7- 기본 경기장(main): " + (arena.hasMainTemplate() ? "§a등록됨" : "§c미등록 (/mf arena savemain 으로 등록)"));
@@ -326,6 +359,7 @@ public class MfCommand implements CommandExecutor {
 
             sender.sendMessage("§6=== 아레나 관리 명령어 ===");
             sender.sendMessage("§e/" + label + " arena info §f- 아레나 템플릿 및 스폰 설정 정보 확인");
+            sender.sendMessage("§e/" + label + " arena setbounds <x1> <y1> <z1> <x2> <y2> <z2> §f- 전투 영역 경계 설정 (외부 프리셋 보호)");
             sender.sendMessage("§e/" + label + " arena setpastepos [x y z] §f- 경기장 붙여넣기 기준 좌표 설정");
             sender.sendMessage("§e/" + label + " arena savemain <x1> <y1> <z1> <x2> <y2> <z2> §f- 기본 경기장 저장");
             sender.sendMessage("§e/" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름> §f- 테마 경기장 저장");

@@ -5,6 +5,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
@@ -24,12 +25,53 @@ public class ColosseumListener implements Listener {
     }
 
     /**
-     * 결투장 평지 월드 내에서 플레이어가 설치한 블록 기록 (게임 리셋 시 롤백용)
+     * 결투장 평지 월드 내에서 플레이어가 설치한 블록 기록 및 외벽/프리셋 구역 보호
      */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
-        if (manager.getTemplateManager() != null) {
-            manager.getTemplateManager().recordPlayerBlockPlace(event.getBlock().getLocation());
+        Player player = event.getPlayer();
+        Location loc = event.getBlock().getLocation();
+        if (manager.isArenaWorld(loc.getWorld())) {
+            ArenaTemplateManager templateMgr = manager.getTemplateManager();
+            if (templateMgr != null) {
+                // 관리자가 아니고 크리에이티브가 아닌 경우 아레나 경계 바깥 설치 금지
+                if (!player.isOp() && player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                    if (templateMgr.hasBounds() && !templateMgr.isInArenaBounds(loc)) {
+                        event.setCancelled(true);
+                        player.sendMessage("§c[콜로세움] 결투장 경기장 바깥에는 블록을 설치할 수 없습니다!");
+                        return;
+                    }
+                }
+                templateMgr.recordPlayerBlockPlace(loc);
+            }
+        }
+    }
+
+    /**
+     * 결투장 평지 월드 내에서 블록 파괴 감지 및 기록 (원상복구용)
+     * 경기장 외벽/관중석 및 프리셋 구역 보호
+     */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onBlockBreak(BlockBreakEvent event) {
+        Player player = event.getPlayer();
+        org.bukkit.block.Block block = event.getBlock();
+        Location loc = block.getLocation();
+
+        if (manager.isArenaWorld(loc.getWorld())) {
+            ArenaTemplateManager templateMgr = manager.getTemplateManager();
+            if (templateMgr != null) {
+                // 관리자가 아니고 크리에이티브가 아닌 경우
+                if (!player.isOp() && player.getGameMode() != org.bukkit.GameMode.CREATIVE) {
+                    // 아레나 경계 바깥(프리셋 구역) 및 관중석 파괴 금지
+                    if (templateMgr.hasBounds() && !templateMgr.isInArenaBounds(loc)) {
+                        event.setCancelled(true);
+                        player.sendMessage("§c[콜로세움] 경기장 외벽 및 관중석 구역은 파괴할 수 없습니다!");
+                        return;
+                    }
+                }
+                // 경기장 내부에서 파괴된 블록 원래 데이터 기록
+                templateMgr.recordPlayerBlockBreak(loc, block.getBlockData());
+            }
         }
     }
 

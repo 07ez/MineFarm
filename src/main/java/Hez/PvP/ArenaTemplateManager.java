@@ -27,6 +27,12 @@ public class ArenaTemplateManager {
     // 경기장 고정 붙여넣기 기준 좌표 (최소 X, Y, Z가 위치할 곳)
     private Location pasteLocation;
 
+    // 아레나 전투 영역 경계 (이 범위 밖은 프리셋 보관 구역이므로 절대 건드리지 않음)
+    private boolean hasBounds = false;
+    private int boundsMinX, boundsMaxX;
+    private int boundsMinY, boundsMaxY;
+    private int boundsMinZ, boundsMaxZ;
+
     // 팀별 소환 좌표 (team1, team2, team3, team4, spectator)
     private final Map<String, Location> teamSpawns = new ConcurrentHashMap<>();
 
@@ -35,6 +41,9 @@ public class ArenaTemplateManager {
 
     // 게임 진행 중 플레이어가 설치한 블록 좌표 목록 (초기화 시 공기화 대상)
     private final Set<Location> playerPlacedBlocks = ConcurrentHashMap.newKeySet();
+
+    // 게임 진행 중 플레이어가 파괴한 블록 좌표 및 원래 블록 데이터 (초기화 시 원상복구 대상)
+    private final Map<Location, BlockData> playerBrokenBlocks = new ConcurrentHashMap<>();
 
     // 등록된 경기장 맵 이름 목록
     private final Set<String> registeredMaps = Collections.synchronizedSet(new LinkedHashSet<>());
@@ -120,7 +129,18 @@ public class ArenaTemplateManager {
             }
         }
 
-        // 3. 등록된 맵 목록 갱신 (폴더 내 .template 파일 기준)
+        // 3. 아레나 전투 영역 경계 로드
+        if (config.contains("bounds.minX")) {
+            this.boundsMinX = config.getInt("bounds.minX");
+            this.boundsMaxX = config.getInt("bounds.maxX");
+            this.boundsMinY = config.getInt("bounds.minY");
+            this.boundsMaxY = config.getInt("bounds.maxY");
+            this.boundsMinZ = config.getInt("bounds.minZ");
+            this.boundsMaxZ = config.getInt("bounds.maxZ");
+            this.hasBounds = true;
+        }
+
+        // 4. 등록된 맵 목록 갱신 (폴더 내 .template 파일 기준)
         refreshRegisteredMaps();
     }
 
@@ -132,6 +152,14 @@ public class ArenaTemplateManager {
             config.set("pasteLocation.x", pasteLocation.getX());
             config.set("pasteLocation.y", pasteLocation.getY());
             config.set("pasteLocation.z", pasteLocation.getZ());
+        }
+        if (hasBounds) {
+            config.set("bounds.minX", boundsMinX);
+            config.set("bounds.maxX", boundsMaxX);
+            config.set("bounds.minY", boundsMinY);
+            config.set("bounds.maxY", boundsMaxY);
+            config.set("bounds.minZ", boundsMinZ);
+            config.set("bounds.maxZ", boundsMaxZ);
         }
         for (Map.Entry<String, Location> entry : teamSpawns.entrySet()) {
             Location loc = entry.getValue();
@@ -290,32 +318,43 @@ public class ArenaTemplateManager {
 
     /**
      * 기본 경기장으로 완전 원상복구 리셋
-     * 1. 이전 테마 경기장 블록들 공기화
-     * 2. 게임 중 플레이어가 설치한 블록들 공기화
-     * 3. 기본 경기장(main) 템플릿을 Air 무시로 재부착
+     * 1. 게임 중 플레이어가 설치한 블록들 공기화 (아레나 내부만)
+     * 2. 이전 테마 경기장 블록들 공기화 (아레나 내부만)
+     * 3. 게임 중 플레이어가 파괴했던 블록들을 원래 상태로 완벽 복구!
+     * 4. 기본 경기장(main) 템플릿을 Air 무시로 재부착
+     * (아레나 경계 바깥의 프리셋 건축물은 절대 건드리지 않음)
      */
     public boolean resetToBaseArena() {
         if (pasteLocation == null || pasteLocation.getWorld() == null) {
             return false;
         }
 
-        // 1. 테마 경기장 잔여 블록 제거
-        for (Location loc : currentThemeBlocks) {
-            if (loc.getWorld() != null) {
-                loc.getBlock().setType(Material.AIR, false);
-            }
-        }
-        currentThemeBlocks.clear();
-
-        // 2. 플레이어 설치 블록 제거
+        // 1. 플레이어 설치 블록 제거
         for (Location loc : playerPlacedBlocks) {
-            if (loc.getWorld() != null) {
+            if (loc.getWorld() != null && isInArenaBounds(loc)) {
                 loc.getBlock().setType(Material.AIR, false);
             }
         }
         playerPlacedBlocks.clear();
 
-        // 3. 메인 기본 경기장 붙여넣기 (Air 무시)
+        // 2. 테마 경기장 잔여 블록 제거
+        for (Location loc : currentThemeBlocks) {
+            if (loc.getWorld() != null && isInArenaBounds(loc)) {
+                loc.getBlock().setType(Material.AIR, false);
+            }
+        }
+        currentThemeBlocks.clear();
+
+        // 3. 플레이어가 파괴했던 블록들 원래대로 복구 (구멍 메우기)
+        for (Map.Entry<Location, BlockData> entry : playerBrokenBlocks.entrySet()) {
+            Location loc = entry.getKey();
+            if (loc.getWorld() != null && isInArenaBounds(loc)) {
+                loc.getBlock().setBlockData(entry.getValue(), false);
+            }
+        }
+        playerBrokenBlocks.clear();
+
+        // 4. 메인 기본 경기장 붙여넣기 (Air 무시)
         File mainFile = new File(templateFolder, "main.template");
         if (mainFile.exists()) {
             return pasteTemplate("main", false);
@@ -332,10 +371,46 @@ public class ArenaTemplateManager {
         return false;
     }
 
+    /**
+     * 특정 위치가 아레나 전투 영역(Bounds) 내부인지 검사
+     */
+    public boolean isInArenaBounds(Location loc) {
+        if (loc == null || loc.getWorld() == null) return false;
+        if (!colosseumManager.isArenaWorld(loc.getWorld())) return false;
+        if (!hasBounds) return true; // 아직 bounds 미설정 시 월드 내부 전체 대상
+        int x = loc.getBlockX();
+        int y = loc.getBlockY();
+        int z = loc.getBlockZ();
+        return x >= boundsMinX && x <= boundsMaxX &&
+               y >= boundsMinY && y <= boundsMaxY &&
+               z >= boundsMinZ && z <= boundsMaxZ;
+    }
+
+    public void setBounds(int x1, int y1, int z1, int x2, int y2, int z2) {
+        this.boundsMinX = Math.min(x1, x2);
+        this.boundsMaxX = Math.max(x1, x2);
+        this.boundsMinY = Math.min(y1, y2);
+        this.boundsMaxY = Math.max(y1, y2);
+        this.boundsMinZ = Math.min(z1, z2);
+        this.boundsMaxZ = Math.max(z1, z2);
+        this.hasBounds = true;
+        saveConfig();
+    }
+
     public void recordPlayerBlockPlace(Location loc) {
-        if (loc != null && colosseumManager.isArenaWorld(loc.getWorld())) {
-            playerPlacedBlocks.add(loc);
+        if (loc == null || !isInArenaBounds(loc)) return;
+        playerPlacedBlocks.add(loc.getBlock().getLocation());
+    }
+
+    public void recordPlayerBlockBreak(Location loc, BlockData originalData) {
+        if (loc == null || originalData == null || !isInArenaBounds(loc)) return;
+        Location blockLoc = loc.getBlock().getLocation();
+        // 플레이어가 자신이 방금 설치했던 블록을 부순 것이라면 롤백 목록에서 제거
+        if (playerPlacedBlocks.remove(blockLoc)) {
+            return;
         }
+        // 원래 지형/경기장에 있던 블록을 부순 경우 최초 원본 블록 데이터를 보존
+        playerBrokenBlocks.putIfAbsent(blockLoc, originalData);
     }
 
     // Getters & Setters
@@ -347,6 +422,17 @@ public class ArenaTemplateManager {
         this.pasteLocation = pasteLocation.clone();
         saveConfig();
     }
+
+    public boolean hasBounds() {
+        return hasBounds;
+    }
+
+    public int getBoundsMinX() { return boundsMinX; }
+    public int getBoundsMaxX() { return boundsMaxX; }
+    public int getBoundsMinY() { return boundsMinY; }
+    public int getBoundsMaxY() { return boundsMaxY; }
+    public int getBoundsMinZ() { return boundsMinZ; }
+    public int getBoundsMaxZ() { return boundsMaxZ; }
 
     public void setTeamSpawn(String teamKey, Location loc) {
         if (loc == null) return;
