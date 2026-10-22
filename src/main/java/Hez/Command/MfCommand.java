@@ -38,6 +38,17 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
+        if (args.length > 0 && args[0].equalsIgnoreCase("bde")) {
+            String[] bdeArgs = new String[args.length - 1];
+            System.arraycopy(args, 1, bdeArgs, 0, bdeArgs.length);
+            if (plugin.getBdEngineManager() != null) {
+                new Hez.BDEngine.BdeCommand(plugin, plugin.getBdEngineManager()).onCommand(sender, command, label + " bde", bdeArgs);
+            } else {
+                sender.sendMessage("§cBDEngine 시스템이 초기화되지 않았습니다.");
+            }
+            return true;
+        }
+
         if (args.length > 0 && args[0].equalsIgnoreCase("tp")) {
             if (!(sender instanceof org.bukkit.entity.Player player)) {
                 sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
@@ -591,6 +602,7 @@ public class MfCommand implements CommandExecutor {
         sender.sendMessage("§e/" + label + " cleanitems §f- 야생 월드 바닥 아이템을 즉시 청소합니다.");
         sender.sendMessage("§e/" + label + " colosseum §f- 콜로세움 대기실 영역 및 설정 관리.");
         sender.sendMessage("§e/" + label + " arena §f- 결투장 템플릿(main, 테마 맵) 및 스폰 관리.");
+        sender.sendMessage("§e/" + label + " bde <spawn|download|remove|list> §f- BDEngine 3D 모델 관리");
         return true;
     }
 }

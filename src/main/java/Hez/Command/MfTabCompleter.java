@@ -15,7 +15,7 @@ public class MfTabCompleter implements TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> sub = List.of("reload", "tp", "wild", "setwildspawn", "cleanitems", "colosseum", "arena");
+            List<String> sub = List.of("reload", "tp", "wild", "setwildspawn", "cleanitems", "colosseum", "arena", "bde");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[0].toLowerCase())) {
@@ -23,6 +23,16 @@ public class MfTabCompleter implements TabCompleter {
                 }
             }
             return result;
+        }
+
+        if (args.length >= 2 && args[0].equalsIgnoreCase("bde")) {
+            String[] bdeArgs = new String[args.length - 1];
+            System.arraycopy(args, 1, bdeArgs, 0, bdeArgs.length);
+            Hez.MineFarm.Main main = Hez.MineFarm.Main.getInstance();
+            if (main != null && main.getBdEngineManager() != null) {
+                return new Hez.BDEngine.BdeCommand(main, main.getBdEngineManager()).onTabComplete(sender, command, alias, bdeArgs);
+            }
+            return List.of();
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("tp")) {

@@ -34,6 +34,7 @@ public class Main extends JavaPlugin {
     private Hez.Crops.CropsManager cropsManager;
     private Hez.Wilderness.WildManager wildManager;
     private ColosseumManager colosseumManager;
+    private Hez.BDEngine.BDEngineManager bdEngineManager;
 
     // 파일들
     private File playerDataFile;
@@ -126,6 +127,9 @@ public class Main extends JavaPlugin {
 
         // 콜로세움 PvP 시스템
         this.colosseumManager = new ColosseumManager(this);
+
+        // BDEngine 3D 모델 및 디스플레이 엔티티 시스템
+        this.bdEngineManager = new Hez.BDEngine.BDEngineManager(this);
     }
 
     private void LoadPapi(){
@@ -194,6 +198,11 @@ public class Main extends JavaPlugin {
         this.colosseumManager.init();
         getServer().getPluginManager().registerEvents(new ColosseumListener(this.colosseumManager), this);
         getServer().getPluginManager().registerEvents(new Hez.PvP.Class.OnePunchManListener(this.colosseumManager), this);
+
+        // BDEngine 모델 및 태그 로드
+        if (this.bdEngineManager != null) {
+            this.bdEngineManager.init();
+        }
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();
@@ -284,4 +293,5 @@ public class Main extends JavaPlugin {
     public Hez.Crops.CropsManager getCropsManager() { return cropsManager; }
     public Hez.Wilderness.WildManager getWildManager() { return wildManager; }
     public ColosseumManager getColosseumManager() { return colosseumManager; }
+    public Hez.BDEngine.BDEngineManager getBdEngineManager() { return bdEngineManager; }
 }

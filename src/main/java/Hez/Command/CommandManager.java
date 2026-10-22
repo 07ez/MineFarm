@@ -26,6 +26,12 @@ public class CommandManager {
         register("encyclopedia", new EncyclopediaCommand(), new EncyclopediaTabCompleter());
         register("mf", new MfCommand(plugin), new MfTabCompleter());
         register("enhance", new EnhanceCommand());
+
+        // BDEngine 3D 모델 명령어 등록 (/bde)
+        if (plugin.getBdEngineManager() != null) {
+            Hez.BDEngine.BdeCommand bdeCmd = new Hez.BDEngine.BdeCommand(plugin, plugin.getBdEngineManager());
+            register("bde", bdeCmd, bdeCmd);
+        }
     }
 
     /**
