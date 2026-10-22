@@ -2,6 +2,15 @@
   "providers": [
     {
       "type": "bitmap",
+      "file": "minecraft:font/cropgirl.png",
+      "ascent": 13,
+      "height": 256,
+      "chars": [
+        "\uE001"
+      ]
+    },
+    {
+      "type": "bitmap",
       "file": "minecraft:font/test.png",
       "ascent": 13,
       "height": 256,

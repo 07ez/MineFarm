@@ -63,6 +63,10 @@ public class MenuListener implements Listener {
             event.setCancelled(true);
             return;
         }
+        if (event.getInventory().getHolder() instanceof CropGirlMenu) {
+            event.setCancelled(true);
+            return;
+        }
         if (event.getInventory().getHolder() instanceof QuestMenu) {
             // 퀘스트 메뉴창 안의 아이템 조작 금지
             event.setCancelled(true);

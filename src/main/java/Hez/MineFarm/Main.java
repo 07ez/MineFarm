@@ -8,7 +8,9 @@ import Hez.House.HouseManager;
 import Hez.Job.JobManager;
 import Hez.Money.MoneyManager;
 import Hez.Command.CommandManager;
+import Hez.Placeholder.HouseExpansion;
 import Hez.Placeholder.JobExpansion;
+import Hez.Placeholder.LandExpansion;
 import Hez.Placeholder.MoneyExpansion;
 import Hez.Player.PlayerManager;
 import Hez.PvP.ColosseumListener;
@@ -142,6 +144,8 @@ public class Main extends JavaPlugin {
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new MoneyExpansion().register();
             new JobExpansion().register();
+            new HouseExpansion().register();
+            new LandExpansion().register();
         }
         else{ getLogger().warning("papi실패!");}
     }

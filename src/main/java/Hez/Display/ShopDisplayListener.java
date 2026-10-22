@@ -1,5 +1,6 @@
 package Hez.Display;
 
+import Hez.Menu.CropGirlMenu;
 import Hez.MineFarm.Main;
 import Hez.Money.MoneyManager;
 import org.bukkit.Sound;
@@ -12,6 +13,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -94,6 +96,15 @@ public class ShopDisplayListener implements Listener {
         Display targetDisplay = getTargetShopDisplay(player);
         if (targetDisplay == null) return;
 
+        // cropgirl 디스플레이 우클릭 시 전용 GUI 오픈
+        if (targetDisplay.getScoreboardTags().contains("cropgirl")) {
+            event.setCancelled(true);
+            if (isRight && checkAndSetCooldown(player.getUniqueId())) {
+                CropGirlMenu.open(player);
+            }
+            return;
+        }
+
         // 상점 디스플레이 상호작용인 경우 뒤편 블록 파괴/동작 차단
         event.setCancelled(true);
 
@@ -116,6 +127,7 @@ public class ShopDisplayListener implements Listener {
         Player player = event.getPlayer();
         Display targetDisplay = getTargetShopDisplay(player);
         if (targetDisplay == null) return;
+        if (targetDisplay.getScoreboardTags().contains("cropgirl")) return;
 
         if (!checkAndSetCooldown(player.getUniqueId())) return;
 
@@ -130,13 +142,43 @@ public class ShopDisplayListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Player player = event.getPlayer();
+
+        // 엔티티 자체 또는 시선 타깃 디스플레이에 cropgirl 태그가 있는 경우
+        if (event.getRightClicked().getScoreboardTags().contains("cropgirl")) {
+            event.setCancelled(true);
+            if (checkAndSetCooldown(player.getUniqueId())) {
+                CropGirlMenu.open(player);
+            }
+            return;
+        }
+
         Display targetDisplay = getTargetShopDisplay(player);
+        if (targetDisplay != null && targetDisplay.getScoreboardTags().contains("cropgirl")) {
+            event.setCancelled(true);
+            if (checkAndSetCooldown(player.getUniqueId())) {
+                CropGirlMenu.open(player);
+            }
+            return;
+        }
+
         if (targetDisplay == null) return;
 
         event.setCancelled(true);
         if (!checkAndSetCooldown(player.getUniqueId())) return;
 
         handleSale(player, targetDisplay, player.isSneaking());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onPlayerInteractAtEntity(PlayerInteractAtEntityEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
+        if (event.getRightClicked().getScoreboardTags().contains("cropgirl")) {
+            event.setCancelled(true);
+            if (checkAndSetCooldown(event.getPlayer().getUniqueId())) {
+                CropGirlMenu.open(event.getPlayer());
+            }
+        }
     }
 
     // ==========================================
@@ -152,6 +194,10 @@ public class ShopDisplayListener implements Listener {
         }
 
         if (targetDisplay == null) return;
+        if (targetDisplay.getScoreboardTags().contains("cropgirl")) {
+            event.setCancelled(true);
+            return;
+        }
 
         event.setCancelled(true);
         if (!checkAndSetCooldown(player.getUniqueId())) return;

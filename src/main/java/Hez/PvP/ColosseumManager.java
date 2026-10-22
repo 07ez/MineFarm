@@ -67,6 +67,11 @@ public class ColosseumManager {
     // 준비 완료한 플레이어 UUID 목록 (직업+팀 선택 후 웅크리기)
     private final Set<UUID> readyPlayers = ConcurrentHashMap.newKeySet();
 
+    // 시작 카운트다운 태스크 및 진행 상태
+    private org.bukkit.scheduler.BukkitTask countdownTask = null;
+    private int countdownSeconds = 3;
+    private boolean matchInProgress = false;
+
     public static class TeamArea {
         private final int minX;
         private final int maxX;
@@ -421,6 +426,7 @@ public class ColosseumManager {
 
         // 3. 콜로세움 내부 플레이어들의 액션바 즉시 갱신
         updateActionBarForInsidePlayers();
+        checkCountdownStatus();
     }
 
     /**
@@ -451,6 +457,7 @@ public class ColosseumManager {
         selectedTeams.remove(uuid);
         readyPlayers.remove(uuid);
         updateActionBarForInsidePlayers();
+        checkCountdownStatus();
     }
 
     /**
@@ -524,6 +531,7 @@ public class ColosseumManager {
                 } catch (Exception ignored) {
                 }
                 updateActionBarForInsidePlayers();
+                checkCountdownStatus();
             }
         } else {
             // 어떤 팀 구역에도 속하지 않음 -> 팀 구역을 벗어났으므로 팀 해제 및 준비 해제!
@@ -536,25 +544,36 @@ public class ColosseumManager {
                 } catch (Exception ignored) {
                 }
                 updateActionBarForInsidePlayers();
+                checkCountdownStatus();
             }
         }
     }
 
     /**
      * 웅크리기(Shift) 시 준비 상태 토글
-     * (직업과 팀이 모두 선택된 상태에서만 가능하며, 팀 구역을 나가면 준비도 자동 해제됨)
+     * (직업과 팀이 모두 선택된 상태에서만 가능하며, 관전자는 팀만 선택해도 준비 가능. 팀 구역을 나가면 준비도 자동 해제됨)
      */
     public boolean toggleReady(Player player) {
         if (player == null) return false;
         UUID uuid = player.getUniqueId();
 
         if (!isInColosseum(player.getLocation())) return false;
+        if (matchInProgress) {
+            player.sendMessage("§c[콜로세움] 이미 결투가 진행 중입니다!");
+            return false;
+        }
 
         String myClass = selectedClasses.get(uuid);
         String myTeam = selectedTeams.get(uuid);
 
-        if (myClass == null || myTeam == null) {
-            player.sendMessage("§c[콜로세움] §f직업과 팀을 모두 선택한 상태에서 웅크려야 준비할 수 있습니다!");
+        boolean isSpectator = "spectator".equalsIgnoreCase(myTeam);
+
+        if (myTeam == null || (!isSpectator && myClass == null)) {
+            if (isSpectator) {
+                player.sendMessage("§c[콜로세움] §f팀을 먼저 선택한 상태에서 웅크려야 준비할 수 있습니다!");
+            } else {
+                player.sendMessage("§c[콜로세움] §f직업과 팀을 모두 선택한 상태에서 웅크려야 준비할 수 있습니다!");
+            }
             try {
                 player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
             } catch (Exception ignored) {
@@ -578,7 +597,182 @@ public class ColosseumManager {
             }
         }
         updateActionBarForInsidePlayers();
+        checkCountdownStatus();
         return true;
+    }
+
+    /**
+     * 게임 시작 조건 검사:
+     * 1. 경기가 이미 진행 중이 아니어야 함
+     * 2. 대기실에 2명 이상의 플레이어가 있어야 함
+     * 3. 대기실에 들어온 모든 플레이어가 레디(Ready) 상태여야 함
+     * 4. 관전자(spectator)를 제외한 실전 참여 팀이 2개 이상이어야 함 (예: Red + Spectator 는 팀 1개라 시작 안 됨)
+     */
+    public boolean canStartGame() {
+        if (matchInProgress) return false;
+
+        List<Player> inside = getInsideOnlinePlayers();
+        if (inside.size() < 2) return false;
+
+        // 대기실의 모든 플레이어가 준비 완료 상태인지 검사
+        for (Player p : inside) {
+            if (!readyPlayers.contains(p.getUniqueId())) {
+                return false;
+            }
+        }
+
+        // 관전자(spectator)를 제외한 실전 팀 수 계산
+        Set<String> fightingTeams = new HashSet<>();
+        for (Player p : inside) {
+            String team = selectedTeams.get(p.getUniqueId());
+            if (team != null && !team.equalsIgnoreCase("spectator")) {
+                fightingTeams.add(team.toLowerCase());
+            }
+        }
+
+        return fightingTeams.size() >= 2;
+    }
+
+    /**
+     * 참가자 상태 변경 시 카운트다운 시작 또는 취소 검사
+     */
+    public void checkCountdownStatus() {
+        if (matchInProgress) return;
+
+        if (canStartGame()) {
+            if (countdownTask == null) {
+                startCountdown();
+            }
+        } else {
+            if (countdownTask != null) {
+                cancelCountdown("§c[콜로세움] 참가자의 준비 상태가 해제되어 카운트다운이 취소되었습니다.");
+            }
+        }
+    }
+
+    /**
+     * 3초 카운트다운 시작 (3 -> 2 -> 1 -> 시작)
+     */
+    private void startCountdown() {
+        if (countdownTask != null) {
+            countdownTask.cancel();
+        }
+        countdownSeconds = 3;
+
+        // 즉시 3초 알림 전송
+        broadcastCountdownTick(3);
+
+        countdownTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            countdownSeconds--;
+            if (!canStartGame()) {
+                cancelCountdown("§c[콜로세움] 참가자의 준비 상태가 변경되어 시작 카운트다운이 취소되었습니다.");
+                return;
+            }
+
+            if (countdownSeconds > 0) {
+                broadcastCountdownTick(countdownSeconds);
+            } else {
+                // 0초 도달: 게임 시작 및 경기장 텔레포트
+                if (countdownTask != null) {
+                    countdownTask.cancel();
+                    countdownTask = null;
+                }
+                startGame();
+            }
+        }, 20L, 20L);
+    }
+
+    private void broadcastCountdownTick(int sec) {
+        String titleColor = switch (sec) {
+            case 3 -> "§e§l";
+            case 2 -> "§6§l";
+            case 1 -> "§c§l";
+            default -> "§f§l";
+        };
+        float pitch = switch (sec) {
+            case 3 -> 1.0f;
+            case 2 -> 1.25f;
+            case 1 -> 1.5f;
+            default -> 1.0f;
+        };
+
+        for (Player p : getInsideOnlinePlayers()) {
+            p.sendTitle(titleColor + sec, "§f경기장으로 입장합니다...", 0, 25, 5);
+            try {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, pitch);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    /**
+     * 카운트다운 취소
+     */
+    public void cancelCountdown(String reason) {
+        if (countdownTask != null) {
+            countdownTask.cancel();
+            countdownTask = null;
+        }
+        countdownSeconds = 3;
+
+        if (reason != null && !reason.isBlank()) {
+            for (Player p : getInsideOnlinePlayers()) {
+                p.sendTitle("§c§l카운트다운 취소", "§7준비 상태가 해제되었습니다", 0, 30, 10);
+                p.sendMessage(reason);
+                try {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.6f);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * 실제 경기 시작 & 경기장 텔레포트
+     */
+    public void startGame() {
+        if (arenaWorld == null) {
+            initArenaWorld();
+        }
+        if (arenaWorld == null) {
+            broadcastToTownWorld("§c[콜로세움] 결투장 월드를 불러오지 못해 게임을 시작할 수 없습니다.");
+            return;
+        }
+
+        matchInProgress = true;
+        Location arenaSpawn = getArenaSpawnLocation();
+
+        List<Player> participants = getInsideOnlinePlayers();
+        Set<String> activeTeams = new HashSet<>();
+
+        for (Player p : participants) {
+            String team = selectedTeams.get(p.getUniqueId());
+            boolean isSpectator = "spectator".equalsIgnoreCase(team);
+
+            if (!isSpectator && team != null) {
+                activeTeams.add(formatTeamName(team));
+            }
+
+            // 경기장으로 텔레포트
+            p.teleport(arenaSpawn);
+
+            if (isSpectator) {
+                p.setGameMode(GameMode.SPECTATOR);
+                p.sendTitle("§7§l관전자 모드", "§f경기를 자유롭게 관전하세요", 10, 40, 10);
+                p.sendMessage("§7[콜로세움] 관전자로 경기장에 입장하였습니다.");
+            } else {
+                p.sendTitle("§a§lSTART!", "§f결투가 시작되었습니다!", 10, 40, 10);
+                p.sendMessage("§6[콜로세움] §a결투가 시작되었습니다! 승리를 위해 싸우세요!");
+                try {
+                    p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        String teamListStr = String.join(" §7vs ", activeTeams);
+        broadcastToTownWorld("§6[콜로세움] §a결투가 시작되었습니다! §f[" + teamListStr + "§f]");
+        plugin.getLogger().info("[콜로세움] 결투 시작 - 참가자 " + participants.size() + "명, 팀: " + teamListStr);
     }
 
     /**
@@ -675,6 +869,8 @@ public class ColosseumManager {
     }
 
     public void cleanup() {
+        cancelCountdown(null);
+        matchInProgress = false;
         if (actionBarTask != null) {
             actionBarTask.cancel();
             actionBarTask = null;
@@ -745,5 +941,7 @@ public class ColosseumManager {
     public Map<UUID, String> getSelectedTeams() { return selectedTeams; }
     public Set<UUID> getReadyPlayers() { return Collections.unmodifiableSet(readyPlayers); }
     public boolean isReady(UUID uuid) { return readyPlayers.contains(uuid); }
+    public boolean isMatchInProgress() { return matchInProgress; }
+    public void setMatchInProgress(boolean inProgress) { this.matchInProgress = inProgress; }
     public ArenaTemplateManager getTemplateManager() { return templateManager; }
 }
