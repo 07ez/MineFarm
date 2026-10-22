@@ -853,15 +853,51 @@ public class ColosseumManager {
 
         // 1초(20틱) 대기 후 아레나로 텔레포트
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // 참가 플레이어가 있는 활성 팀들을 순서대로 추출 (관전자 제외)
+            List<String> colorPriority = List.of("green", "red", "blue", "yellow", "team1", "team2", "team3", "team4");
+            List<String> activeTeams = new ArrayList<>();
+            for (Player p : participants) {
+                if (!p.isOnline()) continue;
+                String team = selectedTeams.get(p.getUniqueId());
+                if (team != null && !team.equalsIgnoreCase("spectator")) {
+                    String lower = team.toLowerCase();
+                    if (!activeTeams.contains(lower)) {
+                        activeTeams.add(lower);
+                    }
+                }
+            }
+            // 우선순위 정렬 (green -> red -> blue -> yellow -> 기타)
+            activeTeams.sort(Comparator.comparingInt(t -> {
+                int idx = colorPriority.indexOf(t);
+                return idx >= 0 ? idx : 999;
+            }));
+
+            // 색상과 상관없이 참가 팀 수에 따라 1번 팀은 team1, 2번 팀은 team2, 3번 팀은 team3 스폰으로 순차 배정!
+            Map<String, String> teamToSpawnKey = new HashMap<>();
+            for (int i = 0; i < activeTeams.size(); i++) {
+                teamToSpawnKey.put(activeTeams.get(i), "team" + (i + 1));
+            }
+
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
 
-                // 팀 스폰 위치가 있으면 팀 스폰으로, 없으면 아레나 스폰으로 텔레포트
                 String team = selectedTeams.get(p.getUniqueId());
                 Location targetLoc = null;
-                if (templateManager != null && team != null) {
-                    targetLoc = templateManager.getTeamSpawn(team);
+
+                if (team != null && team.equalsIgnoreCase("spectator")) {
+                    if (templateManager != null) {
+                        targetLoc = templateManager.getTeamSpawn("spectator");
+                    }
+                } else if (team != null) {
+                    String spawnSlot = teamToSpawnKey.get(team.toLowerCase());
+                    if (spawnSlot != null && templateManager != null) {
+                        targetLoc = templateManager.getTeamSpawn(spawnSlot);
+                    }
+                    if (targetLoc == null && templateManager != null) {
+                        targetLoc = templateManager.getTeamSpawn(team);
+                    }
                 }
+
                 if (targetLoc == null || targetLoc.getWorld() == null) {
                     targetLoc = getArenaSpawnLocation();
                 }
