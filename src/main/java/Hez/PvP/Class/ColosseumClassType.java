@@ -77,6 +77,14 @@ public enum ColosseumClassType {
                 inv.setChestplate(createCopperArmor(Material.LEATHER_CHESTPLATE, "§6구리 흉갑"));
                 inv.setLeggings(createCopperArmor(Material.LEATHER_LEGGINGS, "§6구리 레깅스"));
                 inv.setBoots(createCopperArmor(Material.LEATHER_BOOTS, "§6구리 부츠"));
+
+                // 파머 특별 아이템: 감자, 밀, 당근, 뼛가루 각 30개 + 경작지 3개 + 물(물양동이) 1개
+                inv.setItem(1, new ItemStack(Material.POTATO, 30));
+                inv.setItem(2, new ItemStack(Material.WHEAT, 30));
+                inv.setItem(3, new ItemStack(Material.CARROT, 30));
+                inv.setItem(4, new ItemStack(Material.BONE_MEAL, 30));
+                inv.setItem(5, new ItemStack(Material.FARMLAND, 3));
+                inv.setItem(6, new ItemStack(Material.WATER_BUCKET, 1));
             }
             case FOOD_FIGHTER -> {
                 // 맨손 + 철 세트
@@ -84,6 +92,27 @@ public enum ColosseumClassType {
                 inv.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
                 inv.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
                 inv.setBoots(new ItemStack(Material.IRON_BOOTS));
+
+                // 푸드파이터 특별 아이템: 기반암, 깃털, 용암양동이, 유리, 유황, 화염구, 다이아몬드, 커맨드 블록
+                inv.setItem(0, new ItemStack(Material.BEDROCK, 1));
+                inv.setItem(1, new ItemStack(Material.FEATHER, 1));
+                inv.setItem(2, new ItemStack(Material.LAVA_BUCKET, 1));
+                inv.setItem(3, new ItemStack(Material.GLASS, 1));
+
+                // 유황 (바닐라 SULFUR 또는 GUNPOWDER 호환 처리)
+                Material sulfurMat = Material.matchMaterial("SULFUR");
+                if (sulfurMat == null) sulfurMat = Material.matchMaterial("GUNPOWDER");
+                ItemStack sulfurItem = new ItemStack(sulfurMat != null ? sulfurMat : Material.GUNPOWDER, 1);
+                ItemMeta sulfurMeta = sulfurItem.getItemMeta();
+                if (sulfurMeta != null) {
+                    sulfurMeta.setDisplayName("§e유황");
+                    sulfurItem.setItemMeta(sulfurMeta);
+                }
+                inv.setItem(4, sulfurItem);
+
+                inv.setItem(5, new ItemStack(Material.FIRE_CHARGE, 1));
+                inv.setItem(6, new ItemStack(Material.DIAMOND, 1));
+                inv.setItem(7, new ItemStack(Material.COMMAND_BLOCK, 1));
             }
             case TELEPORTER -> {
                 // 철검 + 사슬 세트
@@ -92,6 +121,9 @@ public enum ColosseumClassType {
                 inv.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
                 inv.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
                 inv.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
+
+                // 텔레포터 특별 아이템: 청금석
+                inv.setItem(1, new ItemStack(Material.LAPIS_LAZULI, 1));
             }
             case MOLE -> {
                 // 철검 + 사슬 세트
@@ -100,6 +132,9 @@ public enum ColosseumClassType {
                 inv.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
                 inv.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
                 inv.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
+
+                // 두더지 특별 아이템: 호퍼
+                inv.setItem(1, new ItemStack(Material.HOPPER, 1));
             }
         }
     }

@@ -1,10 +1,12 @@
 package Hez.PvP;
 
 import Hez.MineFarm.Main;
+import Hez.PvP.Class.ColosseumClassType;
 import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 
@@ -71,6 +73,66 @@ public class ColosseumManager {
     private org.bukkit.scheduler.BukkitTask countdownTask = null;
     private int countdownSeconds = 3;
     private boolean matchInProgress = false;
+
+    // 경기 참가자 원래 인벤토리 및 상태 백업 (UUID -> PlayerBackupData)
+    private final Map<UUID, PlayerBackupData> inventoryBackups = new ConcurrentHashMap<>();
+
+    public static class PlayerBackupData {
+        private final ItemStack[] contents;
+        private final ItemStack[] armorContents;
+        private final ItemStack[] extraContents;
+        private final double health;
+        private final int foodLevel;
+        private final float saturation;
+        private final int level;
+        private final float exp;
+        private final Collection<PotionEffect> activeEffects;
+        private final GameMode gameMode;
+
+        public PlayerBackupData(Player p) {
+            this.contents = cloneItemArray(p.getInventory().getStorageContents());
+            this.armorContents = cloneItemArray(p.getInventory().getArmorContents());
+            this.extraContents = cloneItemArray(p.getInventory().getExtraContents());
+            this.health = p.getHealth();
+            this.foodLevel = p.getFoodLevel();
+            this.saturation = p.getSaturation();
+            this.level = p.getLevel();
+            this.exp = p.getExp();
+            this.activeEffects = new ArrayList<>(p.getActivePotionEffects());
+            this.gameMode = p.getGameMode();
+        }
+
+        public void restore(Player p) {
+            if (p == null || !p.isOnline()) return;
+            p.getInventory().clear();
+            p.getInventory().setStorageContents(cloneItemArray(this.contents));
+            p.getInventory().setArmorContents(cloneItemArray(this.armorContents));
+            p.getInventory().setExtraContents(cloneItemArray(this.extraContents));
+            for (PotionEffect effect : p.getActivePotionEffects()) {
+                p.removePotionEffect(effect.getType());
+            }
+            for (PotionEffect effect : this.activeEffects) {
+                p.addPotionEffect(effect);
+            }
+            p.setGameMode(this.gameMode);
+            p.setLevel(this.level);
+            p.setExp(this.exp);
+            p.setFoodLevel(this.foodLevel);
+            p.setSaturation(this.saturation);
+            try {
+                p.setHealth(Math.min(this.health, p.getMaxHealth()));
+            } catch (Exception ignored) {}
+        }
+
+        private static ItemStack[] cloneItemArray(ItemStack[] source) {
+            if (source == null) return new ItemStack[0];
+            ItemStack[] copy = new ItemStack[source.length];
+            for (int i = 0; i < source.length; i++) {
+                copy[i] = source[i] != null ? source[i].clone() : null;
+            }
+            return copy;
+        }
+    }
 
     public static class TeamArea {
         private final int minX;
@@ -456,6 +518,10 @@ public class ColosseumManager {
         selectedClasses.remove(uuid);
         selectedTeams.remove(uuid);
         readyPlayers.remove(uuid);
+
+        // 혹시 경기 중 인벤토리 백업이 남아있다면 복원
+        restorePlayer(player);
+
         updateActionBarForInsidePlayers();
         checkCountdownStatus();
     }
@@ -728,7 +794,7 @@ public class ColosseumManager {
     }
 
     /**
-     * 실제 경기 시작 & 경기장 텔레포트
+     * 실제 경기 시작 & 경기장 텔레포트 및 직업 키트 지급
      */
     public void startGame() {
         if (arenaWorld == null) {
@@ -753,7 +819,10 @@ public class ColosseumManager {
                 activeTeams.add(formatTeamName(team));
             }
 
-            // 경기장으로 텔레포트
+            // 1. 기존 인벤토리 및 상태 백업
+            backupPlayer(p);
+
+            // 2. 경기장으로 텔레포트
             p.teleport(arenaSpawn);
 
             if (isSpectator) {
@@ -761,8 +830,23 @@ public class ColosseumManager {
                 p.sendTitle("§7§l관전자 모드", "§f경기를 자유롭게 관전하세요", 10, 40, 10);
                 p.sendMessage("§7[콜로세움] 관전자로 경기장에 입장하였습니다.");
             } else {
+                p.setGameMode(GameMode.SURVIVAL);
+                try {
+                    p.setHealth(p.getMaxHealth());
+                } catch (Exception ignored) {}
+                p.setFoodLevel(20);
+                p.setSaturation(20.0f);
+
+                // 3. 직업 키트 적용!
+                String className = selectedClasses.get(p.getUniqueId());
+                ColosseumClassType classType = ColosseumClassType.fromDisplayName(className);
+                if (classType != null) {
+                    classType.applyKit(p);
+                }
+
                 p.sendTitle("§a§lSTART!", "§f결투가 시작되었습니다!", 10, 40, 10);
-                p.sendMessage("§6[콜로세움] §a결투가 시작되었습니다! 승리를 위해 싸우세요!");
+                String kitName = (className != null) ? className : "기본";
+                p.sendMessage("§6[콜로세움] §a결투가 시작되었습니다! (" + kitName + " 직업 키트 지급)");
                 try {
                     p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
                 } catch (Exception ignored) {
@@ -773,6 +857,39 @@ public class ColosseumManager {
         String teamListStr = String.join(" §7vs ", activeTeams);
         broadcastToTownWorld("§6[콜로세움] §a결투가 시작되었습니다! §f[" + teamListStr + "§f]");
         plugin.getLogger().info("[콜로세움] 결투 시작 - 참가자 " + participants.size() + "명, 팀: " + teamListStr);
+    }
+
+    /**
+     * 플레이어의 현재 인벤토리 및 상태를 백업
+     */
+    public void backupPlayer(Player player) {
+        if (player == null) return;
+        inventoryBackups.put(player.getUniqueId(), new PlayerBackupData(player));
+    }
+
+    /**
+     * 백업된 인벤토리 및 상태를 플레이어에게 복원
+     */
+    public void restorePlayer(Player player) {
+        if (player == null) return;
+        PlayerBackupData backup = inventoryBackups.remove(player.getUniqueId());
+        if (backup != null) {
+            backup.restore(player);
+            player.sendMessage("§a[콜로세움] 기존 인벤토리와 상태가 정상 복구되었습니다.");
+        }
+    }
+
+    /**
+     * 모든 백업 대상 플레이어의 인벤토리 복원
+     */
+    public void restoreAllPlayers() {
+        for (Map.Entry<UUID, PlayerBackupData> entry : inventoryBackups.entrySet()) {
+            Player p = Bukkit.getPlayer(entry.getKey());
+            if (p != null && p.isOnline()) {
+                entry.getValue().restore(p);
+            }
+        }
+        inventoryBackups.clear();
     }
 
     /**
@@ -871,6 +988,7 @@ public class ColosseumManager {
     public void cleanup() {
         cancelCountdown(null);
         matchInProgress = false;
+        restoreAllPlayers();
         if (actionBarTask != null) {
             actionBarTask.cancel();
             actionBarTask = null;
