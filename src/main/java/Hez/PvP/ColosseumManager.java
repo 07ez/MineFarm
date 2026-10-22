@@ -740,10 +740,10 @@ public class ColosseumManager {
             return false;
         }
 
-        // 직업 미선택자에게 기본 직업(검투사) 부여, 팀 미선택자에게 기본 팀 부여
+        // 직업 미선택자에게 기본 직업(검투사) 부여, 팀 미선택자에게 기본 team1 부여
         for (Player p : participants) {
             selectedClasses.putIfAbsent(p.getUniqueId(), "검투사");
-            selectedTeams.putIfAbsent(p.getUniqueId(), "red");
+            selectedTeams.putIfAbsent(p.getUniqueId(), "team1");
             readyPlayers.add(p.getUniqueId());
         }
 
@@ -756,7 +756,7 @@ public class ColosseumManager {
             }
         }
         if (fightingTeams.size() < 2) {
-            String virtualTeam = fightingTeams.contains("§aGreen") ? "§cRed" : "§9Blue";
+            String virtualTeam = fightingTeams.contains("§aTeam 1") ? "§cTeam 2" : "§aTeam 1";
             fightingTeams.add(virtualTeam + " §7(가상)");
         }
 
@@ -1238,10 +1238,10 @@ public class ColosseumManager {
     public static String formatTeamName(String teamKey) {
         if (teamKey == null) return "미선택";
         return switch (teamKey.toLowerCase()) {
-            case "green" -> "§aGreen";
-            case "red" -> "§cRed";
-            case "blue" -> "§9Blue";
-            case "yellow" -> "§eYellow";
+            case "green", "team1" -> "§aTeam 1";
+            case "red", "team2" -> "§cTeam 2";
+            case "blue", "team3" -> "§9Team 3";
+            case "yellow", "team4" -> "§eTeam 4";
             case "spectator" -> "§7관전자";
             default -> teamKey;
         };
