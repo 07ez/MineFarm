@@ -56,6 +56,10 @@ public class BDEngineAnimation {
         public Transformation getTransformation() {
             return transformation;
         }
+
+        public int getInterpolationDuration() {
+            return interpolationDuration;
+        }
     }
 
     /**
@@ -79,52 +83,102 @@ public class BDEngineAnimation {
     }
 
     private final String name;
-    private final int totalTicks;
-    private final Map<Integer, List<KeyframeAction>> frames;
+    private final int stepTicks;
+    private final int durationTicks;
+    private final List<KeyframeAction> initialSetupActions;
+    private final Map<Integer, List<KeyframeAction>> tickActions;
 
     private static final Pattern TRANSFORMATION_PATTERN = Pattern.compile(
             "tag=([A-Za-z0-9_]+).*?transformation:\\[([^\\]]+)\\](?:.*?interpolation_duration:([0-9]+))?(?:.*?start_interpolation:([0-9]+))?"
     );
     private static final Pattern TAG_PATTERN = Pattern.compile("tag=([A-Za-z0-9_]+)");
 
-    public BDEngineAnimation(String name, int totalTicks, Map<Integer, List<KeyframeAction>> frames) {
+    public BDEngineAnimation(String name, int stepTicks, int durationTicks, Map<Integer, List<KeyframeAction>> tickActions) {
+        this(name, stepTicks, durationTicks, Collections.emptyList(), tickActions);
+    }
+
+    public BDEngineAnimation(String name, int stepTicks, int durationTicks, List<KeyframeAction> initialSetupActions, Map<Integer, List<KeyframeAction>> tickActions) {
         this.name = name;
-        this.totalTicks = totalTicks;
-        this.frames = frames;
+        this.stepTicks = Math.max(1, stepTicks);
+        this.durationTicks = Math.max(1, durationTicks);
+        this.initialSetupActions = (initialSetupActions != null) ? Collections.unmodifiableList(new ArrayList<>(initialSetupActions)) : Collections.emptyList();
+        this.tickActions = (tickActions != null) ? tickActions : Collections.emptyMap();
     }
 
     public String getName() {
         return name;
     }
 
+    public int getStepTicks() {
+        return stepTicks;
+    }
+
+    public int getDurationTicks() {
+        return durationTicks;
+    }
+
     public int getTotalTicks() {
-        return totalTicks;
+        return durationTicks;
+    }
+
+    public int getTotalFrames() {
+        return tickActions.size();
+    }
+
+    public List<KeyframeAction> getInitialSetupActions() {
+        return initialSetupActions;
     }
 
     public List<KeyframeAction> getActions(int tick) {
-        return frames.getOrDefault(tick, Collections.emptyList());
+        return tickActions.getOrDefault(tick, Collections.emptyList());
     }
 
     /**
-     * BDEngine anim_keyframes JSON 객체로부터 애니메이션 데이터를 파싱하여 고속 캐시 모델로 생성합니다.
+     * 해당 틱에 실행할 액션 목록을 반환합니다.
+     * 애니메이션의 첫 번째 틱(tick 0)인 경우 초기 설정 액션(initialSetupActions)도 함께 포함합니다.
      */
+    public List<KeyframeAction> getActionsAtTick(int tick, boolean isFirstTickOfAnimation) {
+        List<KeyframeAction> list = tickActions.get(tick);
+        if (isFirstTickOfAnimation && tick == 0 && !initialSetupActions.isEmpty()) {
+            if (list == null || list.isEmpty()) {
+                return initialSetupActions;
+            }
+            List<KeyframeAction> combined = new ArrayList<>(initialSetupActions.size() + list.size());
+            combined.addAll(initialSetupActions);
+            combined.addAll(list);
+            return combined;
+        }
+        return list != null ? list : Collections.emptyList();
+    }
+
     public static Map<String, BDEngineAnimation> parseAll(JsonObject animKeyframesRoot) {
+        return parseAll(animKeyframesRoot, null);
+    }
+
+    /**
+     * BDEngine anim_keyframes 및 meta JSON 객체로부터 애니메이션 데이터를 파싱하여 고속 캐시 모델로 생성합니다.
+     */
+    public static Map<String, BDEngineAnimation> parseAll(JsonObject animKeyframesRoot, JsonObject metaRoot) {
         Map<String, BDEngineAnimation> map = new HashMap<>();
         if (animKeyframesRoot == null) return map;
+
+        JsonObject animsMeta = (metaRoot != null && metaRoot.has("animations") && metaRoot.get("animations").isJsonObject())
+                ? metaRoot.getAsJsonObject("animations") : null;
 
         for (Map.Entry<String, JsonElement> entry : animKeyframesRoot.entrySet()) {
             String animName = entry.getKey();
             if (!entry.getValue().isJsonObject()) continue;
 
             JsonObject ticksObj = entry.getValue().getAsJsonObject();
-            Map<Integer, List<KeyframeAction>> frames = new HashMap<>();
-            int maxTick = 0;
+            Map<Integer, List<KeyframeAction>> rawFrames = new HashMap<>();
+            int maxRawKey = 0;
+            int detectedInterpolation = 0;
 
             for (Map.Entry<String, JsonElement> tickEntry : ticksObj.entrySet()) {
                 try {
                     int tick = Integer.parseInt(tickEntry.getKey());
-                    if (tick > maxTick) {
-                        maxTick = tick;
+                    if (tick > maxRawKey) {
+                        maxRawKey = tick;
                     }
 
                     List<KeyframeAction> actionList = new ArrayList<>();
@@ -135,19 +189,100 @@ public class BDEngineAnimation {
                             KeyframeAction action = parseCommand(cmd);
                             if (action != null) {
                                 actionList.add(action);
+                                if (action instanceof TransformationAction ta && detectedInterpolation == 0 && ta.getInterpolationDuration() > 0) {
+                                    detectedInterpolation = ta.getInterpolationDuration();
+                                }
                             }
                         }
                     }
-                    frames.put(tick, actionList);
+                    rawFrames.put(tick, actionList);
                 } catch (NumberFormatException ignored) {
                 }
             }
 
-            int totalDuration = maxTick + 1;
-            map.put(animName.toLowerCase(), new BDEngineAnimation(animName, totalDuration, frames));
+            // 기본 스텝 틱 및 재생 시간 계산 (meta 우선)
+            int stepTicks = (detectedInterpolation > 0) ? detectedInterpolation : 1;
+            int durationTicks = (maxRawKey + 1) * stepTicks;
+
+            if (animsMeta != null) {
+                JsonObject singleMeta = null;
+                for (Map.Entry<String, JsonElement> mEntry : animsMeta.entrySet()) {
+                    if (mEntry.getKey().equalsIgnoreCase(animName)) {
+                        singleMeta = mEntry.getValue().getAsJsonObject();
+                        break;
+                    }
+                }
+                if (singleMeta != null) {
+                    if (singleMeta.has("stepTicks")) {
+                        stepTicks = singleMeta.get("stepTicks").getAsInt();
+                    }
+                    if (singleMeta.has("durationTicks")) {
+                        durationTicks = singleMeta.get("durationTicks").getAsInt();
+                    }
+                }
+            }
+
+            List<KeyframeAction> initialSetupActions = new ArrayList<>();
+            Map<Integer, List<KeyframeAction>> tickActions = new HashMap<>();
+
+            // 원시 키가 스텝 인덱스(0, 1, 2, ... N)인지 판별 (stepTicks > 1 이고 maxRawKey <= durationTicks / stepTicks + 1)
+            if (stepTicks > 1 && maxRawKey <= (durationTicks / stepTicks) + 1) {
+                // Key 0이 interpolation_duration == 0만 가지는 초기 설정 프레임인지 확인
+                boolean key0IsSetup = hasOnlyZeroInterpolation(rawFrames.get(0));
+                if (key0IsSetup && rawFrames.containsKey(1)) {
+                    if (rawFrames.get(0) != null) {
+                        initialSetupActions.addAll(rawFrames.get(0));
+                    }
+                    // Key 1부터 시작하여 틱 매핑 (tick = (k - 1) * stepTicks)
+                    for (int k = 1; k <= maxRawKey; k++) {
+                        List<KeyframeAction> actions = rawFrames.get(k);
+                        if (actions != null && !actions.isEmpty()) {
+                            int targetTick = (k - 1) * stepTicks;
+                            if (targetTick < durationTicks) {
+                                tickActions.computeIfAbsent(targetTick, t -> new ArrayList<>()).addAll(actions);
+                            }
+                        }
+                    }
+                } else {
+                    // Key 0부터 스텝 프레임으로 매핑 (tick = k * stepTicks)
+                    for (int k = 0; k <= maxRawKey; k++) {
+                        List<KeyframeAction> actions = rawFrames.get(k);
+                        if (actions != null && !actions.isEmpty()) {
+                            int targetTick = k * stepTicks;
+                            if (targetTick < durationTicks) {
+                                tickActions.computeIfAbsent(targetTick, t -> new ArrayList<>()).addAll(actions);
+                            }
+                        }
+                    }
+                }
+            } else {
+                // 이미 실제 틱 단위로 저장되어 있는 경우
+                for (Map.Entry<Integer, List<KeyframeAction>> frameEntry : rawFrames.entrySet()) {
+                    int rawTick = frameEntry.getKey();
+                    if (rawTick < durationTicks) {
+                        tickActions.computeIfAbsent(rawTick, t -> new ArrayList<>()).addAll(frameEntry.getValue());
+                    }
+                }
+            }
+
+            map.put(animName.toLowerCase(), new BDEngineAnimation(animName, stepTicks, durationTicks, initialSetupActions, tickActions));
         }
 
         return map;
+    }
+
+    private static boolean hasOnlyZeroInterpolation(List<KeyframeAction> actions) {
+        if (actions == null || actions.isEmpty()) return false;
+        boolean hasTransformation = false;
+        for (KeyframeAction a : actions) {
+            if (a instanceof TransformationAction ta) {
+                hasTransformation = true;
+                if (ta.getInterpolationDuration() > 0) {
+                    return false;
+                }
+            }
+        }
+        return hasTransformation;
     }
 
     private static KeyframeAction parseCommand(String cmd) {
@@ -208,8 +343,6 @@ public class BDEngineAnimation {
                 f[i] = Float.parseFloat(s);
             }
 
-            // Minecraft NBT: f[0..3]은 행0, f[4..7]은 행1, f[8..11]은 행2, f[12..15]는 행3 (f[3], f[7], f[11]이 이동 좌표)
-            // JOML Matrix4f: 인자가 열(Column) 기준이므로 올바르게 전치 매핑
             Matrix4f mat = new Matrix4f(
                     f[0], f[4], f[8], f[12],  // 열 0
                     f[1], f[5], f[9], f[13],  // 열 1

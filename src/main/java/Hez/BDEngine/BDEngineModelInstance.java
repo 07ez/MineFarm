@@ -5,6 +5,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -20,6 +21,7 @@ public class BDEngineModelInstance {
 
     private BDEngineAnimation currentAnimation;
     private int currentTick = 0;
+    private boolean isFirstTick = true;
     private boolean playing = true;
     private boolean loop = true;
 
@@ -29,6 +31,7 @@ public class BDEngineModelInstance {
         this.model = model;
         this.parts = parts;
         this.currentAnimation = animation;
+        this.isFirstTick = true;
     }
 
     public UUID getRootUuid() {
@@ -58,6 +61,7 @@ public class BDEngineModelInstance {
     public void setAnimation(BDEngineAnimation animation) {
         this.currentAnimation = animation;
         this.currentTick = 0;
+        this.isFirstTick = true;
         this.playing = true;
     }
 
@@ -95,12 +99,17 @@ public class BDEngineModelInstance {
             return true;
         }
 
-        for (BDEngineAnimation.KeyframeAction action : currentAnimation.getActions(currentTick)) {
-            action.execute(this);
+        List<BDEngineAnimation.KeyframeAction> actions = currentAnimation.getActionsAtTick(currentTick, isFirstTick);
+        isFirstTick = false;
+
+        if (!actions.isEmpty()) {
+            for (BDEngineAnimation.KeyframeAction action : actions) {
+                action.execute(this);
+            }
         }
 
         currentTick++;
-        if (currentTick >= currentAnimation.getTotalTicks()) {
+        if (currentTick >= currentAnimation.getDurationTicks()) {
             if (loop) {
                 currentTick = 0;
             } else {
