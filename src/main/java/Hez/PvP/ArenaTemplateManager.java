@@ -343,12 +343,19 @@ public class ArenaTemplateManager {
         for (TemplateBlock tb : template.blocks) {
             try {
                 BlockData blockData = Bukkit.createBlockData(tb.blockDataString);
-                // 공기 블록은 무조건 건너뜀 (아레나 관중석/외벽 1도 손상 안 됨)
-                if (blockData.getMaterial().isAir()) {
+                Location targetLoc = new Location(world, originX + tb.dx, originY + tb.dy, originZ + tb.dz);
+
+                // 아레나 경계(Bounds)가 설정되어 있다면 내부만 적용 (경기장 외벽/관중석 프리셋 완벽 보호)
+                if (hasBounds() && !isInArenaBounds(targetLoc)) {
                     continue;
                 }
 
-                Location targetLoc = new Location(world, originX + tb.dx, originY + tb.dy, originZ + tb.dz);
+                // 테마 맵일 때만 Air를 무시하여 기존 타원형 아레나 외벽 형태 보존
+                // 기본 경기장(main) 리셋일 때는 Air를 무시하지 않고 공기 블록까지 그대로 덮어써서 완전 초기화!
+                if (isThemeMap && blockData.getMaterial().isAir()) {
+                    continue;
+                }
+
                 world.getBlockAt(targetLoc).setBlockData(blockData, false);
 
                 if (isThemeMap) {
@@ -397,7 +404,7 @@ public class ArenaTemplateManager {
         }
         playerBrokenBlocks.clear();
 
-        // 4. 메인 기본 경기장 붙여넣기 (Air 무시)
+        // 4. 메인 기본 경기장 붙여넣기 (Air 포함하여 완전 초기화)
         File mainFile = new File(templateFolder, "main.template");
         if (mainFile.exists()) {
             return pasteTemplate("main", false);
