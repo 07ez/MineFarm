@@ -46,7 +46,22 @@ public class BDEngineSpawner {
             return false;
         }
 
-        String modelTag = model.getName();
+        String modelName = model.getName();
+        String tag1 = model.getTag1();
+        String tag2 = model.getTag2();
+
+        Set<String> commonTags = new LinkedHashSet<>();
+        commonTags.add("bde_model");
+        if (modelName != null && !modelName.isBlank()) commonTags.add(modelName);
+        if (tag1 != null && !tag1.isBlank()) commonTags.add(tag1);
+        if (tag2 != null && !tag2.isBlank()) commonTags.add(tag2);
+
+        StringBuilder tagsJsonBuilder = new StringBuilder();
+        for (String t : commonTags) {
+            if (tagsJsonBuilder.length() > 0) tagsJsonBuilder.append(",");
+            tagsJsonBuilder.append("\"").append(t).append("\"");
+        }
+        String commonTagsJson = tagsJsonBuilder.toString();
 
         StringBuilder passengerSnbt = new StringBuilder();
         for (int i = 0; i < passengers.size(); i++) {
@@ -54,10 +69,10 @@ public class BDEngineSpawner {
             String snbt = el.isJsonPrimitive() ? el.getAsString() : el.toString();
 
             // [BDESERVERTAG] 치환 (모델명으로 단일 태그 치환)
-            snbt = snbt.replace("[BDESERVERTAG]", modelTag);
+            snbt = snbt.replace("[BDESERVERTAG]", modelName);
 
-            // 각 하위 엔티티의 Tags:[...] 에 bde_model 과 모델명 태그 주입
-            snbt = snbt.replaceAll("(?i)Tags:\\[", "Tags:[\"bde_model\",\"" + modelTag + "\",");
+            // 각 하위 엔티티의 Tags:[...] 에 bde_model, 모델명, tag1, tag2 주입
+            snbt = snbt.replaceAll("(?i)Tags:\\[", "Tags:[" + commonTagsJson + ",");
 
             if (i > 0) {
                 passengerSnbt.append(",");
@@ -75,11 +90,11 @@ public class BDEngineSpawner {
         int i4 = (int) lsb;
 
         String summonCommand = String.format(Locale.US,
-                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s_root\"],Passengers:[%s]}",
+                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[%s,\"%s_root\"],Passengers:[%s]}",
                 loc.getX(), loc.getY(), loc.getZ(),
                 loc.getWorld().getKey().toString(),
                 i1, i2, i3, i4,
-                modelTag, modelTag,
+                commonTagsJson, modelName,
                 passengerSnbt.toString()
         );
 
@@ -92,7 +107,7 @@ public class BDEngineSpawner {
             // fallback: 위치 기반 검색
             if (root == null && loc.getWorld() != null) {
                 for (Entity entity : loc.getWorld().getNearbyEntities(loc, 6.0, 6.0, 6.0)) {
-                    if (entity.getScoreboardTags().contains(modelTag + "_root")) {
+                    if (entity.getScoreboardTags().contains(modelName + "_root")) {
                         root = entity;
                         break;
                     }
@@ -100,8 +115,8 @@ public class BDEngineSpawner {
             }
 
             if (root != null) {
-                // 하위 파츠 엔티티들에도 모델명 태그 재귀적 보강
-                tagEntityRecursively(root, modelTag);
+                // 하위 파츠 엔티티들에도 공통 태그들(modelName, tag1, tag2) 재귀적 보강
+                tagEntityRecursively(root, commonTags);
 
                 if (model.hasAnimations() && plugin != null && plugin.getBdEngineManager() != null) {
                     Map<String, Display> partsMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -156,6 +171,21 @@ public class BDEngineSpawner {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 엔티티 및 그 하위의 모든 탑승(Passenger) 엔티티에 태그 컬렉션을 재귀적으로 보강합니다.
+     */
+    public static void tagEntityRecursively(Entity entity, Collection<String> tags) {
+        if (entity == null || tags == null) return;
+        for (String tag : tags) {
+            if (tag != null && !tag.isBlank()) {
+                entity.addScoreboardTag(tag);
+            }
+        }
+        for (Entity passenger : entity.getPassengers()) {
+            tagEntityRecursively(passenger, tags);
+        }
     }
 
     /**
