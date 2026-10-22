@@ -49,12 +49,15 @@ public enum ColosseumClassType {
     }
 
     /**
-     * 콜로세움 전투 시작 시 해당 직업의 기본 키트(무기, 방어구) 지급
+     * 콜로세움 전투 시작 시 해당 직업의 기본 키트(무기, 방어구, 특별 아이템) 지급
      */
     public void applyKit(Player player) {
         if (player == null) return;
         PlayerInventory inv = player.getInventory();
         inv.clear();
+
+        // 모든 직업 공통 스테이크 10개 지급 (슬롯 8)
+        inv.setItem(8, new ItemStack(Material.COOKED_BEEF, 10));
 
         switch (this) {
             case GLADIATOR -> {
@@ -78,13 +81,11 @@ public enum ColosseumClassType {
                 inv.setLeggings(createCopperArmor(Material.LEATHER_LEGGINGS, "§6구리 레깅스"));
                 inv.setBoots(createCopperArmor(Material.LEATHER_BOOTS, "§6구리 부츠"));
 
-                // 파머 특별 아이템: 감자, 밀, 당근, 뼛가루 각 30개 + 경작지 3개 + 물(물양동이) 1개
-                inv.setItem(1, new ItemStack(Material.POTATO, 30));
-                inv.setItem(2, new ItemStack(Material.WHEAT, 30));
-                inv.setItem(3, new ItemStack(Material.CARROT, 30));
+                // 파머 특별 아이템: 감자 1, 밀 씨앗 1, 당근 1, 뼛가루 30개
+                inv.setItem(1, new ItemStack(Material.POTATO, 1));
+                inv.setItem(2, new ItemStack(Material.WHEAT_SEEDS, 1));
+                inv.setItem(3, new ItemStack(Material.CARROT, 1));
                 inv.setItem(4, new ItemStack(Material.BONE_MEAL, 30));
-                inv.setItem(5, new ItemStack(Material.FARMLAND, 3));
-                inv.setItem(6, new ItemStack(Material.WATER_BUCKET, 1));
             }
             case FOOD_FIGHTER -> {
                 // 맨손 + 철 세트

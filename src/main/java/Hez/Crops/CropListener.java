@@ -29,6 +29,7 @@ public class CropListener implements Listener {
      */
     @EventHandler
     public void onChunkLoad(ChunkLoadEvent event) {
+        if (event.getWorld().getName().equalsIgnoreCase("colosseum")) return;
         cropsManager.onChunkLoad(event.getChunk());
     }
 
@@ -38,6 +39,7 @@ public class CropListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         Block placedBlock = event.getBlockPlaced();
+        if (placedBlock.getWorld().getName().equalsIgnoreCase("colosseum")) return;
         ItemStack itemInHand = event.getItemInHand();
 
         CropType type = CropType.fromSeed(itemInHand.getType());
@@ -55,6 +57,7 @@ public class CropListener implements Listener {
      */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onBlockGrow(BlockGrowEvent event) {
+        if (event.getBlock().getWorld().getName().equalsIgnoreCase("colosseum")) return;
         if (cropsManager.isManagedCrop(event.getBlock().getLocation())) {
             event.setCancelled(true);
         }
@@ -66,6 +69,7 @@ public class CropListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
+        if (block.getWorld().getName().equalsIgnoreCase("colosseum")) return;
         CropData data = cropsManager.getCrop(block.getLocation());
         if (data == null) return;
 
@@ -89,6 +93,7 @@ public class CropListener implements Listener {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         Block clickedBlock = event.getClickedBlock();
         if (clickedBlock == null) return;
+        if (clickedBlock.getWorld().getName().equalsIgnoreCase("colosseum")) return;
 
         CropData data = cropsManager.syncAndGetCrop(clickedBlock);
         if (data == null) return;

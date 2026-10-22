@@ -339,6 +339,7 @@ public class ColosseumManager {
             this.arenaWorld.setGameRule(GameRules.SPAWN_MOBS, false);
             this.arenaWorld.setGameRule(GameRules.ADVANCE_TIME, false);
             this.arenaWorld.setGameRule(GameRules.ADVANCE_WEATHER, false);
+            this.arenaWorld.setGameRule(GameRules.RANDOM_TICK_SPEED, 0); // 파머 능력: 자연 성장 방지
             this.arenaWorld.setTime(6000L); // 항상 맑은 낮
             this.arenaWorld.setStorm(false);
             this.arenaWorld.setDifficulty(Difficulty.NORMAL);
