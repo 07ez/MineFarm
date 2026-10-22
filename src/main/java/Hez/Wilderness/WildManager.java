@@ -3,7 +3,7 @@ package Hez.Wilderness;
 import Hez.MineFarm.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Difficulty;
-import org.bukkit.GameRule;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -43,9 +43,9 @@ public class WildManager {
 
         if (this.wildWorld != null) {
             // 야생 월드 기본 게임 규칙 설정
-            this.wildWorld.setGameRule(GameRule.DO_MOB_SPAWNING, true);
-            this.wildWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, true);
-            this.wildWorld.setGameRule(GameRule.DO_WEATHER_CYCLE, true);
+            this.wildWorld.setGameRule(GameRules.SPAWN_MOBS, true);
+            this.wildWorld.setGameRule(GameRules.ADVANCE_TIME, true);
+            this.wildWorld.setGameRule(GameRules.ADVANCE_WEATHER, true);
             this.wildWorld.setDifficulty(Difficulty.NORMAL);
 
             // 고정 스폰 위치 로드

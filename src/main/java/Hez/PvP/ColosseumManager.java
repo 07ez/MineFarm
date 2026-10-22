@@ -1,14 +1,7 @@
 package Hez.PvP;
 
 import Hez.MineFarm.Main;
-import org.bukkit.Bukkit;
-import org.bukkit.Difficulty;
-import org.bukkit.GameRule;
-import org.bukkit.Location;
-import org.bukkit.Sound;
-import org.bukkit.World;
-import org.bukkit.WorldCreator;
-import org.bukkit.WorldType;
+import org.bukkit.*;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -276,9 +269,9 @@ public class ColosseumManager {
         }
 
         if (this.arenaWorld != null) {
-            this.arenaWorld.setGameRule(GameRule.DO_MOB_SPAWNING, false);
-            this.arenaWorld.setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false);
-            this.arenaWorld.setGameRule(GameRule.DO_WEATHER_CYCLE, false);
+            this.arenaWorld.setGameRule(GameRules.SPAWN_MOBS, false);
+            this.arenaWorld.setGameRule(GameRules.ADVANCE_TIME, false);
+            this.arenaWorld.setGameRule(GameRules.ADVANCE_WEATHER, false);
             this.arenaWorld.setTime(6000L); // 항상 맑은 낮
             this.arenaWorld.setStorm(false);
             this.arenaWorld.setDifficulty(Difficulty.NORMAL);
