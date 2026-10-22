@@ -47,18 +47,16 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
 
         switch (sub) {
             case "download", "다운로드" -> {
-                if (args.length < 5) {
-                    sender.sendMessage("§c사용법: /" + label + " download <ID> <모델명> <태그1> <태그2>");
-                    sender.sendMessage("§7예시: /" + label + " download 123456 Blub Pet Blub");
+                if (args.length < 3) {
+                    sender.sendMessage("§c사용법: /" + label + " download <ID> <모델명>");
+                    sender.sendMessage("§7예시: /" + label + " download 123456 Blub");
                     return true;
                 }
                 String exportId = args[1];
                 String modelName = args[2];
-                String tag1 = args[3];
-                String tag2 = args[4];
 
                 sender.sendMessage("§e[BDEngine] ID " + exportId + " 모델 다운로드를 요청 중입니다...");
-                manager.downloadModel(exportId, modelName, tag1, tag2, (success, message) -> {
+                manager.downloadModel(exportId, modelName, (success, message) -> {
                     if (success) {
                         sender.sendMessage("§a[BDEngine] " + message);
                         sender.sendMessage("§b이제 /" + label + " spawn " + modelName + " 명령어로 언제든 소환할 수 있습니다.");
@@ -85,7 +83,7 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                     // 혹시 숫자 ID를 바로 입력했을 경우 안내
                     if (modelName.matches("\\d+")) {
                         sender.sendMessage("§e[BDEngine] '" + modelName + "'은(는) 저장된 모델명이 아닙니다.");
-                        sender.sendMessage("§7웹에서 새로 받은 ID라면 먼저 다운로드해주세요: §f/" + label + " download " + modelName + " <모델명> <태그1> <태그2>");
+                        sender.sendMessage("§7웹에서 새로 받은 ID라면 먼저 다운로드해주세요: §f/" + label + " download " + modelName + " <모델명>");
                     } else {
                         sender.sendMessage("§c[BDEngine] '" + modelName + "' 모델을 찾을 수 없습니다. (먼저 download 해주세요)");
                     }
@@ -96,7 +94,7 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 boolean spawned = manager.spawnModel(spawnLoc, modelName);
                 if (spawned) {
                     String animMsg = model.hasAnimations() ? " §b[애니메이션 자동 재생 중]§a" : "";
-                    player.sendMessage("§a[BDEngine] 모델 '" + model.getName() + "' 소환 완료!" + animMsg + " (태그1: " + model.getTag1() + ", 태그2: " + model.getTag2() + ")");
+                    player.sendMessage("§a[BDEngine] 모델 '" + model.getName() + "' 소환 완료!" + animMsg);
                 } else {
                     player.sendMessage("§c[BDEngine] 모델 소환에 실패했습니다.");
                 }
@@ -109,8 +107,8 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                     return true;
                 }
                 if (args.length < 2) {
-                    sender.sendMessage("§c사용법: /" + label + " remove <태그> [반경]");
-                    sender.sendMessage("§7예시: /" + label + " remove Tree 10  (주변 10블록 내 Tree 태그 BDEngine 엔티티만 안전 삭제)");
+                    sender.sendMessage("§c사용법: /" + label + " remove <모델명/태그> [반경]");
+                    sender.sendMessage("§7예시: /" + label + " remove Blub 10  (주변 10블록 내 Blub 모델 엔티티만 안전 삭제)");
                     return true;
                 }
 
@@ -141,7 +139,10 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                     BDEngineModel m = manager.getModel(name);
                     if (m != null) {
                         String animInfo = m.hasAnimations() ? " §b[애니메이션: " + m.getAnimations().keySet() + "]§7" : "";
-                        sender.sendMessage("§f- §a" + m.getName() + animInfo + " §7(태그1: §e" + m.getTag1() + "§7, 태그2: §e" + m.getTag2() + "§7)");
+                        String tagInfo = (m.getTag1() != null && !m.getTag1().equals(m.getName())) 
+                                ? " §7(태그: §e" + m.getTag1() + "§7)" 
+                                : "";
+                        sender.sendMessage("§f- §a" + m.getName() + animInfo + tagInfo);
                     }
                 }
                 return true;
@@ -223,9 +224,9 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
 
     private void sendHelp(CommandSender sender, String label) {
         sender.sendMessage("§6=== [BDEngine 명령어 안내] ===");
-        sender.sendMessage("§f/" + label + " download <ID> <모델명> <태그1> <태그2> §7- BDEngine API에서 모델 다운로드 및 저장");
+        sender.sendMessage("§f/" + label + " download <ID> <모델명> §7- BDEngine API에서 모델 다운로드 및 저장");
         sender.sendMessage("§f/" + label + " spawn <모델명> §7- 플레이어 위치에 모델 소환");
-        sender.sendMessage("§f/" + label + " remove <태그> [반경] §7- 해당 태그의 BDEngine 모델 엔티티만 안전 삭제 (기본 10블록)");
+        sender.sendMessage("§f/" + label + " remove <모델명/태그> [반경] §7- 해당 모델 BDEngine 엔티티 안전 삭제 (기본 10블록)");
         sender.sendMessage("§f/" + label + " anim <status|start|stop> §7- 애니메이션 상태 확인 및 제어");
         sender.sendMessage("§f/" + label + " list §7- 저장된 모델 목록 조회");
         sender.sendMessage("§f/" + label + " reload §7- 모델 및 태그 리로드");
@@ -248,8 +249,11 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 // 모델명 리스트 자동완성
                 return filterStartsWith(manager.getModelNames(), args[1]);
             } else if (sub.equals("remove") || sub.equals("삭제") || sub.equals("제거")) {
-                // 등록된 태그 리스트 자동완성
-                List<String> tags = new ArrayList<>(manager.getRegisteredTags());
+                // 모델명 및 등록된 태그 리스트 자동완성
+                List<String> tags = new ArrayList<>(manager.getModelNames());
+                for (String t : manager.getRegisteredTags()) {
+                    if (!tags.contains(t)) tags.add(t);
+                }
                 tags.add("all");
                 return filterStartsWith(tags, args[1]);
             } else if (sub.equals("anim") || sub.equals("애니메이션")) {
@@ -263,16 +267,6 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 return filterStartsWith(List.of("5", "10", "20", "50"), args[2]);
             }
         }
-
-        if (args.length == 4) {
-            String sub = args[0].toLowerCase();
-            if (sub.equals("download") || sub.equals("다운로드")) {
-                // 태그1 자동완성에 기존 태그 목록 추천
-                return filterStartsWith(new ArrayList<>(manager.getRegisteredTags()), args[3]);
-            }
-        }
-
-        // 태그2(args.length == 5)는 사용자 요청에 따라 자동완성에 띄우지 않음
 
         return List.of();
     }

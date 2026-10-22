@@ -20,6 +20,10 @@ public class BDEngineModel {
     private JsonObject parsedContent;
     private Map<String, BDEngineAnimation> animations = new HashMap<>();
 
+    public BDEngineModel(String name, long savedAt, String rawJson) {
+        this(name, name, name, savedAt, rawJson);
+    }
+
     public BDEngineModel(String name, String tag1, String tag2, long savedAt, String rawJson) {
         this.name = name;
         this.tag1 = tag1;
@@ -45,7 +49,8 @@ public class BDEngineModel {
         if (parsedContent != null && parsedContent.has("datapack")) {
             JsonObject datapack = parsedContent.getAsJsonObject("datapack");
             if (datapack.has("anim_keyframes") && datapack.get("anim_keyframes").isJsonObject()) {
-                this.animations = BDEngineAnimation.parseAll(datapack.getAsJsonObject("anim_keyframes"));
+                JsonObject meta = parsedContent.has("meta") ? parsedContent.getAsJsonObject("meta") : null;
+                this.animations = BDEngineAnimation.parseAll(datapack.getAsJsonObject("anim_keyframes"), meta);
             }
         }
     }

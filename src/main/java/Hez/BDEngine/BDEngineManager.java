@@ -124,6 +124,69 @@ public class BDEngineManager {
     }
 
     /**
+     * BDEngine 웹 Server API(https://www.block-display.com/server-api?id={id}&tag={modelName})에서
+     * 비동기로 모델을 다운로드받아 로컬에 영구 저장합니다. (태그1/태그2 생략, 모델명을 기본 태그로 사용)
+     */
+    public void downloadModel(String exportId, String modelName, BiConsumer<Boolean, String> callback) {
+        if (exportId == null || exportId.isBlank()) {
+            callback.accept(false, "Export ID가 올바르지 않습니다.");
+            return;
+        }
+        if (modelName == null || modelName.isBlank()) {
+            callback.accept(false, "모델명이 올바르지 않습니다.");
+            return;
+        }
+
+        String uri = String.format("https://www.block-display.com/server-api?id=%s&tag=%s",
+                exportId.trim(), modelName.trim());
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create(uri))
+                        .timeout(Duration.ofSeconds(15))
+                        .header("Accept", "application/json")
+                        .GET()
+                        .build();
+
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                int status = response.statusCode();
+                String body = response.body();
+
+                if (status == 200) {
+                    BDEngineModel model = new BDEngineModel(modelName, System.currentTimeMillis(), body);
+                    if (model.getParsedContent() == null || model.getParsedContent().isEmpty()) {
+                        Bukkit.getScheduler().runTask(plugin, () ->
+                                callback.accept(false, "응답 JSON에 유효한 모델 데이터가 없습니다."));
+                        return;
+                    }
+
+                    // 파일 영구 저장
+                    File targetFile = new File(modelsFolder, modelName + ".json");
+                    Files.writeString(targetFile.toPath(), model.toStorageJson(), StandardCharsets.UTF_8);
+
+                    // 캐시 및 태그 갱신
+                    cachedModels.put(modelName.toLowerCase(), model);
+                    registerTag(modelName);
+
+                    String animInfo = model.hasAnimations() ? " (" + model.getAnimations().size() + "개 애니메이션 포함)" : "";
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            callback.accept(true, "모델 '" + modelName + "'" + animInfo + " 다운로드 및 영구 저장 완료!"));
+                } else if (status == 404 || body.contains("outdated") || body.contains("exist")) {
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            callback.accept(false, "ID가 존재하지 않거나 만료되었습니다 (10분 유효 시간 경과). BDEngine 에디터에서 다시 Export 해주세요."));
+                } else {
+                    Bukkit.getScheduler().runTask(plugin, () ->
+                            callback.accept(false, "API 요청 실패 (HTTP " + status + "): " + body));
+                }
+            } catch (Exception e) {
+                Bukkit.getScheduler().runTask(plugin, () ->
+                        callback.accept(false, "네트워크 오류 발생: " + e.getMessage()));
+            }
+        });
+    }
+
+    /**
      * BDEngine 웹 Server API(https://www.block-display.com/server-api?id={id}&tag={tag1})에서
      * 비동기로 모델을 다운로드받아 로컬에 영구 저장합니다.
      */

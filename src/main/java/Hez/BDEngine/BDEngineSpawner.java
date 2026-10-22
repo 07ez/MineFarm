@@ -46,19 +46,18 @@ public class BDEngineSpawner {
             return false;
         }
 
-        String tag1 = model.getTag1();
-        String tag2 = model.getTag2();
+        String modelTag = model.getName();
 
         StringBuilder passengerSnbt = new StringBuilder();
         for (int i = 0; i < passengers.size(); i++) {
             JsonElement el = passengers.get(i);
             String snbt = el.isJsonPrimitive() ? el.getAsString() : el.toString();
 
-            // [BDESERVERTAG] 치환
-            snbt = snbt.replace("[BDESERVERTAG]", tag1);
+            // [BDESERVERTAG] 치환 (필요시 모델명으로 치환)
+            snbt = snbt.replace("[BDESERVERTAG]", modelTag);
 
-            // 각 하위 엔티티의 Tags:[...] 에 bde_model, tag1, tag2 직접 주입
-            snbt = snbt.replaceAll("(?i)Tags:\\[", "Tags:[\"bde_model\",\"" + tag1 + "\",\"" + tag2 + "\",");
+            // 중요: 하위 파츠 엔티티들에는 임의의 태그를 주입하지 않습니다.
+            // (파츠마다 태그가 달리면 레이트레이스/조준점 기준 위치가 왜곡되기 때문)
 
             if (i > 0) {
                 passengerSnbt.append(",");
@@ -75,12 +74,14 @@ public class BDEngineSpawner {
         int i3 = (int) (lsb >> 32);
         int i4 = (int) lsb;
 
+        // 루트 엔티티로 '빈 블록 디스플레이(block_display with air)'를 소환하고,
+        // 오직 이 루트 빈 블록 디스플레이에만 식별 태그(모델명)를 부여합니다.
         String summonCommand = String.format(Locale.US,
-                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s\",\"%s_root\"],Passengers:[%s]}",
+                "execute positioned %.4f %.4f %.4f in %s run summon block_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s_root\"],block_state:{Name:\"minecraft:air\"},Passengers:[%s]}",
                 loc.getX(), loc.getY(), loc.getZ(),
                 loc.getWorld().getKey().toString(),
                 i1, i2, i3, i4,
-                tag1, tag2, tag1,
+                modelTag, modelTag,
                 passengerSnbt.toString()
         );
 
@@ -93,7 +94,7 @@ public class BDEngineSpawner {
             // fallback: 위치 기반 검색
             if (root == null && loc.getWorld() != null) {
                 for (Entity entity : loc.getWorld().getNearbyEntities(loc, 6.0, 6.0, 6.0)) {
-                    if (entity.getScoreboardTags().contains(tag1 + "_root")) {
+                    if (entity.getScoreboardTags().contains(modelTag + "_root")) {
                         root = entity;
                         break;
                     }
@@ -101,7 +102,7 @@ public class BDEngineSpawner {
             }
 
             if (root != null) {
-                tagEntityRecursively(root, tag1, tag2);
+                // 하위 파츠들에는 태그를 달지 않고 오직 루트 빈 블록 디스플레이에만 태그 유지
 
                 if (model.hasAnimations() && plugin != null && plugin.getBdEngineManager() != null) {
                     Map<String, Display> partsMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
