@@ -40,8 +40,8 @@ public class OnePunchManListener implements Listener {
 
         Player player = event.getPlayer();
 
-        // 콜로세움 대기실/경기장 내부 플레이어인지 확인
-        if (!manager.isInside(player.getUniqueId())) {
+        // 콜로세움 결투장 월드(colosseum)이고 실제 경기가 진행 중일 때만 발동 (대기실에서는 피해 없음)
+        if (!manager.isArenaWorld(player.getWorld()) || !manager.isMatchInProgress()) {
             return;
         }
 

@@ -399,12 +399,28 @@ public class MfCommand implements CommandExecutor {
             return true;
         }
 
-        if (args.length > 0 && args[0].equalsIgnoreCase("colosseum")) {
+        if (args.length > 0 && (args[0].equalsIgnoreCase("colosseum") || args[0].equalsIgnoreCase("콜로세움") || args[0].equalsIgnoreCase("c콜로세움"))) {
             if (plugin.getColosseumManager() == null) {
                 sender.sendMessage("§c[MineFarm] 콜로세움 시스템이 활성화되지 않았습니다.");
                 return true;
             }
             Hez.PvP.ColosseumManager colosseum = plugin.getColosseumManager();
+
+            if (args.length > 1 && (args[1].equalsIgnoreCase("start") || args[1].equalsIgnoreCase("시작"))) {
+                if (colosseum.isMatchInProgress()) {
+                    sender.sendMessage("§c[콜로세움] 이미 결투가 진행 중입니다.");
+                    return true;
+                }
+                java.util.List<org.bukkit.entity.Player> inside = colosseum.getInsideOnlinePlayers();
+                if (inside.isEmpty()) {
+                    sender.sendMessage("§c[콜로세움] 대기실에 참가자가 없습니다.");
+                    return true;
+                }
+                sender.sendMessage("§a[콜로세움] 관리자 권한으로 결투를 강제 시작합니다!");
+                colosseum.broadcastToTownWorld("§6[콜로세움] §e관리자가 결투를 강제 시작하였습니다!");
+                colosseum.startGame();
+                return true;
+            }
 
             if (args.length > 1 && args[1].equalsIgnoreCase("tp")) {
                 if (!(sender instanceof org.bukkit.entity.Player player)) {
@@ -579,6 +595,7 @@ public class MfCommand implements CommandExecutor {
             }
 
             sender.sendMessage("§6=== 콜로세움 관리 명령어 ===");
+            sender.sendMessage("§e/" + label + " colosseum start §f- 대기실 인원으로 결투를 강제 시작");
             sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 정보 및 직업/팀 구역 확인");
             sender.sendMessage("§e/" + label + " colosseum tp §f- 결투장 평지 월드로 이동");
             sender.sendMessage("§e/" + label + " colosseum setarenaspawn §f- 현재 위치를 결투장 스폰으로 설정");
