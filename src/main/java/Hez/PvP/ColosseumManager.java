@@ -773,7 +773,7 @@ public class ColosseumManager {
                     countdownTask.cancel();
                     countdownTask = null;
                 }
-                startGame();
+                transitionToArena();
             }
         }, 20L, 20L);
 
@@ -781,71 +781,7 @@ public class ColosseumManager {
     }
 
     /**
-     * 게임 종료 처리 (원래 인벤토리 복원, 마을 귀환, 경기장 원상복구)
-     */
-    public void endGame(String customSubtitle) {
-        cancelCountdown(null);
-        matchInProgress = false;
-
-        String subtitle = (customSubtitle != null && !customSubtitle.isBlank()) ? customSubtitle : "게임을 종료했습니다";
-
-        // 경기장에 있거나 백업 데이터가 있는 모든 대상 플레이어 수집
-        Set<Player> affected = new HashSet<>();
-        for (UUID uuid : inventoryBackups.keySet()) {
-            Player p = Bukkit.getPlayer(uuid);
-            if (p != null && p.isOnline()) affected.add(p);
-        }
-        for (Player p : getInsideOnlinePlayers()) {
-            affected.add(p);
-        }
-        if (arenaWorld != null) {
-            for (Player p : arenaWorld.getPlayers()) {
-                affected.add(p);
-            }
-        }
-
-        // 타이틀 및 사운드 전송
-        for (Player p : affected) {
-            p.sendTitle("§6§l게임 종료", "§f" + subtitle, 10, 50, 15);
-            try {
-                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
-            } catch (Exception ignored) {}
-            p.sendMessage("§6[콜로세움] §e" + subtitle);
-        }
-
-        // 원래 인벤토리 및 상태 복원
-        restoreAllPlayers();
-
-        // 모든 참가자를 마을로 귀환 텔레포트
-        for (Player p : affected) {
-            p.setGameMode(GameMode.SURVIVAL);
-            try {
-                Hez.Menu.WarpManager.teleport(p, "town");
-            } catch (Exception e) {
-                World townW = Bukkit.getWorld(townWorldName);
-                if (townW != null) {
-                    p.teleport(new Location(townW, (minX + maxX) / 2.0 + 0.5, 65.0, (minZ + maxZ) / 2.0 + 0.5));
-                }
-            }
-        }
-
-        // 경기장 블록 파괴/설치 원상복구
-        if (templateManager != null) {
-            templateManager.resetToBaseArena();
-        }
-
-        // 대기실 참가 및 준비 상태 초기화
-        readyPlayers.clear();
-        selectedClasses.clear();
-        selectedTeams.clear();
-        updateActionBarForInsidePlayers();
-
-        broadcastToTownWorld("§6[콜로세움] §e게임이 종료되었습니다.");
-        plugin.getLogger().info("[콜로세움] 게임 종료 처리 완료.");
-    }
-
-    /**
-     * 3초 카운트다운 시작 (3 -> 2 -> 1 -> 시작)
+     * 3초 카운트다운 시작 (3 -> 2 -> 1 -> 아레나 이동 전환)
      */
     private void startCountdown() {
         if (countdownTask != null) {
@@ -866,14 +802,219 @@ public class ColosseumManager {
             if (countdownSeconds > 0) {
                 broadcastCountdownTick(countdownSeconds);
             } else {
-                // 0초 도달: 게임 시작 및 경기장 텔레포트
                 if (countdownTask != null) {
                     countdownTask.cancel();
                     countdownTask = null;
                 }
-                startGame();
+                transitionToArena();
             }
         }, 20L, 20L);
+    }
+
+    /**
+     * 3초 카운트다운 완료 후:
+     * "아레나로 이동합니다" (1초 대기) + (어둠 + 실명 + 구속) + 인벤토리 백업 & 클리어
+     * 1초 뒤 이동: 어둠/실명은 풀리고 구속은 그대로 유지한 채 맵 룰렛 시작!
+     */
+    public void transitionToArena() {
+        if (arenaWorld == null) {
+            initArenaWorld();
+        }
+        if (arenaWorld == null) {
+            broadcastToTownWorld("§c[콜로세움] 결투장 월드를 불러오지 못해 게임을 시작할 수 없습니다.");
+            return;
+        }
+
+        matchInProgress = true;
+        List<Player> participants = getInsideOnlinePlayers();
+
+        for (Player p : participants) {
+            p.sendTitle("§6§l아레나로 이동합니다", "§7잠시 후 결투장으로 이동합니다...", 0, 30, 10);
+            try {
+                p.playSound(p.getLocation(), Sound.BLOCK_PORTAL_TRIGGER, 0.8f, 1.2f);
+            } catch (Exception ignored) {}
+
+            // 디버프 부여: 어둠 + 실명 + 구속 (충분한 시간 부여)
+            p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 200, 0, false, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 200, 0, false, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 1200, 255, false, false, false));
+
+            // 인벤토리 백업 후 클리어
+            backupPlayer(p);
+            p.getInventory().clear();
+        }
+
+        // 1초(20틱) 대기 후 아레나로 이동
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            Location arenaSpawn = getArenaSpawnLocation();
+            for (Player p : participants) {
+                if (!p.isOnline()) continue;
+                p.teleport(arenaSpawn);
+
+                // 어둠과 실명은 해제, 구속은 그대로 유지!
+                p.removePotionEffect(PotionEffectType.DARKNESS);
+                p.removePotionEffect(PotionEffectType.BLINDNESS);
+            }
+
+            // 맵 선택 룰렛 애니메이션 시작!
+            startMapRoulette(participants);
+        }, 20L);
+    }
+
+    /**
+     * 맵 선택 룰렛 연출:
+     * 타이틀: "맵을 고르는중입니다..."
+     * 섭타이틀: 경기장 이름들이 룰렛처럼 돌아가며 점차 느려짐 (띠리리리... 띡.. 띡... 띵!)
+     * 띵! 하면 맵 로드 + 키트 지급 -> 1초 후 3..2..1.. FIGHT 카운트다운!
+     */
+    private void startMapRoulette(List<Player> participants) {
+        Set<String> registered = (templateManager != null) ? templateManager.getRegisteredMaps() : Collections.emptySet();
+        List<String> mapPool = new ArrayList<>(registered);
+        if (mapPool.isEmpty()) {
+            mapPool.add("기본 경기장");
+        }
+
+        // 점점 느려지는 딜레이 시퀀스 (틱 단위)
+        int[] stepDelays = { 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 6, 8, 12, 16, 22 };
+        Random random = new Random();
+        String chosenMap = mapPool.get(random.nextInt(mapPool.size()));
+
+        runRouletteStep(participants, mapPool, chosenMap, stepDelays, 0);
+    }
+
+    private void runRouletteStep(List<Player> participants, List<String> mapPool, String chosenMap, int[] stepDelays, int stepIndex) {
+        if (!matchInProgress) return;
+
+        if (stepIndex < stepDelays.length) {
+            String currentDisplayMap = mapPool.get(stepIndex % mapPool.size());
+            float pitch = Math.max(0.8f, 2.0f - (stepIndex * 0.07f));
+
+            for (Player p : participants) {
+                if (!p.isOnline()) continue;
+                p.sendTitle("§e§l맵을 고르는 중입니다...", "§f§l[ §b" + currentDisplayMap + " §f§l]", 0, 15, 0);
+                try {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, pitch);
+                } catch (Exception ignored) {}
+            }
+
+            int delay = stepDelays[stepIndex];
+            Bukkit.getScheduler().runTaskLater(plugin, () ->
+                    runRouletteStep(participants, mapPool, chosenMap, stepDelays, stepIndex + 1), delay);
+        } else {
+            // 마지막: 띵! (최종 당첨 맵 확정)
+            for (Player p : participants) {
+                if (!p.isOnline()) continue;
+                p.sendTitle("§a§l맵 확정!", "§6§l★ " + chosenMap + " ★", 5, 35, 10);
+                try {
+                    p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+                    p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
+                } catch (Exception ignored) {}
+            }
+
+            // 맵 붙여넣기 로드
+            if (templateManager != null && !chosenMap.equalsIgnoreCase("기본 경기장")) {
+                templateManager.pasteTemplate(chosenMap, true);
+            }
+
+            // 직업 키트 지급
+            for (Player p : participants) {
+                if (!p.isOnline()) continue;
+                String team = selectedTeams.get(p.getUniqueId());
+                boolean isSpectator = "spectator".equalsIgnoreCase(team);
+
+                if (isSpectator) {
+                    p.setGameMode(GameMode.SPECTATOR);
+                    p.sendMessage("§7[콜로세움] 관전자로 경기장에 입장하였습니다.");
+                } else {
+                    p.setGameMode(GameMode.SURVIVAL);
+                    try {
+                        p.setHealth(p.getMaxHealth());
+                    } catch (Exception ignored) {}
+                    p.setFoodLevel(20);
+                    p.setSaturation(20.0f);
+
+                    String className = selectedClasses.get(p.getUniqueId());
+                    ColosseumClassType classType = ColosseumClassType.fromDisplayName(className);
+                    if (classType != null) {
+                        classType.applyKit(p);
+                    }
+                    String kitName = (className != null) ? className : "기본";
+                    p.sendMessage("§6[콜로세움] §a" + kitName + " 직업 키트가 지급되었습니다!");
+                }
+            }
+
+            // 1초(20틱) 후 결투 3... 2... 1... FIGHT 카운트다운 시작!
+            Bukkit.getScheduler().runTaskLater(plugin, () -> startArenaFightCountdown(participants), 20L);
+        }
+    }
+
+    /**
+     * 아레나 결투 시작 카운트다운 (3... 2... 1... FIGHT!)
+     * FIGHT 출력 시 구속 완전 해제!
+     */
+    private void startArenaFightCountdown(List<Player> participants) {
+        if (!matchInProgress) return;
+
+        int[] count = { 3 };
+        org.bukkit.scheduler.BukkitTask[] taskHolder = new org.bukkit.scheduler.BukkitTask[1];
+
+        // 즉시 3... 출력
+        broadcastFightCountTick(participants, 3);
+
+        taskHolder[0] = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            if (!matchInProgress) {
+                if (taskHolder[0] != null) taskHolder[0].cancel();
+                return;
+            }
+
+            count[0]--;
+            if (count[0] > 0) {
+                broadcastFightCountTick(participants, count[0]);
+            } else {
+                if (taskHolder[0] != null) {
+                    taskHolder[0].cancel();
+                }
+
+                // FIGHT! 출력 및 구속 해제!
+                for (Player p : participants) {
+                    if (!p.isOnline()) continue;
+                    p.sendTitle("§a§lFIGHT!", "§f결투가 시작되었습니다!", 0, 30, 10);
+                    try {
+                        p.playSound(p.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
+                        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
+                    } catch (Exception ignored) {}
+
+                    // 구속 디버프 완전 해제 -> 자유 이동 가능!
+                    p.removePotionEffect(PotionEffectType.SLOWNESS);
+                    p.sendMessage("§6[콜로세움] §aFIGHT! 승리를 위해 싸우세요!");
+                }
+
+                broadcastToTownWorld("§6[콜로세움] §a아레나 결투가 시작되었습니다!");
+            }
+        }, 20L, 20L);
+    }
+
+    private void broadcastFightCountTick(List<Player> participants, int sec) {
+        String titleColor = switch (sec) {
+            case 3 -> "§e§l3...";
+            case 2 -> "§6§l2...";
+            case 1 -> "§c§l1...";
+            default -> "§f§l";
+        };
+        float pitch = switch (sec) {
+            case 3 -> 1.0f;
+            case 2 -> 1.25f;
+            case 1 -> 1.5f;
+            default -> 1.0f;
+        };
+
+        for (Player p : participants) {
+            if (!p.isOnline()) continue;
+            p.sendTitle(titleColor, "§f준비하세요...", 0, 25, 5);
+            try {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1.0f, pitch);
+            } catch (Exception ignored) {}
+        }
     }
 
     private void broadcastCountdownTick(int sec) {
@@ -922,69 +1063,99 @@ public class ColosseumManager {
     }
 
     /**
-     * 실제 경기 시작 & 경기장 텔레포트 및 직업 키트 지급
+     * 게임 종료 시퀀스:
+     * 1. "000이 승리했습니다" (3초 대기)
+     * 2. "마을로 이동합니다" (실명 + 어둠 + 구속) (1초 대기)
+     * 3. 맵 초기화 -> 인벤 복구 -> 마을 이동
      */
-    public void startGame() {
-        if (arenaWorld == null) {
-            initArenaWorld();
+    public void endGame(String winnerMessage) {
+        cancelCountdown(null);
+        matchInProgress = false;
+
+        String winnerText = (winnerMessage != null && !winnerMessage.isBlank()) ? winnerMessage : "게임을 종료했습니다";
+
+        // 경기장에 있거나 백업 데이터가 있는 모든 대상 플레이어 수집
+        Set<Player> affected = new HashSet<>();
+        for (UUID uuid : inventoryBackups.keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) affected.add(p);
         }
-        if (arenaWorld == null) {
-            broadcastToTownWorld("§c[콜로세움] 결투장 월드를 불러오지 못해 게임을 시작할 수 없습니다.");
-            return;
+        for (Player p : getInsideOnlinePlayers()) {
+            affected.add(p);
         }
-
-        matchInProgress = true;
-        Location arenaSpawn = getArenaSpawnLocation();
-
-        List<Player> participants = getInsideOnlinePlayers();
-        Set<String> activeTeams = new HashSet<>();
-
-        for (Player p : participants) {
-            String team = selectedTeams.get(p.getUniqueId());
-            boolean isSpectator = "spectator".equalsIgnoreCase(team);
-
-            if (!isSpectator && team != null) {
-                activeTeams.add(formatTeamName(team));
+        if (arenaWorld != null) {
+            for (Player p : arenaWorld.getPlayers()) {
+                affected.add(p);
             }
+        }
 
-            // 1. 기존 인벤토리 및 상태 백업
-            backupPlayer(p);
+        // [단계 1] "000이 승리했습니다" 출력 + 3초 대기
+        for (Player p : affected) {
+            p.sendTitle("§6§l게임 종료", "§e§l" + winnerText, 5, 55, 10);
+            try {
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            } catch (Exception ignored) {}
+            p.sendMessage("§6[콜로세움] §e" + winnerText);
+        }
 
-            // 2. 경기장으로 텔레포트
-            p.teleport(arenaSpawn);
-
-            if (isSpectator) {
-                p.setGameMode(GameMode.SPECTATOR);
-                p.sendTitle("§7§l관전자 모드", "§f경기를 자유롭게 관전하세요", 10, 40, 10);
-                p.sendMessage("§7[콜로세움] 관전자로 경기장에 입장하였습니다.");
-            } else {
-                p.setGameMode(GameMode.SURVIVAL);
+        // 3초(60틱) 대기
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            // [단계 2] "마을로 이동합니다" 타이틀 + (실명 + 어둠 + 구속) 부여 + 1초 대기
+            for (Player p : affected) {
+                if (!p.isOnline()) continue;
+                p.sendTitle("§f§l마을로 이동합니다", "§7잠시만 기다려주세요...", 0, 25, 5);
                 try {
-                    p.setHealth(p.getMaxHealth());
+                    p.playSound(p.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 1.0f);
                 } catch (Exception ignored) {}
-                p.setFoodLevel(20);
-                p.setSaturation(20.0f);
 
-                // 3. 직업 키트 적용!
-                String className = selectedClasses.get(p.getUniqueId());
-                ColosseumClassType classType = ColosseumClassType.fromDisplayName(className);
-                if (classType != null) {
-                    classType.applyKit(p);
-                }
-
-                p.sendTitle("§a§lSTART!", "§f결투가 시작되었습니다!", 10, 40, 10);
-                String kitName = (className != null) ? className : "기본";
-                p.sendMessage("§6[콜로세움] §a결투가 시작되었습니다! (" + kitName + " 직업 키트 지급)");
-                try {
-                    p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
-                } catch (Exception ignored) {
-                }
+                // 실명 + 어둠 + 구속 디버프
+                p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 100, 0, false, false, false));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 100, 0, false, false, false));
+                p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 255, false, false, false));
             }
-        }
 
-        String teamListStr = String.join(" §7vs ", activeTeams);
-        broadcastToTownWorld("§6[콜로세움] §a결투가 시작되었습니다! §f[" + teamListStr + "§f]");
-        plugin.getLogger().info("[콜로세움] 결투 시작 - 참가자 " + participants.size() + "명, 팀: " + teamListStr);
+            // 1초(20틱) 대기
+            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                // [단계 3] 맵 초기화 -> 인벤 복구 -> 마을 이동
+
+                // 1. 맵 초기화
+                if (templateManager != null) {
+                    templateManager.resetToBaseArena();
+                }
+
+                // 2. 인벤 복구 (디버프도 백업 상태로 완전 복원)
+                restoreAllPlayers();
+
+                // 3. 마을 이동
+                for (Player p : affected) {
+                    if (!p.isOnline()) continue;
+                    p.setGameMode(GameMode.SURVIVAL);
+
+                    // 잔여 디버프 정리
+                    p.removePotionEffect(PotionEffectType.BLINDNESS);
+                    p.removePotionEffect(PotionEffectType.DARKNESS);
+                    p.removePotionEffect(PotionEffectType.SLOWNESS);
+
+                    try {
+                        Hez.Menu.WarpManager.teleport(p, "town");
+                    } catch (Exception e) {
+                        World townW = Bukkit.getWorld(townWorldName);
+                        if (townW != null) {
+                            p.teleport(new Location(townW, (minX + maxX) / 2.0 + 0.5, 65.0, (minZ + maxZ) / 2.0 + 0.5));
+                        }
+                    }
+                }
+
+                // 상태 정리
+                readyPlayers.clear();
+                selectedClasses.clear();
+                selectedTeams.clear();
+                updateActionBarForInsidePlayers();
+
+                broadcastToTownWorld("§6[콜로세움] §e결투가 종료되어 모든 플레이어가 마을로 귀환했습니다.");
+                plugin.getLogger().info("[콜로세움] 결투 정상 종료 및 마을 복귀 처리 완료.");
+            }, 20L);
+        }, 60L);
     }
 
     /**
