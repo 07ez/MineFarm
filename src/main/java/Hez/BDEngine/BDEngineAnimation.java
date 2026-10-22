@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.util.Transformation;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -58,7 +59,7 @@ public class BDEngineAnimation {
     }
 
     /**
-     * 사운드, 파티클, 또는 텍스처 변경 등 임의의 마인크래프트 명령어를 실행하는 액션
+     * 사운드, 파티클 등 임의의 마인크래프트 명령어를 실행하는 액션
      */
     public static class CommandAction implements KeyframeAction {
         private final String command;
@@ -84,6 +85,7 @@ public class BDEngineAnimation {
     private static final Pattern TRANSFORMATION_PATTERN = Pattern.compile(
             "tag=([A-Za-z0-9_]+).*?transformation:\\[([^\\]]+)\\](?:.*?interpolation_duration:([0-9]+))?(?:.*?start_interpolation:([0-9]+))?"
     );
+    private static final Pattern TAG_PATTERN = Pattern.compile("tag=([A-Za-z0-9_]+)");
 
     public BDEngineAnimation(String name, int totalTicks, Map<Integer, List<KeyframeAction>> frames) {
         this.name = name;
@@ -149,6 +151,7 @@ public class BDEngineAnimation {
     }
 
     private static KeyframeAction parseCommand(String cmd) {
+        // 1. transformation 행렬 변경 명령어 파싱 -> Java 직접 주입
         Matcher matcher = TRANSFORMATION_PATTERN.matcher(cmd);
         if (matcher.find()) {
             String partTag = matcher.group(1);
@@ -165,11 +168,34 @@ public class BDEngineAnimation {
             }
         }
 
+        // 2. item_display: "none" 같은 디스플레이 모드 설정은 Java API로 직접 처리 (명령어 피드백 채팅 스팸 방지)
+        if (cmd.contains("item_display:\"none\"") || cmd.contains("item_display:none")) {
+            Matcher tagMatcher = TAG_PATTERN.matcher(cmd);
+            if (tagMatcher.find()) {
+                String partTag = tagMatcher.group(1);
+                return instance -> {
+                    Display d = instance.getPart(partTag);
+                    if (d instanceof ItemDisplay id) {
+                        id.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+                    }
+                };
+            }
+        }
+
+        // 3. data modify / data merge 명령어는 소환 시 이미 Passenger NBT로 적용되어 있으므로
+        // 루프 애니메이션에서는 명령어로 재실행하지 않고 스킵 (채팅창의 "문자 표시: 개체데이터 변경" 스팸 100% 차단)
+        if (cmd.startsWith("data modify") || cmd.startsWith("data merge")) {
+            return null;
+        }
+
+        // 4. 사운드, 파티클 등 실제 인게임 효과 명령어는 실행
         return new CommandAction(cmd);
     }
 
     /**
-     * 16개의 float 행렬 문자열을 JOML을 통해 Bukkit Transformation 객체로 고속 변환합니다.
+     * Minecraft NBT의 16개 Row-major float 행렬을
+     * JOML의 Column-major Matrix4f(m<col><row>)로 올바르게 전치(Transpose)하여
+     * 왜곡 없이 완벽한 Bukkit Transformation 객체로 변환합니다.
      */
     private static Transformation parseTransformation(String rawFloats) {
         try {
@@ -182,12 +208,13 @@ public class BDEngineAnimation {
                 f[i] = Float.parseFloat(s);
             }
 
-            // Minecraft Row-major 행렬 설정
+            // Minecraft NBT: f[0..3]은 행0, f[4..7]은 행1, f[8..11]은 행2, f[12..15]는 행3 (f[3], f[7], f[11]이 이동 좌표)
+            // JOML Matrix4f: 인자가 열(Column) 기준이므로 올바르게 전치 매핑
             Matrix4f mat = new Matrix4f(
-                    f[0], f[1], f[2], f[3],
-                    f[4], f[5], f[6], f[7],
-                    f[8], f[9], f[10], f[11],
-                    f[12], f[13], f[14], f[15]
+                    f[0], f[4], f[8], f[12],  // 열 0
+                    f[1], f[5], f[9], f[13],  // 열 1
+                    f[2], f[6], f[10], f[14], // 열 2
+                    f[3], f[7], f[11], f[15]  // 열 3 (이동 x, y, z)
             );
 
             Vector3f translation = mat.getTranslation(new Vector3f());
