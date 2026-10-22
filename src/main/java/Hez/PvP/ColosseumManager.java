@@ -385,6 +385,9 @@ public class ColosseumManager {
     }
 
     public Location getArenaSpawnLocation() {
+        if (config != null && config.contains("arenaSpawn.x") && arenaWorld != null) {
+            loadArenaSpawnLocation();
+        }
         if (arenaSpawnLocation == null && arenaWorld != null) {
             arenaSpawnLocation = new Location(arenaWorld, 0.5, 4.0, 0.5, 0.0f, 0.0f);
         }
@@ -497,6 +500,8 @@ public class ColosseumManager {
      */
     public void handlePlayerLeave(Player player) {
         if (player == null) return;
+        // 게임 진행 중일 때는 아레나로 이동한 것이므로 퇴장 및 데이터 삭제 처리하지 않음!
+        if (matchInProgress) return;
         UUID uuid = player.getUniqueId();
 
         // 콜로세움 안에 있었던 경우만 퇴장 처리
@@ -814,7 +819,8 @@ public class ColosseumManager {
     /**
      * 3초 카운트다운 완료 후:
      * "아레나로 이동합니다" (1초 대기) + (어둠 + 실명 + 구속) + 인벤토리 백업 & 클리어
-     * 1초 뒤 이동: 어둠/실명은 풀리고 구속은 그대로 유지한 채 맵 룰렛 시작!
+     * 이동 후에는 어둠/실명을 강제 clear하지 않고 지속시간(2.5초) 만료로 자연스럽게 깜빡이며 풀리게 연출!
+     * 이동 직후 2초간 "이동 중입니다..." 타이틀 표시 -> 5초 룰렛 -> 2초 맵 확정 -> FIGHT!
      */
     public void transitionToArena() {
         if (arenaWorld == null) {
@@ -829,14 +835,15 @@ public class ColosseumManager {
         List<Player> participants = getInsideOnlinePlayers();
 
         for (Player p : participants) {
-            p.sendTitle("§6§l아레나로 이동합니다", "§7잠시 후 결투장으로 이동합니다...", 0, 30, 10);
+            p.sendTitle("§6§l아레나로 이동합니다", "§7잠시 후 결투장으로 이동합니다...", 0, 25, 5);
             try {
                 p.playSound(p.getLocation(), Sound.BLOCK_PORTAL_TRIGGER, 0.8f, 1.2f);
             } catch (Exception ignored) {}
 
-            // 디버프 부여: 어둠 + 실명 + 구속 (충분한 시간 부여)
-            p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 200, 0, false, false, false));
-            p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 200, 0, false, false, false));
+            // 실명 + 어둠 지속시간: 50틱 (2.5초) -> 이동 후 "이동 중입니다..." 동안 자연스럽게 깜빡거리며 만료됨!
+            p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 50, 0, false, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 50, 0, false, false, false));
+            // 구속은 FIGHT 시작 전까지 넉넉하게 유지 (60초)
             p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 1200, 255, false, false, false));
 
             // 인벤토리 백업 후 클리어
@@ -844,28 +851,37 @@ public class ColosseumManager {
             p.getInventory().clear();
         }
 
-        // 1초(20틱) 대기 후 아레나로 이동
+        // 1초(20틱) 대기 후 아레나로 텔레포트
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            Location arenaSpawn = getArenaSpawnLocation();
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
-                p.teleport(arenaSpawn);
 
-                // 어둠과 실명은 해제, 구속은 그대로 유지!
-                p.removePotionEffect(PotionEffectType.DARKNESS);
-                p.removePotionEffect(PotionEffectType.BLINDNESS);
+                // 팀 스폰 위치가 있으면 팀 스폰으로, 없으면 아레나 스폰으로 텔레포트
+                String team = selectedTeams.get(p.getUniqueId());
+                Location targetLoc = null;
+                if (templateManager != null && team != null) {
+                    targetLoc = templateManager.getTeamSpawn(team);
+                }
+                if (targetLoc == null || targetLoc.getWorld() == null) {
+                    targetLoc = getArenaSpawnLocation();
+                }
+                p.teleport(targetLoc);
+
+                // 어둠/실명을 강제로 clear하지 않고, 자연스럽게 깜빡거리며 풀리도록 둠
+                // "이동 중입니다..." 타이틀을 2초(40틱) 동안 출력
+                p.sendTitle("§f§l이동 중입니다...", "§7결투장에 입장하고 있습니다", 0, 40, 10);
             }
 
-            // 맵 선택 룰렛 애니메이션 시작!
-            startMapRoulette(participants);
+            // 2초(40틱) 동안 이동 중 타이틀과 깜빡이며 풀리는 시야를 보여준 후, 5초 룰렛 시작!
+            Bukkit.getScheduler().runTaskLater(plugin, () -> startMapRoulette(participants), 40L);
         }, 20L);
     }
 
     /**
-     * 맵 선택 룰렛 연출:
-     * 타이틀: "맵을 고르는중입니다..."
+     * 맵 선택 룰렛 연출 (약 5초 동안 점점 느려지는 박자감):
+     * 타이틀: "맵을 고르는 중입니다..."
      * 섭타이틀: 경기장 이름들이 룰렛처럼 돌아가며 점차 느려짐 (띠리리리... 띡.. 띡... 띵!)
-     * 띵! 하면 맵 로드 + 키트 지급 -> 1초 후 3..2..1.. FIGHT 카운트다운!
+     * 띵! 하면 맵 로드 + 키트 지급 -> 2초간 맵 확정 타이틀 보여주기 -> 3..2..1.. FIGHT 카운트다운!
      */
     private void startMapRoulette(List<Player> participants) {
         Set<String> registered = (templateManager != null) ? templateManager.getRegisteredMaps() : Collections.emptySet();
@@ -874,8 +890,8 @@ public class ColosseumManager {
             mapPool.add("기본 경기장");
         }
 
-        // 점점 느려지는 딜레이 시퀀스 (틱 단위)
-        int[] stepDelays = { 2, 2, 2, 2, 2, 2, 2, 3, 3, 4, 4, 6, 8, 12, 16, 22 };
+        // 약 5초(약 104틱) 동안 점차 감속되는 21단계 딜레이 시퀀스
+        int[] stepDelays = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 5, 5, 6, 7, 9, 12, 16 };
         Random random = new Random();
         String chosenMap = mapPool.get(random.nextInt(mapPool.size()));
 
@@ -887,7 +903,7 @@ public class ColosseumManager {
 
         if (stepIndex < stepDelays.length) {
             String currentDisplayMap = mapPool.get(stepIndex % mapPool.size());
-            float pitch = Math.max(0.8f, 2.0f - (stepIndex * 0.07f));
+            float pitch = Math.max(0.8f, 2.0f - (stepIndex * 0.055f));
 
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
@@ -901,10 +917,10 @@ public class ColosseumManager {
             Bukkit.getScheduler().runTaskLater(plugin, () ->
                     runRouletteStep(participants, mapPool, chosenMap, stepDelays, stepIndex + 1), delay);
         } else {
-            // 마지막: 띵! (최종 당첨 맵 확정)
+            // 마지막: 띵! (최종 당첨 맵 확정) - 2초(40틱) 동안 큼직하게 노출
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
-                p.sendTitle("§a§l맵 확정!", "§6§l★ " + chosenMap + " ★", 5, 35, 10);
+                p.sendTitle("§a§l맵 확정!", "§6§l★ " + chosenMap + " ★", 5, 40, 10);
                 try {
                     p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
                     p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
@@ -916,7 +932,7 @@ public class ColosseumManager {
                 templateManager.pasteTemplate(chosenMap, true);
             }
 
-            // 직업 키트 지급
+            // 직업 키트 100% 확실 지급
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
                 String team = selectedTeams.get(p.getUniqueId());
@@ -933,18 +949,25 @@ public class ColosseumManager {
                     p.setFoodLevel(20);
                     p.setSaturation(20.0f);
 
+                    // 선택 직업 가져오기 (없으면 기본 검투사)
                     String className = selectedClasses.get(p.getUniqueId());
+                    if (className == null || className.isBlank()) {
+                        className = "검투사";
+                        selectedClasses.put(p.getUniqueId(), className);
+                    }
+
                     ColosseumClassType classType = ColosseumClassType.fromDisplayName(className);
                     if (classType != null) {
                         classType.applyKit(p);
+                        p.sendMessage("§6[콜로세움] §a'" + classType.getDisplayName() + "' 직업 키트가 정상 지급되었습니다!");
+                    } else {
+                        plugin.getLogger().warning("[콜로세움] 직업 키트 찾기 실패: " + className);
                     }
-                    String kitName = (className != null) ? className : "기본";
-                    p.sendMessage("§6[콜로세움] §a" + kitName + " 직업 키트가 지급되었습니다!");
                 }
             }
 
-            // 1초(20틱) 후 결투 3... 2... 1... FIGHT 카운트다운 시작!
-            Bukkit.getScheduler().runTaskLater(plugin, () -> startArenaFightCountdown(participants), 20L);
+            // 당첨 맵 이름을 2초(40틱) 동안 충분히 보여준 후, 3... 2... 1... FIGHT 카운트다운 시작!
+            Bukkit.getScheduler().runTaskLater(plugin, () -> startArenaFightCountdown(participants), 40L);
         }
     }
 
