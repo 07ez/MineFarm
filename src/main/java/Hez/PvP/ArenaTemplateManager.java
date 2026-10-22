@@ -67,14 +67,20 @@ public class ArenaTemplateManager {
         public final int sizeX;
         public final int sizeY;
         public final int sizeZ;
+        public final boolean isVoidMode;
         public final List<TemplateBlock> blocks;
 
-        public ArenaTemplate(String name, int sizeX, int sizeY, int sizeZ, List<TemplateBlock> blocks) {
+        public ArenaTemplate(String name, int sizeX, int sizeY, int sizeZ, boolean isVoidMode, List<TemplateBlock> blocks) {
             this.name = name;
             this.sizeX = sizeX;
             this.sizeY = sizeY;
             this.sizeZ = sizeZ;
+            this.isVoidMode = isVoidMode;
             this.blocks = blocks;
+        }
+
+        public ArenaTemplate(String name, int sizeX, int sizeY, int sizeZ, List<TemplateBlock> blocks) {
+            this(name, sizeX, sizeY, sizeZ, false, blocks);
         }
     }
 
@@ -193,6 +199,10 @@ public class ArenaTemplateManager {
      * 특정 3D 영역을 스캔하여 템플릿 파일로 저장 (main 또는 테마 맵)
      */
     public boolean saveTemplate(String templateName, Location loc1, Location loc2) {
+        return saveTemplate(templateName, loc1, loc2, false);
+    }
+
+    public boolean saveTemplate(String templateName, Location loc1, Location loc2, boolean isVoidMode) {
         if (loc1 == null || loc2 == null || loc1.getWorld() == null) return false;
         World world = loc1.getWorld();
 
@@ -227,7 +237,8 @@ public class ArenaTemplateManager {
 
         File file = new File(templateFolder, templateName.toLowerCase() + ".template");
         try (DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(new FileOutputStream(file))))) {
-            dos.writeInt(1); // 파일 버전
+            dos.writeInt(2); // 파일 버전 2 (isVoidMode 포함)
+            dos.writeBoolean(isVoidMode);
             dos.writeInt(sizeX);
             dos.writeInt(sizeY);
             dos.writeInt(sizeZ);
@@ -260,6 +271,10 @@ public class ArenaTemplateManager {
 
         try (DataInputStream dis = new DataInputStream(new BufferedInputStream(new GZIPInputStream(new FileInputStream(file))))) {
             int version = dis.readInt();
+            boolean isVoidMode = false;
+            if (version >= 2) {
+                isVoidMode = dis.readBoolean();
+            }
             int sizeX = dis.readInt();
             int sizeY = dis.readInt();
             int sizeZ = dis.readInt();
@@ -273,10 +288,33 @@ public class ArenaTemplateManager {
                 String dataStr = dis.readUTF();
                 blocks.add(new TemplateBlock(dx, dy, dz, dataStr));
             }
-            return new ArenaTemplate(templateName, sizeX, sizeY, sizeZ, blocks);
+            return new ArenaTemplate(templateName, sizeX, sizeY, sizeZ, isVoidMode, blocks);
         } catch (IOException e) {
             plugin.getLogger().severe("경기장 템플릿 로드 실패 (" + templateName + "): " + e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * 공허(Void) 맵을 위해 기본 경기장(main)의 바닥 블록들을 공기(Air)로 비움
+     * 외벽과 관중석은 건드리지 않고 기본 바닥 블록들만 지워짐
+     */
+    public void clearBaseFloor() {
+        if (pasteLocation == null || pasteLocation.getWorld() == null) return;
+        ArenaTemplate mainTpl = loadTemplate("main");
+        if (mainTpl == null) return;
+
+        World world = pasteLocation.getWorld();
+        int originX = pasteLocation.getBlockX();
+        int originY = pasteLocation.getBlockY();
+        int originZ = pasteLocation.getBlockZ();
+
+        for (TemplateBlock tb : mainTpl.blocks) {
+            Location loc = new Location(world, originX + tb.dx, originY + tb.dy, originZ + tb.dz);
+            if (isInArenaBounds(loc)) {
+                loc.getBlock().setType(Material.AIR, false);
+                currentThemeBlocks.add(loc);
+            }
         }
     }
 
@@ -290,6 +328,11 @@ public class ArenaTemplateManager {
         ArenaTemplate template = loadTemplate(templateName);
         if (template == null) {
             return false;
+        }
+
+        // 공허 모드 테마 맵인 경우 기본 바닥을 먼저 공기화하여 허공 낭떠러지 생성!
+        if (isThemeMap && template.isVoidMode) {
+            clearBaseFloor();
         }
 
         World world = pasteLocation.getWorld();

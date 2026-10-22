@@ -5,6 +5,9 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MfCommand implements CommandExecutor {
 
     private final Main plugin;
@@ -161,10 +164,10 @@ public class MfCommand implements CommandExecutor {
                     return true;
                 }
 
-                // /mf arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름>
+                // /mf arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름> [-void]
                 if (sub.equals("savemap")) {
                     if (args.length < 9) {
-                        sender.sendMessage("§c사용법: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름>");
+                        sender.sendMessage("§c사용법: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름> [-void]");
                         return true;
                     }
                     try {
@@ -175,6 +178,7 @@ public class MfCommand implements CommandExecutor {
                         int y2 = Integer.parseInt(args[6]);
                         int z2 = Integer.parseInt(args[7]);
                         String mapName = args[8];
+                        boolean isVoid = (args.length >= 10 && (args[9].equalsIgnoreCase("-void") || args[9].equalsIgnoreCase("void") || args[9].equalsIgnoreCase("--void")));
 
                         org.bukkit.World targetWorld = (sender instanceof org.bukkit.entity.Player p) ? p.getWorld() : colosseum.getArenaWorld();
                         if (targetWorld == null) {
@@ -185,14 +189,18 @@ public class MfCommand implements CommandExecutor {
                         org.bukkit.Location loc1 = new org.bukkit.Location(targetWorld, x1, y1, z1);
                         org.bukkit.Location loc2 = new org.bukkit.Location(targetWorld, x2, y2, z2);
 
-                        boolean ok = arena.saveTemplate(mapName, loc1, loc2);
+                        boolean ok = arena.saveTemplate(mapName, loc1, loc2, isVoid);
                         if (ok) {
-                            sender.sendMessage("§a[아레나] 테마 경기장(" + mapName + ") 템플릿이 성공적으로 저장되었습니다!");
+                            if (isVoid) {
+                                sender.sendMessage("§a[아레나] 공허(낙사) 테마 경기장(" + mapName + ") 템플릿이 성공적으로 저장되었습니다! (바닥 공기화 모드 적용)");
+                            } else {
+                                sender.sendMessage("§a[아레나] 테마 경기장(" + mapName + ") 템플릿이 성공적으로 저장되었습니다!");
+                            }
                         } else {
                             sender.sendMessage("§c[아레나] 테마 경기장 저장 중 오류가 발생했습니다.");
                         }
                     } catch (NumberFormatException e) {
-                        sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름>");
+                        sender.sendMessage("§c좌표는 정수로 입력해주세요: /" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <맵이름> [-void]");
                     }
                     return true;
                 }
@@ -281,7 +289,16 @@ public class MfCommand implements CommandExecutor {
                     if (maps.isEmpty()) {
                         sender.sendMessage("§7- 등록된 테마 경기장이 없습니다.");
                     } else {
-                        sender.sendMessage("§e- 테마 맵 (" + maps.size() + "개): §f" + String.join(", ", maps));
+                        List<String> formatted = new ArrayList<>();
+                        for (String m : maps) {
+                            Hez.PvP.ArenaTemplateManager.ArenaTemplate tpl = arena.loadTemplate(m);
+                            if (tpl != null && tpl.isVoidMode) {
+                                formatted.add(m + "§8(공허/낙사)§f");
+                            } else {
+                                formatted.add(m);
+                            }
+                        }
+                        sender.sendMessage("§e- 테마 맵 (" + maps.size() + "개): §f" + String.join(", ", formatted));
                     }
                     return true;
                 }
@@ -362,7 +379,7 @@ public class MfCommand implements CommandExecutor {
             sender.sendMessage("§e/" + label + " arena setbounds <x1> <y1> <z1> <x2> <y2> <z2> §f- 전투 영역 경계 설정 (외부 프리셋 보호)");
             sender.sendMessage("§e/" + label + " arena setpastepos [x y z] §f- 경기장 붙여넣기 기준 좌표 설정");
             sender.sendMessage("§e/" + label + " arena savemain <x1> <y1> <z1> <x2> <y2> <z2> §f- 기본 경기장 저장");
-            sender.sendMessage("§e/" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름> §f- 테마 경기장 저장");
+            sender.sendMessage("§e/" + label + " arena savemap <x1> <y1> <z1> <x2> <y2> <z2> <이름> [-void] §f- 테마 경기장 저장 (-void: 공허/낙사 맵)");
             sender.sendMessage("§e/" + label + " arena loadmap <이름> §f- 테마 경기장 Air 무시 붙여넣기 테스트");
             sender.sendMessage("§e/" + label + " arena reset §f- 기본 경기장으로 원상복구 테스트");
             sender.sendMessage("§e/" + label + " arena listmaps §f- 등록된 테마 맵 목록 확인");

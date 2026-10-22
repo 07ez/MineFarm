@@ -73,6 +73,14 @@ public class MfTabCompleter implements TabCompleter {
             }
         }
 
+        if (args.length == 10 && (args[0].equalsIgnoreCase("arena") || args[0].equalsIgnoreCase("아레나"))) {
+            if (args[1].equalsIgnoreCase("savemap")) {
+                if ("-void".startsWith(args[9].toLowerCase())) {
+                    return List.of("-void");
+                }
+            }
+        }
+
         if (args.length == 2 && args[0].equalsIgnoreCase("colosseum")) {
             List<String> sub = List.of("info", "tp", "setarenaspawn", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
             List<String> result = new ArrayList<>();
