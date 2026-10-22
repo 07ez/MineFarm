@@ -6,10 +6,12 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * BDEngine 관리 및 빠른 소환 명령어 실행기
@@ -145,6 +147,67 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
+            case "anim", "애니메이션" -> {
+                if (!(sender instanceof Player player)) {
+                    sender.sendMessage("§c이 명령어는 플레이어만 사용할 수 있습니다.");
+                    return true;
+                }
+                if (args.length < 2) {
+                    sender.sendMessage("§c사용법: /" + label + " anim <status | start | stop> [반경]");
+                    return true;
+                }
+                String action = args[1].toLowerCase();
+                switch (action) {
+                    case "status", "상태" -> {
+                        int count = manager.getAnimationManager().getActiveCount();
+                        player.sendMessage("§6=== [BDEngine 애니메이션 현황] ===");
+                        player.sendMessage("§e현재 활성화된 애니메이션 인스턴스: §a" + count + "개");
+                        for (BDEngineModelInstance inst : manager.getAnimationManager().getActiveInstances()) {
+                            String animName = (inst.getCurrentAnimation() != null) ? inst.getCurrentAnimation().getName() : "없음";
+                            player.sendMessage("§7- 모델: §f" + inst.getModel().getName() + " §7| 애니메이션: §e" + animName + " §7| 틱: §a" + inst.getCurrentTick() + " §7| 바인딩 파츠: §b" + inst.getAllParts().size() + "개");
+                        }
+                    }
+                    case "start", "시작" -> {
+                        double radius = 15.0;
+                        if (args.length >= 3) {
+                            try { radius = Double.parseDouble(args[2]); } catch (Exception ignored) {}
+                        }
+                        int started = 0;
+                        for (Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), radius, radius, radius)) {
+                            Set<String> tags = entity.getScoreboardTags();
+                            if (tags.contains("bde_model") && entity.getVehicle() == null) {
+                                for (String tag : tags) {
+                                    BDEngineModel m = manager.getModel(tag);
+                                    if (m != null && m.hasAnimations()) {
+                                        if (BDEngineSpawner.startAnimationForExisting(entity, m, plugin)) {
+                                            started++;
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        player.sendMessage("§a[BDEngine] 주변 " + radius + "블록 내 " + started + "개의 모델 애니메이션을 시작했습니다.");
+                    }
+                    case "stop", "중지" -> {
+                        double radius = 15.0;
+                        if (args.length >= 3) {
+                            try { radius = Double.parseDouble(args[2]); } catch (Exception ignored) {}
+                        }
+                        int stopped = 0;
+                        for (Entity entity : player.getWorld().getNearbyEntities(player.getLocation(), radius, radius, radius)) {
+                            if (manager.getAnimationManager().getInstance(entity.getUniqueId()) != null) {
+                                manager.getAnimationManager().unregisterInstance(entity.getUniqueId());
+                                stopped++;
+                            }
+                        }
+                        player.sendMessage("§a[BDEngine] 주변 " + radius + "블록 내 " + stopped + "개의 모델 애니메이션을 중지했습니다.");
+                    }
+                    default -> player.sendMessage("§c사용법: /" + label + " anim <status | start | stop> [반경]");
+                }
+                return true;
+            }
+
             case "reload", "리로드" -> {
                 manager.init();
                 sender.sendMessage("§a[BDEngine] 모델 파일 및 태그 목록을 디스크에서 다시 로드했습니다.");
@@ -163,6 +226,7 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage("§f/" + label + " download <ID> <모델명> <태그1> <태그2> §7- BDEngine API에서 모델 다운로드 및 저장");
         sender.sendMessage("§f/" + label + " spawn <모델명> §7- 플레이어 위치에 모델 소환");
         sender.sendMessage("§f/" + label + " remove <태그> [반경] §7- 해당 태그의 BDEngine 모델 엔티티만 안전 삭제 (기본 10블록)");
+        sender.sendMessage("§f/" + label + " anim <status|start|stop> §7- 애니메이션 상태 확인 및 제어");
         sender.sendMessage("§f/" + label + " list §7- 저장된 모델 목록 조회");
         sender.sendMessage("§f/" + label + " reload §7- 모델 및 태그 리로드");
     }
@@ -174,7 +238,7 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> sub = List.of("download", "spawn", "remove", "list", "reload");
+            List<String> sub = List.of("download", "spawn", "remove", "anim", "list", "reload");
             return filterStartsWith(sub, args[0]);
         }
 
@@ -188,6 +252,8 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 List<String> tags = new ArrayList<>(manager.getRegisteredTags());
                 tags.add("all");
                 return filterStartsWith(tags, args[1]);
+            } else if (sub.equals("anim") || sub.equals("애니메이션")) {
+                return filterStartsWith(List.of("status", "start", "stop"), args[1]);
             }
         }
 

@@ -18,8 +18,8 @@ public class BDEngineSpawner {
 
     /**
      * 지정한 위치에 BDEngine 모델을 소환합니다.
-     * 최상위 외곽 디스플레이(Root)와 모든 하위 승마(Passenger) 엔티티에 태그가 부착되며,
-     * 모델에 애니메이션이 존재할 경우 스폰 즉시 자동으로 애니메이션 재생을 시작합니다.
+     * Mojang 공식 NBT UUID를 고정 부여하여 소환 후 1틱 딜레이로 루트 및 하위 파츠를 100% 탐색하고,
+     * 애니메이션이 존재할 경우 자동으로 실시간 틱 루프 재생을 시작합니다.
      *
      * @param loc 소환할 위치
      * @param model 소환할 BDEngine 모델
@@ -66,67 +66,96 @@ public class BDEngineSpawner {
             passengerSnbt.append(snbt);
         }
 
-        // 2. execute positioned 명령어를 통해 바닐라 NBT 엔진으로 최상위 외곽 디스플레이 및 하위 승마 계층 구조 소환
+        // 2. 고유 UUID 생성 (Mojang int[4] NBT 배열 포맷)
+        UUID rootUuid = UUID.randomUUID();
+        long msb = rootUuid.getMostSignificantBits();
+        long lsb = rootUuid.getLeastSignificantBits();
+        int i1 = (int) (msb >> 32);
+        int i2 = (int) msb;
+        int i3 = (int) (lsb >> 32);
+        int i4 = (int) lsb;
+
         String summonCommand = String.format(Locale.US,
-                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {Tags:[\"bde_model\",\"%s\",\"%s\",\"%s_root\"],Passengers:[%s]}",
+                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s\",\"%s_root\"],Passengers:[%s]}",
                 loc.getX(), loc.getY(), loc.getZ(),
                 loc.getWorld().getKey().toString(),
+                i1, i2, i3, i4,
                 tag1, tag2, tag1,
                 passengerSnbt.toString()
         );
 
         boolean success = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), summonCommand);
 
-        // 3. 소환된 루트 엔티티 탐색
-        Entity root = null;
-        for (Entity entity : loc.getWorld().getNearbyEntities(loc, 4.0, 4.0, 4.0)) {
-            if (entity.getScoreboardTags().contains(tag1 + "_root")) {
-                root = entity;
-                break;
-            }
-        }
+        // 3. 소환 직후 및 1틱 뒤 루트 엔티티 및 파츠들을 100% 포착하여 애니메이션 바인딩
+        Runnable initTask = () -> {
+            Entity root = Bukkit.getEntity(rootUuid);
 
-        if (root == null) {
-            for (Entity entity : loc.getWorld().getNearbyEntities(loc, 4.0, 4.0, 4.0)) {
-                if (entity.getScoreboardTags().contains("bde_model") && entity.getVehicle() == null) {
-                    root = entity;
-                    break;
+            // fallback: 위치 기반 검색
+            if (root == null && loc.getWorld() != null) {
+                for (Entity entity : loc.getWorld().getNearbyEntities(loc, 6.0, 6.0, 6.0)) {
+                    if (entity.getScoreboardTags().contains(tag1 + "_root")) {
+                        root = entity;
+                        break;
+                    }
                 }
             }
-        }
 
-        if (root != null) {
-            tagEntityRecursively(root, tag1, tag2);
+            if (root != null) {
+                tagEntityRecursively(root, tag1, tag2);
 
-            // 4. 모델에 애니메이션이 있으면 즉시 자동 활성화 (파츠 디스플레이 매핑 후 스케줄러 등록)
-            if (model.hasAnimations() && plugin != null && plugin.getBdEngineManager() != null) {
-                Map<String, Display> partsMap = new HashMap<>();
-                mapDisplayParts(root, tag1, partsMap);
+                if (model.hasAnimations() && plugin != null && plugin.getBdEngineManager() != null) {
+                    Map<String, Display> partsMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+                    mapDisplayParts(root, partsMap);
 
-                BDEngineAnimation anim = model.getDefaultAnimation();
-                if (anim != null) {
-                    BDEngineModelInstance instance = new BDEngineModelInstance(root, model, partsMap, anim);
-                    plugin.getBdEngineManager().getAnimationManager().registerInstance(instance);
-                    plugin.getLogger().info("[BDEngine] 모델 '" + model.getName() + "' 애니메이션 '" + anim.getName() + "' 자동 재생 시작 (파츠: " + partsMap.size() + "개, 총 " + anim.getTotalTicks() + "틱)");
+                    BDEngineAnimation anim = model.getDefaultAnimation();
+                    if (anim != null) {
+                        BDEngineModelInstance instance = new BDEngineModelInstance(root, model, partsMap, anim);
+                        plugin.getBdEngineManager().getAnimationManager().registerInstance(instance);
+                        plugin.getLogger().info("[BDEngine] 모델 '" + model.getName() + "' 애니메이션 '" + anim.getName() + "' 자동 재생 시작! (바인딩된 파츠: " + partsMap.size() + "개, 총 " + anim.getTotalTicks() + "틱)");
+                    }
                 }
+            } else {
+                plugin.getLogger().warning("[BDEngine] 모델 '" + model.getName() + "' 소환 후 루트 엔티티를 찾지 못했습니다.");
             }
-        }
+        };
+
+        // 다음 틱에 엔티티가 월드 및 청크에 완전히 마운트된 상태에서 바인딩 실행
+        Bukkit.getScheduler().runTask(plugin, initTask);
 
         return success;
     }
 
-    private static void mapDisplayParts(Entity entity, String tag1, Map<String, Display> partsMap) {
+    public static void mapDisplayParts(Entity entity, Map<String, Display> partsMap) {
         if (entity == null) return;
         if (entity instanceof Display display) {
             for (String tag : display.getScoreboardTags()) {
-                if (tag.startsWith(tag1 + "_") && !tag.endsWith("_root")) {
+                if (tag.contains("_") && !tag.endsWith("_root")) {
                     partsMap.put(tag, display);
                 }
             }
         }
         for (Entity passenger : entity.getPassengers()) {
-            mapDisplayParts(passenger, tag1, partsMap);
+            mapDisplayParts(passenger, partsMap);
         }
+    }
+
+    /**
+     * 이미 월드에 소환되어 있는 모델에 대해 애니메이션을 즉시 가동합니다.
+     */
+    public static boolean startAnimationForExisting(Entity root, BDEngineModel model, Main plugin) {
+        if (root == null || !root.isValid() || model == null || !model.hasAnimations()) {
+            return false;
+        }
+        Map<String, Display> partsMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        mapDisplayParts(root, partsMap);
+        BDEngineAnimation anim = model.getDefaultAnimation();
+        if (anim != null && plugin != null && plugin.getBdEngineManager() != null) {
+            BDEngineModelInstance instance = new BDEngineModelInstance(root, model, partsMap, anim);
+            plugin.getBdEngineManager().getAnimationManager().registerInstance(instance);
+            plugin.getLogger().info("[BDEngine] 기존 모델 '" + model.getName() + "' 애니메이션 재생 시작! (파츠: " + partsMap.size() + "개)");
+            return true;
+        }
+        return false;
     }
 
     /**
