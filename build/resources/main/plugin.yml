@@ -29,5 +29,9 @@ commands:
   enhance:
     description: 장비 강화 및 테스트 명령어입니다.
     aliases: [강화]
+  bde:
+    description: BDEngine 3D 모델 다운로드 및 소환 명령어입니다.
+    aliases: [blockdisplay]
+    permission: minefarm.admin
 
 softdepend: [PlaceholderAPI]

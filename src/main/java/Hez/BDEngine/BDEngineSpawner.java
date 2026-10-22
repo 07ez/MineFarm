@@ -53,11 +53,11 @@ public class BDEngineSpawner {
             JsonElement el = passengers.get(i);
             String snbt = el.isJsonPrimitive() ? el.getAsString() : el.toString();
 
-            // [BDESERVERTAG] 치환 (필요시 모델명으로 치환)
+            // [BDESERVERTAG] 치환 (모델명으로 단일 태그 치환)
             snbt = snbt.replace("[BDESERVERTAG]", modelTag);
 
-            // 중요: 하위 파츠 엔티티들에는 임의의 태그를 주입하지 않습니다.
-            // (파츠마다 태그가 달리면 레이트레이스/조준점 기준 위치가 왜곡되기 때문)
+            // 각 하위 엔티티의 Tags:[...] 에 bde_model 과 모델명 태그 주입
+            snbt = snbt.replaceAll("(?i)Tags:\\[", "Tags:[\"bde_model\",\"" + modelTag + "\",");
 
             if (i > 0) {
                 passengerSnbt.append(",");
@@ -74,10 +74,8 @@ public class BDEngineSpawner {
         int i3 = (int) (lsb >> 32);
         int i4 = (int) lsb;
 
-        // 루트 엔티티로 '빈 블록 디스플레이(block_display with air)'를 소환하고,
-        // 오직 이 루트 빈 블록 디스플레이에만 식별 태그(모델명)를 부여합니다.
         String summonCommand = String.format(Locale.US,
-                "execute positioned %.4f %.4f %.4f in %s run summon block_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s_root\"],block_state:{Name:\"minecraft:air\"},Passengers:[%s]}",
+                "execute positioned %.4f %.4f %.4f in %s run summon text_display ~ ~ ~ {UUID:[I;%d,%d,%d,%d],Tags:[\"bde_model\",\"%s\",\"%s_root\"],Passengers:[%s]}",
                 loc.getX(), loc.getY(), loc.getZ(),
                 loc.getWorld().getKey().toString(),
                 i1, i2, i3, i4,
@@ -102,7 +100,8 @@ public class BDEngineSpawner {
             }
 
             if (root != null) {
-                // 하위 파츠들에는 태그를 달지 않고 오직 루트 빈 블록 디스플레이에만 태그 유지
+                // 하위 파츠 엔티티들에도 모델명 태그 재귀적 보강
+                tagEntityRecursively(root, modelTag);
 
                 if (model.hasAnimations() && plugin != null && plugin.getBdEngineManager() != null) {
                     Map<String, Display> partsMap = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -157,6 +156,20 @@ public class BDEngineSpawner {
             return true;
         }
         return false;
+    }
+
+    /**
+     * 엔티티 및 그 하위의 모든 탑승(Passenger) 엔티티에 단일 모델 태그를 재귀적으로 보강합니다.
+     */
+    public static void tagEntityRecursively(Entity entity, String modelTag) {
+        if (entity == null) return;
+        entity.addScoreboardTag("bde_model");
+        if (modelTag != null && !modelTag.isBlank()) {
+            entity.addScoreboardTag(modelTag);
+        }
+        for (Entity passenger : entity.getPassengers()) {
+            tagEntityRecursively(passenger, modelTag);
+        }
     }
 
     /**

@@ -112,6 +112,8 @@ public class DisplayManager {
             return fishTextDisplay.getTexts(tags);
         } else if (tags.contains("ore")) {
             return oreTextDisplay.getTexts(tags);
+        } else if (tags.contains("null")) {
+            return null;
         }
         return null;
     }
@@ -165,7 +167,7 @@ public class DisplayManager {
             }
 
             DisplayTextInfo texts = getDisplayTextInfo(tags);
-            float textYPos;
+            float textYPos = 0;
             if (tags.contains("tree")) {
                 textYPos = 0.7f;
             } else if (tags.contains("sellCrop")) {
@@ -176,14 +178,7 @@ public class DisplayManager {
                 textYPos = 0.7f;
             } else if (tags.contains("ore")) {
                 textYPos = 0.7f;
-            } else {
-                if (texts == null) texts = new DisplayTextInfo(0, 0, 0);
-                textYPos = 0.6f;
-            }
-
-            if (texts == null) {
-                texts = new DisplayTextInfo(0, 0, 0);
-            }
+            } else if (texts == null) { return; }
 
             // 이 플레이어에게만 보이는 개인 전용 텍스트 및 개인 전용 발광 적용!
             currentDisplays.put(uuid, hitDisplay);
