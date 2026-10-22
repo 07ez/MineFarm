@@ -92,7 +92,7 @@ public class MfTabCompleter implements TabCompleter {
         }
 
         if (args.length == 2 && args[0].equalsIgnoreCase("colosseum")) {
-            List<String> sub = List.of("start", "info", "tp", "setarenaspawn", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
+            List<String> sub = List.of("start", "end", "info", "tp", "setarenaspawn", "pos1", "pos2", "setpos", "setclass", "setclasspos", "teampos1", "teampos2", "setteam", "reload");
             List<String> result = new ArrayList<>();
             for (String s : sub) {
                 if (s.toLowerCase().startsWith(args[1].toLowerCase())) {

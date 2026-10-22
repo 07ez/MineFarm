@@ -718,6 +718,133 @@ public class ColosseumManager {
     }
 
     /**
+     * 관리자 전용 강제 시작 (팀 2개 충족 여부와 무관하게 2팀인 척 속이고 3초 카운트다운 후 경기 시작)
+     */
+    public boolean forceStartGame(Player admin) {
+        if (matchInProgress) {
+            return false;
+        }
+
+        // 대기실에 아무도 없는데 관리자가 실행한 경우 관리자를 참가자로 등록
+        if (admin != null && insidePlayers.isEmpty()) {
+            insidePlayers.add(admin.getUniqueId());
+        }
+
+        List<Player> participants = getInsideOnlinePlayers();
+        if (participants.isEmpty()) {
+            return false;
+        }
+
+        // 직업 미선택자에게 기본 직업(검투사) 부여, 팀 미선택자에게 기본 팀 부여
+        for (Player p : participants) {
+            selectedClasses.putIfAbsent(p.getUniqueId(), "검투사");
+            selectedTeams.putIfAbsent(p.getUniqueId(), "red");
+            readyPlayers.add(p.getUniqueId());
+        }
+
+        // 활성 팀 검사 (1개뿐이면 가상 팀 하나를 추가하여 2개 팀인 척 속임)
+        Set<String> fightingTeams = new HashSet<>();
+        for (Player p : participants) {
+            String team = selectedTeams.get(p.getUniqueId());
+            if (team != null && !team.equalsIgnoreCase("spectator")) {
+                fightingTeams.add(formatTeamName(team));
+            }
+        }
+        if (fightingTeams.size() < 2) {
+            String virtualTeam = fightingTeams.contains("§aGreen") ? "§cRed" : "§9Blue";
+            fightingTeams.add(virtualTeam + " §7(가상)");
+        }
+
+        String teamListStr = String.join(" §7vs ", fightingTeams);
+        broadcastToTownWorld("§6[콜로세움] §e관리자가 결투를 시작합니다! §f[" + teamListStr + "§f]");
+
+        if (countdownTask != null) {
+            countdownTask.cancel();
+        }
+        countdownSeconds = 3;
+        broadcastCountdownTick(3);
+
+        countdownTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
+            countdownSeconds--;
+            if (countdownSeconds > 0) {
+                broadcastCountdownTick(countdownSeconds);
+            } else {
+                if (countdownTask != null) {
+                    countdownTask.cancel();
+                    countdownTask = null;
+                }
+                startGame();
+            }
+        }, 20L, 20L);
+
+        return true;
+    }
+
+    /**
+     * 게임 종료 처리 (원래 인벤토리 복원, 마을 귀환, 경기장 원상복구)
+     */
+    public void endGame(String customSubtitle) {
+        cancelCountdown(null);
+        matchInProgress = false;
+
+        String subtitle = (customSubtitle != null && !customSubtitle.isBlank()) ? customSubtitle : "게임을 종료했습니다";
+
+        // 경기장에 있거나 백업 데이터가 있는 모든 대상 플레이어 수집
+        Set<Player> affected = new HashSet<>();
+        for (UUID uuid : inventoryBackups.keySet()) {
+            Player p = Bukkit.getPlayer(uuid);
+            if (p != null && p.isOnline()) affected.add(p);
+        }
+        for (Player p : getInsideOnlinePlayers()) {
+            affected.add(p);
+        }
+        if (arenaWorld != null) {
+            for (Player p : arenaWorld.getPlayers()) {
+                affected.add(p);
+            }
+        }
+
+        // 타이틀 및 사운드 전송
+        for (Player p : affected) {
+            p.sendTitle("§6§l게임 종료", "§f" + subtitle, 10, 50, 15);
+            try {
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
+            } catch (Exception ignored) {}
+            p.sendMessage("§6[콜로세움] §e" + subtitle);
+        }
+
+        // 원래 인벤토리 및 상태 복원
+        restoreAllPlayers();
+
+        // 모든 참가자를 마을로 귀환 텔레포트
+        for (Player p : affected) {
+            p.setGameMode(GameMode.SURVIVAL);
+            try {
+                Hez.Menu.WarpManager.teleport(p, "town");
+            } catch (Exception e) {
+                World townW = Bukkit.getWorld(townWorldName);
+                if (townW != null) {
+                    p.teleport(new Location(townW, (minX + maxX) / 2.0 + 0.5, 65.0, (minZ + maxZ) / 2.0 + 0.5));
+                }
+            }
+        }
+
+        // 경기장 블록 파괴/설치 원상복구
+        if (templateManager != null) {
+            templateManager.resetToBaseArena();
+        }
+
+        // 대기실 참가 및 준비 상태 초기화
+        readyPlayers.clear();
+        selectedClasses.clear();
+        selectedTeams.clear();
+        updateActionBarForInsidePlayers();
+
+        broadcastToTownWorld("§6[콜로세움] §e게임이 종료되었습니다.");
+        plugin.getLogger().info("[콜로세움] 게임 종료 처리 완료.");
+    }
+
+    /**
      * 3초 카운트다운 시작 (3 -> 2 -> 1 -> 시작)
      */
     private void startCountdown() {

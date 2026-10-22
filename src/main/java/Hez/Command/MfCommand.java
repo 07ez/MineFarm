@@ -411,14 +411,19 @@ public class MfCommand implements CommandExecutor {
                     sender.sendMessage("§c[콜로세움] 이미 결투가 진행 중입니다.");
                     return true;
                 }
-                java.util.List<org.bukkit.entity.Player> inside = colosseum.getInsideOnlinePlayers();
-                if (inside.isEmpty()) {
-                    sender.sendMessage("§c[콜로세움] 대기실에 참가자가 없습니다.");
-                    return true;
+                org.bukkit.entity.Player adminPlayer = (sender instanceof org.bukkit.entity.Player p) ? p : null;
+                boolean started = colosseum.forceStartGame(adminPlayer);
+                if (started) {
+                    sender.sendMessage("§a[콜로세움] 관리자 권한으로 3초 카운트다운 후 결투를 시작합니다!");
+                } else {
+                    sender.sendMessage("§c[콜로세움] 대기실에 참가자가 없어 시작할 수 없습니다. (대기실로 이동 후 시도해주세요)");
                 }
-                sender.sendMessage("§a[콜로세움] 관리자 권한으로 결투를 강제 시작합니다!");
-                colosseum.broadcastToTownWorld("§6[콜로세움] §e관리자가 결투를 강제 시작하였습니다!");
-                colosseum.startGame();
+                return true;
+            }
+
+            if (args.length > 1 && args[1].equalsIgnoreCase("end")) {
+                colosseum.endGame("게임을 종료했습니다");
+                sender.sendMessage("§a[콜로세움] 게임을 종료하고 경기장을 원상복구했습니다.");
                 return true;
             }
 
@@ -595,7 +600,8 @@ public class MfCommand implements CommandExecutor {
             }
 
             sender.sendMessage("§6=== 콜로세움 관리 명령어 ===");
-            sender.sendMessage("§e/" + label + " colosseum start §f- 대기실 인원으로 결투를 강제 시작");
+            sender.sendMessage("§e/" + label + " colosseum start §f- 3초 카운트다운 후 결투 강제 시작 (2팀 속임)");
+            sender.sendMessage("§e/" + label + " colosseum end §f- 게임 강제 종료 및 원래 인벤토리/경기장 복구");
             sender.sendMessage("§e/" + label + " colosseum info §f- 콜로세움 정보 및 직업/팀 구역 확인");
             sender.sendMessage("§e/" + label + " colosseum tp §f- 결투장 평지 월드로 이동");
             sender.sendMessage("§e/" + label + " colosseum setarenaspawn §f- 현재 위치를 결투장 스폰으로 설정");
