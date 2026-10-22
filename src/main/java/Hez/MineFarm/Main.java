@@ -73,6 +73,12 @@ public class Main extends JavaPlugin {
         if (this.colosseumManager != null) {
             this.colosseumManager.cleanup();
         }
+        if (this.bdEngineManager != null) {
+            this.bdEngineManager.cleanup();
+        }
+        if (this.bdEngineManager != null) {
+            this.bdEngineManager.cleanup();
+        }
         SaveData();
         if (this.cropsManager != null) {
             this.cropsManager.clearAllDisplays();
@@ -232,6 +238,9 @@ public class Main extends JavaPlugin {
         }
         if (this.colosseumManager != null) {
             this.colosseumManager.cleanup();
+        }
+        if (this.bdEngineManager != null) {
+            this.bdEngineManager.cleanup();
         }
 
         // 1. 현재 데이터 파일로 안전하게 저장

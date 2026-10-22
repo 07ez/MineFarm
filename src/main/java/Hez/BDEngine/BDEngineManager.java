@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 /**
- * BDEngine Server API 연동, 로컬 모델 및 태그 관리자
+ * BDEngine Server API 연동, 로컬 모델, 태그 및 애니메이션 통합 관리자
  */
 public class BDEngineManager {
 
@@ -31,6 +31,7 @@ public class BDEngineManager {
     private final Map<String, BDEngineModel> cachedModels = new ConcurrentHashMap<>();
     private final Set<String> registeredTags = Collections.synchronizedSet(new TreeSet<>(String.CASE_INSENSITIVE_ORDER));
     private final HttpClient httpClient;
+    private final BDEngineAnimationManager animationManager;
 
     public BDEngineManager(Main plugin) {
         this.plugin = plugin;
@@ -39,10 +40,11 @@ public class BDEngineManager {
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
+        this.animationManager = new BDEngineAnimationManager(plugin);
     }
 
     /**
-     * 모델 폴더 및 태그 파일 로드
+     * 모델 폴더, 태그 파일 로드 및 애니메이션 스케줄러 가동
      */
     public void init() {
         if (!modelsFolder.exists()) {
@@ -51,6 +53,7 @@ public class BDEngineManager {
 
         loadTags();
         loadAllModels();
+        animationManager.start();
     }
 
     /**
@@ -100,6 +103,7 @@ public class BDEngineManager {
         if (files == null) return;
 
         int loadedCount = 0;
+        int animCount = 0;
         for (File file : files) {
             try {
                 String json = Files.readString(file.toPath(), StandardCharsets.UTF_8);
@@ -108,12 +112,15 @@ public class BDEngineManager {
                     cachedModels.put(model.getName().toLowerCase(), model);
                     registerTag(model.getTag1());
                     loadedCount++;
+                    if (model.hasAnimations()) {
+                        animCount += model.getAnimations().size();
+                    }
                 }
             } catch (Exception e) {
                 plugin.getLogger().warning("BDEngine 모델 로드 실패 (" + file.getName() + "): " + e.getMessage());
             }
         }
-        plugin.getLogger().info("[BDEngine] 총 " + loadedCount + "개의 모델과 " + registeredTags.size() + "개의 태그가 로드되었습니다.");
+        plugin.getLogger().info("[BDEngine] 총 " + loadedCount + "개의 모델(" + animCount + "개 애니메이션)과 " + registeredTags.size() + "개의 태그가 로드되었습니다.");
     }
 
     /**
@@ -166,8 +173,9 @@ public class BDEngineManager {
                     cachedModels.put(modelName.toLowerCase(), model);
                     registerTag(tag1);
 
+                    String animInfo = model.hasAnimations() ? " (" + model.getAnimations().size() + "개 애니메이션 포함)" : "";
                     Bukkit.getScheduler().runTask(plugin, () ->
-                            callback.accept(true, "모델 '" + modelName + "' (태그1: " + tag1 + ", 태그2: " + tag2 + ") 다운로드 및 영구 저장 완료!"));
+                            callback.accept(true, "모델 '" + modelName + "' (태그1: " + tag1 + ", 태그2: " + tag2 + ")" + animInfo + " 다운로드 및 영구 저장 완료!"));
                 } else if (status == 404 || body.contains("outdated") || body.contains("exist")) {
                     Bukkit.getScheduler().runTask(plugin, () ->
                             callback.accept(false, "ID가 존재하지 않거나 만료되었습니다 (10분 유효 시간 경과). BDEngine 에디터에서 다시 Export 해주세요."));
@@ -183,7 +191,7 @@ public class BDEngineManager {
     }
 
     /**
-     * 로컬에 저장된 모델을 플레이어 위치에 소환합니다.
+     * 로컬에 저장된 모델을 플레이어 위치에 소환합니다. (애니메이션이 있는 경우 자동 재생)
      */
     public boolean spawnModel(Location loc, String modelName) {
         if (modelName == null) return false;
@@ -191,14 +199,14 @@ public class BDEngineManager {
         if (model == null) {
             return false;
         }
-        return BDEngineSpawner.spawn(loc, model);
+        return BDEngineSpawner.spawn(loc, model, plugin);
     }
 
     /**
-     * 주변 모델을 안전하게 제거합니다.
+     * 주변 모델을 안전하게 제거하고 애니메이션도 정리합니다.
      */
     public int removeModels(Location center, String targetTag, double radius) {
-        return BDEngineSpawner.remove(center, targetTag, radius);
+        return BDEngineSpawner.remove(center, targetTag, radius, plugin);
     }
 
     public BDEngineModel getModel(String modelName) {
@@ -212,5 +220,15 @@ public class BDEngineManager {
 
     public Set<String> getRegisteredTags() {
         return Collections.unmodifiableSet(registeredTags);
+    }
+
+    public BDEngineAnimationManager getAnimationManager() {
+        return animationManager;
+    }
+
+    public void cleanup() {
+        if (animationManager != null) {
+            animationManager.cleanup();
+        }
     }
 }

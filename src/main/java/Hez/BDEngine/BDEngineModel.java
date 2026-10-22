@@ -3,6 +3,10 @@ package Hez.BDEngine;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * BDEngine에서 다운로드받은 모델 데이터 및 태그 메타데이터 모델
  */
@@ -14,6 +18,7 @@ public class BDEngineModel {
     private final long savedAt;
     private final String rawJson;
     private JsonObject parsedContent;
+    private Map<String, BDEngineAnimation> animations = new HashMap<>();
 
     public BDEngineModel(String name, String tag1, String tag2, long savedAt, String rawJson) {
         this.name = name;
@@ -30,6 +35,18 @@ public class BDEngineModel {
             }
         } catch (Exception e) {
             this.parsedContent = new JsonObject();
+        }
+
+        // 애니메이션 파싱 및 캐싱
+        loadAnimations();
+    }
+
+    private void loadAnimations() {
+        if (parsedContent != null && parsedContent.has("datapack")) {
+            JsonObject datapack = parsedContent.getAsJsonObject("datapack");
+            if (datapack.has("anim_keyframes") && datapack.get("anim_keyframes").isJsonObject()) {
+                this.animations = BDEngineAnimation.parseAll(datapack.getAsJsonObject("anim_keyframes"));
+            }
         }
     }
 
@@ -55,6 +72,27 @@ public class BDEngineModel {
 
     public JsonObject getParsedContent() {
         return parsedContent;
+    }
+
+    public boolean hasAnimations() {
+        return !animations.isEmpty();
+    }
+
+    public Map<String, BDEngineAnimation> getAnimations() {
+        return Collections.unmodifiableMap(animations);
+    }
+
+    public BDEngineAnimation getAnimation(String animName) {
+        if (animName == null) return getDefaultAnimation();
+        return animations.get(animName.toLowerCase().trim());
+    }
+
+    public BDEngineAnimation getDefaultAnimation() {
+        if (animations.isEmpty()) return null;
+        if (animations.containsKey("default")) {
+            return animations.get("default");
+        }
+        return animations.values().iterator().next();
     }
 
     /**

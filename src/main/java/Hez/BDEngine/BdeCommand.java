@@ -93,7 +93,8 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 Location spawnLoc = player.getLocation();
                 boolean spawned = manager.spawnModel(spawnLoc, modelName);
                 if (spawned) {
-                    player.sendMessage("§a[BDEngine] 모델 '" + model.getName() + "' 소환 완료! (태그1: " + model.getTag1() + ", 태그2: " + model.getTag2() + ")");
+                    String animMsg = model.hasAnimations() ? " §b[애니메이션 자동 재생 중]§a" : "";
+                    player.sendMessage("§a[BDEngine] 모델 '" + model.getName() + "' 소환 완료!" + animMsg + " (태그1: " + model.getTag1() + ", 태그2: " + model.getTag2() + ")");
                 } else {
                     player.sendMessage("§c[BDEngine] 모델 소환에 실패했습니다.");
                 }
@@ -137,7 +138,8 @@ public class BdeCommand implements CommandExecutor, TabCompleter {
                 for (String name : names) {
                     BDEngineModel m = manager.getModel(name);
                     if (m != null) {
-                        sender.sendMessage("§f- §a" + m.getName() + " §7(태그1: §e" + m.getTag1() + "§7, 태그2: §e" + m.getTag2() + "§7)");
+                        String animInfo = m.hasAnimations() ? " §b[애니메이션: " + m.getAnimations().keySet() + "]§7" : "";
+                        sender.sendMessage("§f- §a" + m.getName() + animInfo + " §7(태그1: §e" + m.getTag1() + "§7, 태그2: §e" + m.getTag2() + "§7)");
                     }
                 }
                 return true;
