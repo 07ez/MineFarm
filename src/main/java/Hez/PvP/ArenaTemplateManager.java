@@ -486,61 +486,38 @@ public class ArenaTemplateManager {
 
     public void setTeamSpawn(String teamKey, Location loc) {
         if (loc == null || teamKey == null) return;
-        String key = normalizeTeamKey(teamKey);
+        String key = normalizeSpawnKey(teamKey);
         teamSpawns.put(key, loc.clone());
-        teamSpawns.put(teamKey.toLowerCase(), loc.clone()); // 원래 입력한 키도 보존
         saveConfig();
     }
 
     public Location getTeamSpawn(String teamKey) {
         if (teamKey == null) return getFirstAvailableTeamSpawn();
-        String lower = teamKey.toLowerCase();
+        String lower = normalizeSpawnKey(teamKey);
 
-        // 1. 직접 매칭 확인 (예: "team1", "red" 등)
         if (teamSpawns.containsKey(lower)) {
             return teamSpawns.get(lower);
         }
 
-        // 2. 상호 별칭 매핑 확인 (team1 <-> green, team2 <-> red, team3 <-> blue, team4 <-> yellow)
-        String alias = getTeamAlias(lower);
-        if (alias != null && teamSpawns.containsKey(alias)) {
-            return teamSpawns.get(alias);
-        }
-
-        // 3. 없으면 team1 -> team2 순으로 등록된 스폰 검색
         return getFirstAvailableTeamSpawn();
     }
 
-    private String normalizeTeamKey(String key) {
+    private String normalizeSpawnKey(String key) {
         return switch (key.toLowerCase()) {
-            case "green", "team1", "1" -> "team1";
-            case "red", "team2", "2" -> "team2";
-            case "blue", "team3", "3" -> "team3";
-            case "yellow", "team4", "4" -> "team4";
+            case "1", "team1" -> "team1";
+            case "2", "team2" -> "team2";
+            case "3", "team3" -> "team3";
+            case "4", "team4" -> "team4";
             case "spectator", "spec", "관전자" -> "spectator";
             default -> key.toLowerCase();
         };
     }
 
-    private String getTeamAlias(String key) {
-        return switch (key.toLowerCase()) {
-            case "green" -> "team1";
-            case "team1" -> "green";
-            case "red" -> "team2";
-            case "team2" -> "red";
-            case "blue" -> "team3";
-            case "team3" -> "blue";
-            case "yellow" -> "team4";
-            case "team4" -> "yellow";
-            default -> null;
-        };
-    }
-
     public Location getFirstAvailableTeamSpawn() {
         if (teamSpawns.containsKey("team1")) return teamSpawns.get("team1");
-        if (teamSpawns.containsKey("green")) return teamSpawns.get("green");
         if (teamSpawns.containsKey("team2")) return teamSpawns.get("team2");
-        if (teamSpawns.containsKey("red")) return teamSpawns.get("red");
+        if (teamSpawns.containsKey("team3")) return teamSpawns.get("team3");
+        if (teamSpawns.containsKey("team4")) return teamSpawns.get("team4");
         if (!teamSpawns.isEmpty()) {
             for (Map.Entry<String, Location> entry : teamSpawns.entrySet()) {
                 if (!entry.getKey().equalsIgnoreCase("spectator")) {

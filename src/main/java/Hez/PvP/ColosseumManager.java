@@ -596,7 +596,7 @@ public class ColosseumManager {
                 if ("spectator".equalsIgnoreCase(matchedTeam)) {
                     player.sendMessage("§7[콜로세움] §f관전자를 선택하였습니다.");
                 } else {
-                    player.sendMessage("§a[콜로세움] §f" + formatted + "§f 팀을 선택하였습니다.");
+                    player.sendMessage("§a[콜로세움] §f" + formatted + "§f을(를) 선택하였습니다.");
                 }
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
@@ -740,10 +740,10 @@ public class ColosseumManager {
             return false;
         }
 
-        // 직업 미선택자에게 기본 직업(검투사) 부여, 팀 미선택자에게 기본 team1 부여
+        // 직업 미선택자에게 기본 직업(검투사) 부여, 팀 미선택자에게 기본 red 부여
         for (Player p : participants) {
             selectedClasses.putIfAbsent(p.getUniqueId(), "검투사");
-            selectedTeams.putIfAbsent(p.getUniqueId(), "team1");
+            selectedTeams.putIfAbsent(p.getUniqueId(), "red");
             readyPlayers.add(p.getUniqueId());
         }
 
@@ -756,7 +756,7 @@ public class ColosseumManager {
             }
         }
         if (fightingTeams.size() < 2) {
-            String virtualTeam = fightingTeams.contains("§aTeam 1") ? "§cTeam 2" : "§aTeam 1";
+            String virtualTeam = fightingTeams.contains("§cRed팀") ? "§9Blue팀" : "§cRed팀";
             fightingTeams.add(virtualTeam + " §7(가상)");
         }
 
@@ -853,8 +853,8 @@ public class ColosseumManager {
 
         // 1초(20틱) 대기 후 아레나로 텔레포트
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            // 참가 플레이어가 있는 활성 팀들을 순서대로 추출 (관전자 제외)
-            List<String> colorPriority = List.of("green", "red", "blue", "yellow", "team1", "team2", "team3", "team4");
+            // 참가 플레이어가 있는 활성 팀(색상)들을 순서대로 추출 (관전자 제외)
+            List<String> colorPriority = List.of("red", "blue", "green", "yellow");
             List<String> activeTeams = new ArrayList<>();
             for (Player p : participants) {
                 if (!p.isOnline()) continue;
@@ -866,13 +866,14 @@ public class ColosseumManager {
                     }
                 }
             }
-            // 우선순위 정렬 (green -> red -> blue -> yellow -> 기타)
+            // 일관된 순서로 정렬
             activeTeams.sort(Comparator.comparingInt(t -> {
                 int idx = colorPriority.indexOf(t);
                 return idx >= 0 ? idx : 999;
             }));
 
             // 색상과 상관없이 참가 팀 수에 따라 1번 팀은 team1, 2번 팀은 team2, 3번 팀은 team3 스폰으로 순차 배정!
+            // 예: 노파 있어도 team1 team2, 빨파 있어도 team1 team2, 파초 있어도 team1 team2
             Map<String, String> teamToSpawnKey = new HashMap<>();
             for (int i = 0; i < activeTeams.size(); i++) {
                 teamToSpawnKey.put(activeTeams.get(i), "team" + (i + 1));
@@ -892,9 +893,6 @@ public class ColosseumManager {
                     String spawnSlot = teamToSpawnKey.get(team.toLowerCase());
                     if (spawnSlot != null && templateManager != null) {
                         targetLoc = templateManager.getTeamSpawn(spawnSlot);
-                    }
-                    if (targetLoc == null && templateManager != null) {
-                        targetLoc = templateManager.getTeamSpawn(team);
                     }
                 }
 
@@ -1129,7 +1127,6 @@ public class ColosseumManager {
      */
     public void endGame(String winnerMessage) {
         cancelCountdown(null);
-        matchInProgress = false;
 
         String winnerText = (winnerMessage != null && !winnerMessage.isBlank()) ? winnerMessage : "게임을 종료했습니다";
 
@@ -1175,7 +1172,7 @@ public class ColosseumManager {
 
             // 1초(20틱) 대기
             Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                // [단계 3] 맵 초기화 -> 인벤 복구 -> 마을 이동
+                // [단계 3] 맵 초기화 -> 인벤 복구 -> 마을 이동 및 콜로세움 퇴장 처리
 
                 // 1. 맵 초기화
                 if (templateManager != null) {
@@ -1185,15 +1182,21 @@ public class ColosseumManager {
                 // 2. 인벤 복구 (디버프도 백업 상태로 완전 복원)
                 restoreAllPlayers();
 
-                // 3. 마을 이동
+                // 3. 마을 이동 및 퇴장 처리
                 for (Player p : affected) {
                     if (!p.isOnline()) continue;
                     p.setGameMode(GameMode.SURVIVAL);
 
-                    // 잔여 디버프 정리
+                    // 잔여 디버프 및 직업 버프 정리
                     p.removePotionEffect(PotionEffectType.BLINDNESS);
                     p.removePotionEffect(PotionEffectType.DARKNESS);
                     p.removePotionEffect(PotionEffectType.SLOWNESS);
+                    p.removePotionEffect(PotionEffectType.STRENGTH);
+
+                    // 액션바 비우기
+                    try {
+                        p.sendActionBar(net.kyori.adventure.text.Component.empty());
+                    } catch (Exception ignored) {}
 
                     try {
                         Hez.Menu.WarpManager.teleport(p, "town");
@@ -1205,14 +1208,19 @@ public class ColosseumManager {
                     }
                 }
 
-                // 상태 정리
+                // 콜로세움 내부 플레이어 목록 및 상태 완전 초기화 (퇴장 처리 완료)
+                insidePlayers.clear();
                 readyPlayers.clear();
                 selectedClasses.clear();
                 selectedTeams.clear();
-                updateActionBarForInsidePlayers();
+                inventoryBackups.clear();
+                playerPos1Selection.clear();
+                playerTeamPos1Selection.clear();
+
+                matchInProgress = false;
 
                 broadcastToTownWorld("§6[콜로세움] §e결투가 종료되어 모든 플레이어가 마을로 귀환했습니다.");
-                plugin.getLogger().info("[콜로세움] 결투 정상 종료 및 마을 복귀 처리 완료.");
+                plugin.getLogger().info("[콜로세움] 결투 정상 종료 및 마을 복귀, 콜로세움 완전 퇴장 처리 완료.");
             }, 20L);
         }, 60L);
     }
@@ -1274,10 +1282,10 @@ public class ColosseumManager {
     public static String formatTeamName(String teamKey) {
         if (teamKey == null) return "미선택";
         return switch (teamKey.toLowerCase()) {
-            case "green", "team1" -> "§aTeam 1";
-            case "red", "team2" -> "§cTeam 2";
-            case "blue", "team3" -> "§9Team 3";
-            case "yellow", "team4" -> "§eTeam 4";
+            case "red" -> "§cRed팀";
+            case "blue" -> "§9Blue팀";
+            case "green" -> "§aGreen팀";
+            case "yellow" -> "§eYellow팀";
             case "spectator" -> "§7관전자";
             default -> teamKey;
         };
