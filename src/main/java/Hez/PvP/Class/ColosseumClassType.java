@@ -140,7 +140,18 @@ public enum ColosseumClassType {
                 inv.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
 
                 // 텔레포터 특별 아이템: 청금석
-                inv.setItem(1, new ItemStack(Material.LAPIS_LAZULI, 1));
+                ItemStack lapis = new ItemStack(Material.LAPIS_LAZULI, 1);
+                ItemMeta lapisMeta = lapis.getItemMeta();
+                if (lapisMeta != null) {
+                    lapisMeta.setDisplayName("§9[스킬] §b공간 이동");
+                    lapisMeta.setLore(List.of(
+                            "§7조작: §eF키 §7(양손 들기)",
+                            "§7바라보는 방향으로 §b8블록 §7순간이동합니다.",
+                            "§c소모: 배고픔 7"
+                    ));
+                    lapis.setItemMeta(lapisMeta);
+                }
+                inv.setItem(1, lapis);
             }
             case MOLE -> {
                 // 철검 + 갑옷 없음 (투명화 시 갑옷이 보이지 않도록 갑옷 제거)
