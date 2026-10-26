@@ -16,6 +16,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
@@ -31,7 +32,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 두더지(Mole) 직업 스킬 리스너:
  * - 호퍼('땅굴로 들어가기')를 든 상태에서 F키(스왑 핸드) 사용 시 토글
+ *   (호퍼가 왼손에 남지 않고 항상 메인 핫바에 그대로 유지됨)
  * - ON: 어둠 100 + 실명 100 + 투명화 부여, 플레이어 크기 0.5배 축소, 무적 및 공격 불가, 발 쪽 블록 스텝 파티클 2배 연출
+ * - 이동 시: 걸어다닐 때만 발 아래 블록 스텝 파티클 지속 생성
  * - OFF: 효과 클리어, 크기 1.0배 복구, 무적 해제, 발 쪽 파티클 2배 연출
  */
 public class MoleListener implements Listener {
@@ -66,8 +69,8 @@ public class MoleListener implements Listener {
             scaleAttr.setBaseValue(0.5);
         }
 
-        // 3. 발 쪽 블록 파티클 2배
-        spawnBurrowParticles(player);
+        // 3. 진입 시 발 쪽 블록 파티클 2배
+        spawnBurrowParticles(player, 40);
 
         // 4. 사운드 및 안내 메시지
         try {
@@ -91,8 +94,8 @@ public class MoleListener implements Listener {
             scaleAttr.setBaseValue(1.0);
         }
 
-        // 3. 발 쪽 블록 파티클 2배
-        spawnBurrowParticles(player);
+        // 3. 탈출 시 발 쪽 블록 파티클 2배
+        spawnBurrowParticles(player, 40);
 
         // 4. 사운드 및 안내 메시지
         try {
@@ -121,22 +124,29 @@ public class MoleListener implements Listener {
     }
 
     /**
-     * 발 아래 블록 스텝 파티클을 2배 풍성하게 연출
+     * 발 아래 블록 스텝 파티클 연출
      */
-    private static void spawnBurrowParticles(Player player) {
+    private static void spawnBurrowParticles(Player player, int count) {
         Location loc = player.getLocation();
         Block blockUnder = loc.clone().subtract(0, 0.2, 0).getBlock();
         if (blockUnder.getType().isAir()) {
             blockUnder = loc.clone().subtract(0, 1.0, 0).getBlock();
         }
         BlockData blockData = blockUnder.getType().isAir() ? Material.DIRT.createBlockData() : blockUnder.getBlockData();
-        player.getWorld().spawnParticle(Particle.BLOCK, loc.clone().add(0, 0.1, 0), 40, 0.4, 0.1, 0.4, 0.15, blockData);
+        player.getWorld().spawnParticle(Particle.BLOCK, loc.clone().add(0, 0.1, 0), count, 0.4, 0.1, 0.4, 0.15, blockData);
+    }
+
+    private boolean isHopperSkillItem(ItemStack item) {
+        if (item == null || item.getType() != Material.HOPPER) return false;
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.hasDisplayName() && meta.getDisplayName().contains("땅굴로 들어가기");
     }
 
     /**
-     * 호퍼('땅굴로 들어가기')를 든 상태에서 F키(스왑 핸드) 입력 감지
+     * 호퍼('땅굴로 들어가기')를 든 상태에서 F키(스왑 핸드) 입력 감지:
+     * - 왼손으로 넘어가지 않고 무조건 메인 핫바에 그대로 유지!
      */
-    @EventHandler(priority = EventPriority.HIGH)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onSwapHand(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
 
@@ -151,19 +161,44 @@ public class MoleListener implements Listener {
             return;
         }
 
-        // 3. 메인 손에 든 아이템이 호퍼('땅굴로 들어가기')인지 확인
-        ItemStack mainItem = event.getMainHandItem();
-        if (mainItem == null || mainItem.getType() != Material.HOPPER) {
+        // 3. 메인 손(또는 교체 대상 아이템)이 호퍼('땅굴로 들어가기')인지 확인
+        ItemStack currentMain = player.getInventory().getItemInMainHand();
+        ItemStack offGoingItem = event.getOffHandItem(); // 메인손에서 왼손으로 가려던 아이템
+        ItemStack currentOff = player.getInventory().getItemInOffHand();
+
+        ItemStack hopperItem = null;
+        if (isHopperSkillItem(currentMain)) {
+            hopperItem = currentMain;
+        } else if (isHopperSkillItem(offGoingItem)) {
+            hopperItem = offGoingItem;
+        } else if (isHopperSkillItem(currentOff)) {
+            hopperItem = currentOff;
+        }
+
+        if (hopperItem == null) {
             return;
         }
 
-        ItemMeta meta = mainItem.getItemMeta();
-        if (meta == null || !meta.hasDisplayName() || !meta.getDisplayName().contains("땅굴로 들어가기")) {
-            return;
-        }
-
-        // F키 아이템 교체 이벤트 취소
+        // F키 교체 이벤트 취소 -> 왼손으로 넘어가지 못하게 막음
         event.setCancelled(true);
+
+        // 왼손에 호퍼가 들려있지 않도록 즉시 비우고 메인 핫바에 유지
+        player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+        player.updateInventory();
+
+        // 클라이언트 예측으로 인한 잔상 방지 1틱 재확인
+        final ItemStack finalHopper = hopperItem;
+        final int heldSlot = player.getInventory().getHeldItemSlot();
+        org.bukkit.Bukkit.getScheduler().runTask(Hez.MineFarm.Main.getInstance(), () -> {
+            if (player.isOnline()) {
+                ItemStack off = player.getInventory().getItemInOffHand();
+                if (off != null && off.getType() == Material.HOPPER) {
+                    player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
+                    player.getInventory().setItem(heldSlot, finalHopper);
+                    player.updateInventory();
+                }
+            }
+        });
 
         // 토글 동작 (ON <-> OFF)
         if (isBurrowed(player.getUniqueId())) {
@@ -171,6 +206,34 @@ public class MoleListener implements Listener {
         } else {
             enterBurrow(player);
         }
+    }
+
+    /**
+     * 땅굴 모드일 때 플레이어가 걸어다닐 때만 발 아래 블록 스텝 파티클 연출
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerMove(PlayerMoveEvent event) {
+        Player player = event.getPlayer();
+        if (!isBurrowed(player.getUniqueId())) return;
+
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null) return;
+
+        // 실제 좌표 이동이 있을 때만 (시선 회전만 할 때는 파티클 미생성)
+        if (from.getX() == to.getX() && from.getY() == to.getY() && from.getZ() == to.getZ()) {
+            return;
+        }
+
+        Location loc = player.getLocation();
+        Block blockUnder = loc.clone().subtract(0, 0.2, 0).getBlock();
+        if (blockUnder.getType().isAir()) {
+            blockUnder = loc.clone().subtract(0, 0.8, 0).getBlock();
+        }
+        BlockData blockData = blockUnder.getType().isAir() ? Material.DIRT.createBlockData() : blockUnder.getBlockData();
+
+        // 걸을 때 튀어나오는 땅 파티클 연출
+        player.getWorld().spawnParticle(Particle.BLOCK, loc.clone().add(0, 0.05, 0), 4, 0.15, 0.05, 0.15, 0.05, blockData);
     }
 
     /**

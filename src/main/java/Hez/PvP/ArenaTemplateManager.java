@@ -367,44 +367,18 @@ public class ArenaTemplateManager {
     }
 
     /**
-     * 기본 경기장으로 완전 원상복구 리셋
-     * 1. 게임 중 플레이어가 설치한 블록들 공기화 (아레나 내부만)
-     * 2. 이전 테마 경기장 블록들 공기화 (아레나 내부만)
-     * 3. 게임 중 플레이어가 파괴했던 블록들을 원래 상태로 완벽 복구!
-     * 4. 기본 경기장(main) 템플릿을 Air 무시로 재부착
-     * (아레나 경계 바깥의 프리셋 건축물은 절대 건드리지 않음)
+     * 기본 경기장으로 완전 원상복구 리셋:
+     * 부서진 블록 기록을 일일이 복구하지 않고, 기본 경기장(main.template)을 공기 포함 통째로 붙여넣어 완전 초기화!
      */
     public boolean resetToBaseArena() {
         if (pasteLocation == null || pasteLocation.getWorld() == null) {
             return false;
         }
 
-        // 1. 플레이어 설치 블록 제거
-        for (Location loc : playerPlacedBlocks) {
-            if (loc.getWorld() != null && isInArenaBounds(loc)) {
-                loc.getBlock().setType(Material.AIR, false);
-            }
-        }
         playerPlacedBlocks.clear();
-
-        // 2. 테마 경기장 잔여 블록 제거
-        for (Location loc : currentThemeBlocks) {
-            if (loc.getWorld() != null && isInArenaBounds(loc)) {
-                loc.getBlock().setType(Material.AIR, false);
-            }
-        }
         currentThemeBlocks.clear();
-
-        // 3. 플레이어가 파괴했던 블록들 원래대로 복구 (구멍 메우기)
-        for (Map.Entry<Location, BlockData> entry : playerBrokenBlocks.entrySet()) {
-            Location loc = entry.getKey();
-            if (loc.getWorld() != null && isInArenaBounds(loc)) {
-                loc.getBlock().setBlockData(entry.getValue(), false);
-            }
-        }
         playerBrokenBlocks.clear();
 
-        // 4. 메인 기본 경기장 붙여넣기 (Air 포함하여 완전 초기화)
         File mainFile = new File(templateFolder, "main.template");
         if (mainFile.exists()) {
             return pasteTemplate("main", false);
