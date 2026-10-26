@@ -901,6 +901,11 @@ public class ColosseumManager {
                 }
                 p.teleport(targetLoc);
 
+                // 아레나 입장 시 대기실 액션바 즉시 제거
+                try {
+                    p.sendActionBar(net.kyori.adventure.text.Component.empty());
+                } catch (Exception ignored) {}
+
                 // 어둠/실명을 강제로 clear하지 않고, 자연스럽게 깜빡거리며 풀리도록 둠
                 // "이동 중입니다..." 타이틀을 2초(40틱) 동안 출력
                 p.sendTitle("§f§l이동 중입니다...", "§7결투장에 입장하고 있습니다", 0, 40, 10);
@@ -1320,6 +1325,8 @@ public class ColosseumManager {
     }
 
     public void updateActionBarForInsidePlayers() {
+        // 결투 진행 중에는 대기실 액션바를 표시하지 않음
+        if (matchInProgress) return;
         List<Player> onlineInArena = getInsideOnlinePlayers();
         if (onlineInArena.isEmpty()) return;
 
