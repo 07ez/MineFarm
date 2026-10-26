@@ -179,26 +179,9 @@ public class MoleListener implements Listener {
             return;
         }
 
-        // F키 교체 이벤트 취소 -> 왼손으로 넘어가지 못하게 막음
+        // F키 교체 이벤트 취소 -> 왼손과 오른손 아이템 교체 방지 (기존 왼손 아이템 완벽 보존)
         event.setCancelled(true);
-
-        // 왼손에 호퍼가 들려있지 않도록 즉시 비우고 메인 핫바에 유지
-        player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
         player.updateInventory();
-
-        // 클라이언트 예측으로 인한 잔상 방지 1틱 재확인
-        final ItemStack finalHopper = hopperItem;
-        final int heldSlot = player.getInventory().getHeldItemSlot();
-        org.bukkit.Bukkit.getScheduler().runTask(Hez.MineFarm.Main.getInstance(), () -> {
-            if (player.isOnline()) {
-                ItemStack off = player.getInventory().getItemInOffHand();
-                if (off != null && off.getType() == Material.HOPPER) {
-                    player.getInventory().setItemInOffHand(new ItemStack(Material.AIR));
-                    player.getInventory().setItem(heldSlot, finalHopper);
-                    player.updateInventory();
-                }
-            }
-        });
 
         // 토글 동작 (ON <-> OFF)
         if (isBurrowed(player.getUniqueId())) {
