@@ -116,7 +116,7 @@ public enum ColosseumClassType {
                         List.of("§7섭취 시간: 2초", "§b효과: 투명화 (30초)")));
 
                 // 5. 유황: 섭취시간 1.5초 (멀미 10초, 독 1초)
-                inv.setItem(4, createEdibleItem(Material.GUNPOWDER, 1, "§e유황", 1.5f, ItemUseAnimation.EAT,
+                inv.setItem(4, createEdibleItem(Material.SULFUR, 1, "§e유황", 1.5f, ItemUseAnimation.EAT,
                         List.of("§7섭취 시간: 1.5초", "§8효과: 멀미 (10초), 독 (1초)")));
 
                 // 6. 화염구: 섭취시간 1초 (5개) (바라보는 방향으로 화염구 발사)

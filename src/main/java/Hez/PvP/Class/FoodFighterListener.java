@@ -59,7 +59,6 @@ public class FoodFighterListener implements Listener {
                 // 섭취시간 20초, 저항3 20초, 힘 15 10초
                 player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 20 * 20, 2, false, true, true));
                 player.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, 20 * 10, 14, false, true, true));
-                player.sendMessage("§6[푸드파이터] §7기반암을 20초 동안 씹어먹었습니다! §f(저항 III 20초, 힘 XV 10초)");
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_IRON_GOLEM_HURT, 1.0f, 0.8f);
                 } catch (Exception ignored) {}
@@ -67,7 +66,6 @@ public class FoodFighterListener implements Listener {
             case FEATHER -> {
                 // 섭취시간 0.5초, 공중부양 1 10초
                 player.addPotionEffect(new PotionEffect(PotionEffectType.LEVITATION, 20 * 10, 0, false, true, true));
-                player.sendMessage("§6[푸드파이터] §f깃털을 삼켰습니다! §b(공중부양 I 10초)");
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_BAT_TAKEOFF, 1.0f, 1.2f);
                 } catch (Exception ignored) {}
@@ -75,7 +73,6 @@ public class FoodFighterListener implements Listener {
             case LAVA_BUCKET -> {
                 // 섭취시간 2초, 내가 불붙음
                 player.setFireTicks(20 * 8); // 8초간 불붙음
-                player.sendMessage("§6[푸드파이터] §c용암을 원샷했습니다! 온몸에 불이 활활 타오릅니다!");
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_GENERIC_BURN, 1.0f, 1.0f);
                 } catch (Exception ignored) {}
@@ -88,16 +85,14 @@ public class FoodFighterListener implements Listener {
             case GLASS -> {
                 // 섭취시간 2초, 투명화 30초
                 player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 20 * 30, 0, false, true, true));
-                player.sendMessage("§6[푸드파이터] §7유리를 와작와작 씹어먹었습니다! §b(투명화 30초)");
                 try {
                     player.playSound(player.getLocation(), Sound.BLOCK_GLASS_BREAK, 1.0f, 1.0f);
                 } catch (Exception ignored) {}
             }
-            case GUNPOWDER -> {
+            case SULFUR -> {
                 // 섭취시간 1.5초, 멀미 10초, 독 1초
                 player.addPotionEffect(new PotionEffect(PotionEffectType.NAUSEA, 20 * 10, 0, false, true, true));
                 player.addPotionEffect(new PotionEffect(PotionEffectType.POISON, 20 * 1, 0, false, true, true));
-                player.sendMessage("§6[푸드파이터] §e유황을 먹었습니다! 켁켁... §8(멀미 10초, 독 1초)");
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_BURP, 1.0f, 0.8f);
                 } catch (Exception ignored) {}
@@ -107,7 +102,6 @@ public class FoodFighterListener implements Listener {
                 Fireball fireball = player.launchProjectile(Fireball.class);
                 fireball.setYield(1.5f);
                 fireball.setIsIncendiary(true);
-                player.sendMessage("§6[푸드파이터] §6화염구를 삼켜 불을 뿜었습니다! §c(화염구 발사!)");
                 try {
                     player.playSound(player.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.0f, 1.0f);
                 } catch (Exception ignored) {}
@@ -115,7 +109,6 @@ public class FoodFighterListener implements Listener {
             case DIAMOND -> {
                 // 섭취시간 1.5초, 발광 30초
                 player.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 20 * 30, 0, false, true, true));
-                player.sendMessage("§6[푸드파이터] §b다이아몬드를 삼켰습니다! 온몸이 눈부시게 빛납니다! §e(발광 30초)");
                 try {
                     player.playSound(player.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1.0f, 1.2f);
                 } catch (Exception ignored) {}
