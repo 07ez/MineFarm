@@ -209,6 +209,7 @@ public class Main extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ColosseumListener(this.colosseumManager), this);
         getServer().getPluginManager().registerEvents(new Hez.PvP.Class.OnePunchManListener(this.colosseumManager), this);
         getServer().getPluginManager().registerEvents(new Hez.PvP.Class.FarmerListener(this.colosseumManager), this);
+        getServer().getPluginManager().registerEvents(new Hez.PvP.Class.MoleListener(this.colosseumManager), this);
 
         // BDEngine 모델 및 태그 로드
         if (this.bdEngineManager != null) {

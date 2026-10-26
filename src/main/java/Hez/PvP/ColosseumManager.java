@@ -88,6 +88,7 @@ public class ColosseumManager {
         private final float exp;
         private final Collection<PotionEffect> activeEffects;
         private final GameMode gameMode;
+        private final double scale;
 
         public PlayerBackupData(Player p) {
             this.contents = cloneItemArray(p.getInventory().getStorageContents());
@@ -100,6 +101,8 @@ public class ColosseumManager {
             this.exp = p.getExp();
             this.activeEffects = new ArrayList<>(p.getActivePotionEffects());
             this.gameMode = p.getGameMode();
+            org.bukkit.attribute.AttributeInstance scaleAttr = p.getAttribute(org.bukkit.attribute.Attribute.SCALE);
+            this.scale = scaleAttr != null ? scaleAttr.getBaseValue() : 1.0;
         }
 
         public void restore(Player p) {
@@ -119,6 +122,10 @@ public class ColosseumManager {
             p.setExp(this.exp);
             p.setFoodLevel(this.foodLevel);
             p.setSaturation(this.saturation);
+            org.bukkit.attribute.AttributeInstance scaleAttr = p.getAttribute(org.bukkit.attribute.Attribute.SCALE);
+            if (scaleAttr != null) {
+                scaleAttr.setBaseValue(this.scale);
+            }
             try {
                 p.setHealth(Math.min(this.health, p.getMaxHealth()));
             } catch (Exception ignored) {}
@@ -1212,6 +1219,9 @@ public class ColosseumManager {
                         }
                     }
                 }
+
+                // 두더지 땅굴 상태 및 스케일 초기화
+                Hez.PvP.Class.MoleListener.resetAll();
 
                 // 콜로세움 내부 플레이어 목록 및 상태 완전 초기화 (퇴장 처리 완료)
                 insidePlayers.clear();

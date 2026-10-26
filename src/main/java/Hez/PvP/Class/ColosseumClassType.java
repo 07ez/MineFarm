@@ -20,7 +20,7 @@ public enum ColosseumClassType {
     FARMER("파머", "무기: 금괭이, 방어구: 사슬투구+구리갑옷(염색)"),
     FOOD_FIGHTER("푸드파이터", "무기: 맨손, 방어구: 철 세트"),
     TELEPORTER("텔레포터", "무기: 철검, 방어구: 사슬 세트"),
-    MOLE("두더지", "무기: 철검, 방어구: 사슬 세트");
+    MOLE("두더지", "무기: 철검, 방어구: 없음, 능력: 호퍼(땅굴로 들어가기) F키 사용 시 땅속 잠입");
 
     private final String displayName;
     private final String description;
@@ -127,15 +127,17 @@ public enum ColosseumClassType {
                 inv.setItem(1, new ItemStack(Material.LAPIS_LAZULI, 1));
             }
             case MOLE -> {
-                // 철검 + 사슬 세트
+                // 철검 + 갑옷 없음 (투명화 시 갑옷이 보이지 않도록 갑옷 제거)
                 inv.setItem(0, new ItemStack(Material.IRON_SWORD));
-                inv.setHelmet(new ItemStack(Material.CHAINMAIL_HELMET));
-                inv.setChestplate(new ItemStack(Material.CHAINMAIL_CHESTPLATE));
-                inv.setLeggings(new ItemStack(Material.CHAINMAIL_LEGGINGS));
-                inv.setBoots(new ItemStack(Material.CHAINMAIL_BOOTS));
 
-                // 두더지 특별 아이템: 호퍼
-                inv.setItem(1, new ItemStack(Material.HOPPER, 1));
+                // 두더지 특수 아이템: 호퍼 (이름: 땅굴로 들어가기)
+                ItemStack hopper = new ItemStack(Material.HOPPER, 1);
+                ItemMeta meta = hopper.getItemMeta();
+                if (meta != null) {
+                    meta.setDisplayName("§6[스킬] §e땅굴로 들어가기");
+                    hopper.setItemMeta(meta);
+                }
+                inv.setItem(1, hopper);
             }
         }
     }
