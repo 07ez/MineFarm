@@ -153,6 +153,7 @@ public class Main extends JavaPlugin {
     private void LoadData(){
         // 야생 월드 생성 및 아이템 청소기 초기화
         this.wildManager.init();
+        getServer().getPluginManager().registerEvents(new Hez.Wilderness.WildGenerationListener(this), this);
 
         // 물고기 등록
         this.fishManager.Init();
@@ -217,6 +218,12 @@ public class Main extends JavaPlugin {
         if (this.bdEngineManager != null) {
             this.bdEngineManager.init();
         }
+
+        // 카지노 Interaction 엔티티 상호작용 리스너 등록 (룰렛, 텍사스홀덤, 슬롯머신)
+        getServer().getPluginManager().registerEvents(new Hez.Casino.CasinoInteractionListener(), this);
+
+        // 은행 ATM Interaction 엔티티 및 채팅 입출금 리스너 등록
+        getServer().getPluginManager().registerEvents(new Hez.Bank.ATMListener(this), this);
 
         // 커맨드 관리 시스템 *** 항상 맨 밑에 두시오 ***
         new CommandManager(this).registerCommands();

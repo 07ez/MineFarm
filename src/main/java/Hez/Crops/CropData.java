@@ -8,26 +8,39 @@ import org.bukkit.Material;
 public class CropData {
     private final BlockPos pos;
     private final Material cropMaterial;
-    private final long plantedAt;         // 심은 시각 (ms)
+    private final CropType cropType;
+    private long plantedAt;                // 심은 시각 또는 단계 시작 시각 (ms)
     private final long growDurationMs;     // 완전히 자라는 데 걸리는 기본 시간 (ms)
     private float boost;                   // 성장 가속 계수 (기본 1.0f)
     private boolean boneMealUsed;          // 뼛가루 10% 단축 사용 여부 (딱 1회만 가능)
+    private int currentStage;              // 타워형/단계형 작물의 현재 높이/단계 (기본 1)
 
     public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs) {
-        this(pos, cropMaterial, plantedAt, growDurationMs, 1.0f, false);
+        this(pos, cropMaterial, plantedAt, growDurationMs, 1.0f, false, 1);
     }
 
     public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs, float boost) {
-        this(pos, cropMaterial, plantedAt, growDurationMs, boost, false);
+        this(pos, cropMaterial, plantedAt, growDurationMs, boost, false, 1);
     }
 
     public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs, float boost, boolean boneMealUsed) {
+        this(pos, cropMaterial, plantedAt, growDurationMs, boost, boneMealUsed, 1);
+    }
+
+    public CropData(BlockPos pos, Material cropMaterial, long plantedAt, long growDurationMs, float boost, boolean boneMealUsed, int currentStage) {
         this.pos = pos;
         this.cropMaterial = cropMaterial;
         this.plantedAt = plantedAt;
         this.growDurationMs = growDurationMs;
         this.boost = boost;
         this.boneMealUsed = boneMealUsed;
+        this.currentStage = Math.max(1, currentStage);
+
+        CropType foundType = CropType.fromBlock(cropMaterial);
+        if (foundType == null) {
+            foundType = CropType.fromSeed(cropMaterial);
+        }
+        this.cropType = foundType;
     }
 
     public BlockPos getPos() {
@@ -38,8 +51,16 @@ public class CropData {
         return cropMaterial;
     }
 
+    public CropType getCropType() {
+        return cropType;
+    }
+
     public long getPlantedAt() {
         return plantedAt;
+    }
+
+    public void setPlantedAt(long plantedAt) {
+        this.plantedAt = plantedAt;
     }
 
     public long getGrowDurationMs() {
@@ -60,6 +81,14 @@ public class CropData {
 
     public void setBoneMealUsed(boolean boneMealUsed) {
         this.boneMealUsed = boneMealUsed;
+    }
+
+    public int getCurrentStage() {
+        return currentStage;
+    }
+
+    public void setCurrentStage(int currentStage) {
+        this.currentStage = currentStage;
     }
 
     /**

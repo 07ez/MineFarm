@@ -26,6 +26,7 @@ public class CommandManager {
         register("encyclopedia", new EncyclopediaCommand(), new EncyclopediaTabCompleter());
         register("mf", new MfCommand(plugin), new MfTabCompleter());
         register("enhance", new EnhanceCommand());
+        register("atm", new ATMCommand());
 
         // BDEngine 3D 모델 명령어 등록 (/bde)
         if (plugin.getBdEngineManager() != null) {

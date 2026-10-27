@@ -5,8 +5,12 @@ import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Ageable;
+import org.bukkit.block.data.Bisected;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.type.CaveVines;
+import org.bukkit.block.data.type.CaveVinesPlant;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -38,7 +42,7 @@ public class CropsManager {
         long now = System.currentTimeMillis();
         long duration = type.getDefaultGrowDurationMs();
 
-        CropData data = new CropData(pos, type.getBlockMaterial(), now, duration);
+        CropData data = new CropData(pos, type.getBlockMaterial(), now, duration, 1.0f, false, 1);
         cropsByPos.put(pos, data);
 
         ChunkKey chunkKey = ChunkKey.from(block.getChunk());
@@ -48,6 +52,11 @@ public class CropsManager {
         if (block.getBlockData() instanceof Ageable ageable) {
             ageable.setAge(0);
             block.setBlockData(ageable, false);
+        } else if (type.getHarvestType() == CropType.HarvestType.VINE_RIGHT_CLICK) {
+            if (block.getBlockData() instanceof CaveVines caveVines) {
+                caveVines.setBerries(false);
+                block.setBlockData(caveVines, false);
+            }
         }
 
         return true;
@@ -94,7 +103,7 @@ public class CropsManager {
 
     /**
      * 청크가 로딩되었을 때 호출:
-     * 해당 청크에 심겨진 모든 작물의 경과 시간을 계산하여 블록 상태(Age)를 즉시 동기화
+     * 해당 청크에 심겨진 모든 작물의 경과 시간을 계산하여 블록 상태를 즉시 동기화
      */
     public void onChunkLoad(Chunk chunk) {
         ChunkKey chunkKey = ChunkKey.from(chunk);
@@ -111,14 +120,32 @@ public class CropsManager {
             }
 
             Block block = chunk.getWorld().getBlockAt(pos.x(), pos.y(), pos.z());
+            CropType type = cropData.getCropType();
 
-            // 블록이 외부 요인(물, 폭발 등)으로 다른 블록이 된 경우 데이터 정리
-            if (block.getType() != cropData.getCropMaterial()) {
+            // 블록 타입 유효성 검사
+            boolean valid = false;
+            if (type != null) {
+                if (type.getHarvestType() == CropType.HarvestType.BLOCK_TRANSFORM) {
+                    valid = (block.getType() == type.getBlockMaterial() || block.getType() == type.getDropMaterial());
+                } else if (type.getHarvestType() == CropType.HarvestType.DOUBLE_PLANT) {
+                    valid = (block.getType() == type.getBlockMaterial() || block.getType() == type.getDropMaterial());
+                } else if (type.getHarvestType() == CropType.HarvestType.CHORUS_TREE) {
+                    valid = (block.getType() == Material.CHORUS_FLOWER || block.getType() == Material.CHORUS_PLANT);
+                } else if (type.getHarvestType() == CropType.HarvestType.VINE_RIGHT_CLICK) {
+                    valid = (block.getType() == Material.CAVE_VINES || block.getType() == Material.CAVE_VINES_PLANT);
+                } else {
+                    valid = (block.getType() == cropData.getCropMaterial());
+                }
+            } else {
+                valid = (block.getType() == cropData.getCropMaterial());
+            }
+
+            if (!valid) {
                 toCleanUp.add(pos);
                 continue;
             }
 
-            // 실시간 시간 계산 후 나이 동기화
+            // 실시간 시간 계산 후 시각적 상태 동기화
             updateBlockVisual(block, cropData);
         }
 
@@ -128,17 +155,164 @@ public class CropsManager {
     }
 
     /**
-     * 특정 블록의 시각적 성장 단계(Age)를 실시간 계산값으로 업데이트
+     * 특정 블록의 시각적 성장 단계(Age, 블록 변환 등)를 실시간 계산값으로 업데이트
      */
     public void updateBlockVisual(Block block, CropData cropData) {
-        BlockData blockData = block.getBlockData();
-        if (blockData instanceof Ageable ageable) {
-            int maxAge = ageable.getMaximumAge();
-            int calculatedAge = cropData.calculateAge(maxAge);
+        CropType type = cropData.getCropType();
+        if (type == null) {
+            // 기본 Ageable 처리
+            BlockData blockData = block.getBlockData();
+            if (blockData instanceof Ageable ageable) {
+                int maxAge = ageable.getMaximumAge();
+                int calculatedAge = cropData.calculateAge(maxAge);
+                if (ageable.getAge() != calculatedAge) {
+                    ageable.setAge(calculatedAge);
+                    block.setBlockData(ageable, false);
+                }
+            }
+            return;
+        }
 
-            if (ageable.getAge() != calculatedAge) {
-                ageable.setAge(calculatedAge);
-                block.setBlockData(ageable, false);
+        switch (type.getHarvestType()) {
+            case BLOCK_TRANSFORM -> {
+                // 수박, 호박: 성장 중에는 줄기 나이 증가, 다 자라면 블록 변환
+                if (cropData.isHarvestable()) {
+                    if (block.getType() != type.getDropMaterial()) {
+                        block.setType(type.getDropMaterial(), false);
+                    }
+                } else {
+                    if (block.getBlockData() instanceof Ageable ageable) {
+                        int maxAge = ageable.getMaximumAge();
+                        int calculatedAge = cropData.calculateAge(maxAge);
+                        if (ageable.getAge() != calculatedAge) {
+                            ageable.setAge(calculatedAge);
+                            block.setBlockData(ageable, false);
+                        }
+                    }
+                }
+            }
+            case DOUBLE_PLANT -> {
+                // 벌레잡이풀: 다 자라면 2칸 식물 생성
+                if (cropData.isHarvestable()) {
+                    if (block.getType() != Material.PITCHER_PLANT) {
+                        Block topBlock = block.getRelative(BlockFace.UP);
+                        if (topBlock.getType() == Material.AIR) {
+                            block.setType(Material.PITCHER_PLANT, false);
+                            topBlock.setType(Material.PITCHER_PLANT, false);
+
+                            if (block.getBlockData() instanceof Bisected lower && topBlock.getBlockData() instanceof Bisected upper) {
+                                lower.setHalf(Bisected.Half.BOTTOM);
+                                upper.setHalf(Bisected.Half.TOP);
+                                block.setBlockData(lower, false);
+                                topBlock.setBlockData(upper, false);
+                            }
+                        }
+                    }
+                } else {
+                    if (block.getBlockData() instanceof Ageable ageable) {
+                        int maxAge = ageable.getMaximumAge();
+                        int calculatedAge = cropData.calculateAge(maxAge);
+                        if (ageable.getAge() != calculatedAge) {
+                            ageable.setAge(calculatedAge);
+                            block.setBlockData(ageable, false);
+                        }
+                    }
+                }
+            }
+            case TOWER -> {
+                // 사탕수수, 선인장은 최대 3단, 켈프는 최대 15단까지 위로 성장
+                int maxStage = (type == CropType.KELP) ? 15 : 3;
+                if (cropData.isHarvestable() && cropData.getCurrentStage() < maxStage) {
+                    Block nextBlock = block.getRelative(0, cropData.getCurrentStage(), 0);
+                    boolean canGrow = false;
+                    if (type == CropType.KELP) {
+                        canGrow = (nextBlock.getType() == Material.WATER);
+                    } else {
+                        canGrow = (nextBlock.getType() == Material.AIR);
+                    }
+
+                    if (canGrow) {
+                        nextBlock.setType(type.getBlockMaterial(), true);
+                        cropData.setCurrentStage(cropData.getCurrentStage() + 1);
+                        cropData.setPlantedAt(System.currentTimeMillis());
+                        cropData.setBoneMealUsed(false);
+                    }
+                }
+            }
+            case VINE_RIGHT_CLICK -> {
+                // 빛나는 열매: 연결된 모든 덩굴 블록을 검사
+                // 1순위: 열매를 맺을 곳(isBerries == false)이 있으면 열매 맺기 (1개만)
+                // 2순위: 모든 덩굴에 이미 열매가 맺혀있어 맺을 곳이 없으면 아래로 자라기 (아래가 공기일 때)
+                if (cropData.isHarvestable()) {
+                    List<Block> connectedVines = getConnectedVineBlocks(block);
+                    if (connectedVines.isEmpty()) return;
+
+                    // 열매를 맺을 수 있는 블록(아직 열매가 없는 블록) 탐색
+                    Block targetBlock = null;
+                    for (Block vine : connectedVines) {
+                        if (vine.getBlockData() instanceof CaveVines caveVines) {
+                            if (!caveVines.isBerries()) {
+                                targetBlock = vine;
+                                break;
+                            }
+                        } else if (vine.getBlockData() instanceof CaveVinesPlant caveVinesPlant) {
+                            if (!caveVinesPlant.isBerries()) {
+                                targetBlock = vine;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (targetBlock != null) {
+                        // 열매 맺을 곳이 있으므로 열매 1개 맺기
+                        if (targetBlock.getBlockData() instanceof CaveVines caveVines) {
+                            caveVines.setBerries(true);
+                            targetBlock.setBlockData(caveVines, false);
+                        } else if (targetBlock.getBlockData() instanceof CaveVinesPlant caveVinesPlant) {
+                            caveVinesPlant.setBerries(true);
+                            targetBlock.setBlockData(caveVinesPlant, false);
+                        }
+                        cropData.setPlantedAt(System.currentTimeMillis());
+                        cropData.setBoneMealUsed(false);
+                    } else {
+                        // 열매 맺을 곳이 없으므로(모든 덩굴에 열매가 있음), 맨 아래에서 아래로 1칸 자라기 시도
+                        Block bottomBlock = connectedVines.get(connectedVines.size() - 1);
+                        Block below = bottomBlock.getRelative(BlockFace.DOWN);
+                        if (below.getType() == Material.AIR) {
+                            bottomBlock.setType(Material.CAVE_VINES_PLANT, false);
+                            below.setType(Material.CAVE_VINES, false);
+                            cropData.setPlantedAt(System.currentTimeMillis());
+                            cropData.setBoneMealUsed(false);
+                        }
+                    }
+                }
+            }
+            case CHORUS_TREE -> {
+                // 후렴과: 단계별 가지치기 성장
+                if (cropData.isHarvestable()) {
+                    if (block.getType() == Material.CHORUS_FLOWER) {
+                        Block top = block.getRelative(BlockFace.UP);
+                        if (top.getType() == Material.AIR) {
+                            block.setType(Material.CHORUS_PLANT, false);
+                            top.setType(Material.CHORUS_FLOWER, false);
+                            cropData.setCurrentStage(cropData.getCurrentStage() + 1);
+                            cropData.setPlantedAt(System.currentTimeMillis());
+                            cropData.setBoneMealUsed(false);
+                        }
+                    }
+                }
+            }
+            case BREAK_CROP -> {
+                // 일반 Ageable (감자, 당근, 비트, 밀, 횃불꽃, 달콤한 열매, 코코아 등)
+                BlockData blockData = block.getBlockData();
+                if (blockData instanceof Ageable ageable) {
+                    int maxAge = ageable.getMaximumAge();
+                    int calculatedAge = cropData.calculateAge(maxAge);
+                    if (ageable.getAge() != calculatedAge) {
+                        ageable.setAge(calculatedAge);
+                        block.setBlockData(ageable, false);
+                    }
+                }
             }
         }
     }
@@ -155,10 +329,63 @@ public class CropsManager {
     }
 
     /**
+     * 타워형 작물(사탕수수, 선인장, 켈프)의 밑동 찾기
+     */
+    public CropData findTowerBaseCrop(Block block) {
+        Block current = block;
+        Material mat = block.getType();
+        while (current.getY() > current.getWorld().getMinHeight()) {
+            Block below = current.getRelative(BlockFace.DOWN);
+            if (below.getType() == mat || (mat == Material.KELP && below.getType() == Material.KELP_PLANT) || (mat == Material.KELP_PLANT && below.getType() == Material.KELP)) {
+                current = below;
+            } else {
+                break;
+            }
+        }
+        return getCrop(current.getLocation());
+    }
+
+    /**
+     * 동굴 덩굴(빛나는 열매)의 루트(천장 밑동) 블록 찾기
+     */
+    public Block findVineRootBlock(Block block) {
+        Block current = block;
+        while (current.getY() < current.getWorld().getMaxHeight()) {
+            Block above = current.getRelative(BlockFace.UP);
+            if (above.getType() == Material.CAVE_VINES || above.getType() == Material.CAVE_VINES_PLANT) {
+                current = above;
+            } else {
+                break;
+            }
+        }
+        return current;
+    }
+
+    /**
+     * 동굴 덩굴(빛나는 열매)의 루트(천장 밑동) 찾기
+     */
+    public CropData findVineRootCrop(Block block) {
+        Block rootBlock = findVineRootBlock(block);
+        return getCrop(rootBlock.getLocation());
+    }
+
+    /**
+     * 루트 블록으로부터 아래로 연결된 모든 덩굴 블록들을 순서대로 반환
+     */
+    public List<Block> getConnectedVineBlocks(Block rootBlock) {
+        List<Block> list = new ArrayList<>();
+        Block curr = rootBlock;
+        while (curr.getType() == Material.CAVE_VINES || curr.getType() == Material.CAVE_VINES_PLANT) {
+            list.add(curr);
+            curr = curr.getRelative(BlockFace.DOWN);
+        }
+        return list;
+    }
+
+    /**
      * 데이터 저장 (cropsData.yml)
      */
     public void saveData(FileConfiguration config) {
-        // 기존 섹션 초기화
         config.set("crops", null);
 
         for (Map.Entry<BlockPos, CropData> entry : cropsByPos.entrySet()) {
@@ -174,6 +401,7 @@ public class CropsManager {
             config.set(key + ".growDuration", data.getGrowDurationMs());
             config.set(key + ".boost", data.getBoost());
             config.set(key + ".boneMealUsed", data.isBoneMealUsed());
+            config.set(key + ".currentStage", data.getCurrentStage());
         }
     }
 
@@ -197,17 +425,17 @@ public class CropsManager {
             long growDuration = section.getLong(key + ".growDuration");
             float boost = (float) section.getDouble(key + ".boost", 1.0);
             boolean boneMealUsed = section.getBoolean(key + ".boneMealUsed", false);
+            int currentStage = section.getInt(key + ".currentStage", 1);
 
             if (world == null || matName == null) continue;
 
             try {
                 Material material = Material.valueOf(matName);
                 BlockPos pos = new BlockPos(world, x, y, z);
-                CropData cropData = new CropData(pos, material, plantedAt, growDuration, boost, boneMealUsed);
+                CropData cropData = new CropData(pos, material, plantedAt, growDuration, boost, boneMealUsed, currentStage);
 
                 cropsByPos.put(pos, cropData);
 
-                // chunkKey: x >> 4, z >> 4
                 ChunkKey chunkKey = new ChunkKey(world, x >> 4, z >> 4);
                 cropsByChunk.computeIfAbsent(chunkKey, k -> Collections.newSetFromMap(new ConcurrentHashMap<>())).add(pos);
             } catch (IllegalArgumentException ignored) {
@@ -220,10 +448,7 @@ public class CropsManager {
      * 해당 작물 블록 위에 남은 시간 또는 '수확가능!'을 안내하는 TextDisplay를 소환
      */
     public void showCropDisplay(org.bukkit.entity.Player player, Block block, CropData cropData) {
-        // 기존에 이 플레이어가 띄워둔 디스플레이가 있다면 먼저 제거
         removeCropDisplay(player);
-
-        // 시각적 나이 먼저 갱신
         updateBlockVisual(block, cropData);
 
         Location displayLoc = block.getLocation().add(0.5, 0.75, 0.5);
@@ -237,10 +462,10 @@ public class CropsManager {
             transformation.getScale().set(0.6f, 0.6f, 0.6f);
             text.setTransformation(transformation);
 
-            text.setPersistent(false); // 재시작 시 잔존 엔티티 방지
+            text.setPersistent(false);
         });
 
-        activeDisplays.put(player.getUniqueId(), new ActiveCropDisplay(BlockPos.from(block), textDisplay));
+        activeDisplays.put(player.getUniqueId(), new ActiveCropDisplay(cropData.getPos(), textDisplay));
     }
 
     /**
@@ -254,9 +479,7 @@ public class CropsManager {
     }
 
     /**
-     * 주기적 작물 성장 상태 동기화 태스크:
-     * 로딩된 청크 내의 작물들의 나이(Age)를 실시간 경과 시간 기준으로 자동 갱신 (1초마다)
-     * 플레이어가 웅크리기+우클릭하지 않아도 시간이 되면 저절로 자라는 모습으로 보이도록 보장
+     * 주기적 작물 성장 상태 동기화 태스크 (1초마다)
      */
     public void startCropGrowthUpdaterTask(org.bukkit.plugin.java.JavaPlugin plugin) {
         org.bukkit.Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -269,23 +492,19 @@ public class CropsManager {
                 org.bukkit.World world = org.bukkit.Bukkit.getWorld(pos.worldName());
                 if (world == null) continue;
 
-                // 청크가 로딩되어 있을 때만 블록 상태를 안전하게 갱신
                 int chunkX = pos.x() >> 4;
                 int chunkZ = pos.z() >> 4;
                 if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
 
                 Block block = world.getBlockAt(pos.x(), pos.y(), pos.z());
-                if (block.getType() == cropData.getCropMaterial()) {
-                    updateBlockVisual(block, cropData);
-                }
+                updateBlockVisual(block, cropData);
             }
-        }, 20L, 20L); // 1초(20틱)마다 실행
+        }, 20L, 20L);
     }
 
     /**
      * 크로스헤어 감지 태스크:
-     * 플레이어의 시선(크로스헤어)이 작물에서 벗어나면 TextDisplay 즉시 해제,
-     * 계속 바라보고 있다면 남은 시간 및 작물 나이를 실시간 갱신
+     * 시선이 벗어나면 TextDisplay 해제
      */
     public void startDisplayWatcherTask(org.bukkit.plugin.java.JavaPlugin plugin) {
         org.bukkit.Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -297,7 +516,6 @@ public class CropsManager {
                 org.bukkit.entity.Player player = org.bukkit.Bukkit.getPlayer(entry.getKey());
                 ActiveCropDisplay active = entry.getValue();
 
-                // 플레이어가 접속 종료했거나 사망했거나 엔티티가 유효하지 않으면 정리
                 if (player == null || !player.isOnline() || !active.display().isValid()) {
                     if (active != null && active.display().isValid()) {
                         active.display().remove();
@@ -306,23 +524,22 @@ public class CropsManager {
                     continue;
                 }
 
-                // 플레이어 크로스헤어가 작물 블록을 바라보고 있는지 레이트레이스로 검사
                 org.bukkit.util.RayTraceResult hit = player.rayTraceBlocks(5.5, org.bukkit.FluidCollisionMode.NEVER);
                 boolean lookingAtTarget = false;
 
                 if (hit != null && hit.getHitBlock() != null) {
                     BlockPos hitPos = BlockPos.from(hit.getHitBlock());
-                    if (hitPos.equals(active.pos())) {
+                    // 타워형(사탕수수/선인장/켈프 최대 15단) 또는 덩굴형 위치 매칭
+                    if (hitPos.equals(active.pos()) ||
+                        (hitPos.worldName().equals(active.pos().worldName()) && hitPos.x() == active.pos().x() && hitPos.z() == active.pos().z() && Math.abs(hitPos.y() - active.pos().y()) <= 15)) {
                         lookingAtTarget = true;
                     }
                 }
 
                 if (!lookingAtTarget) {
-                    // 크로스헤어가 작물에서 벗어남 -> 즉시 해제
                     active.display().remove();
                     iterator.remove();
                 } else {
-                    // 여전히 바라보고 있음 -> 실시간 시간 및 나이 동기화
                     CropData data = cropsByPos.get(active.pos());
                     if (data != null && hit.getHitBlock() != null) {
                         updateBlockVisual(hit.getHitBlock(), data);

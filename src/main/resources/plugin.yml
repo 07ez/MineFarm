@@ -33,5 +33,8 @@ commands:
     description: BDEngine 3D 모델 다운로드 및 소환 명령어입니다.
     aliases: [blockdisplay]
     permission: minefarm.admin
+  atm:
+    description: 은행 ATM 입출금 기기 명령어입니다.
+    aliases: [은행, bank]
 
 softdepend: [PlaceholderAPI]
