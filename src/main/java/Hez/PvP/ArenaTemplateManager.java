@@ -223,10 +223,6 @@ public class ArenaTemplateManager {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
                     org.bukkit.block.Block block = world.getBlockAt(x, y, z);
-                    // 빈 공기 블록은 저장 시 제외하여 파일 용량 대폭 절감 및 Air 무시 최적화
-                    if (block.getType().isAir()) {
-                        continue;
-                    }
                     int dx = x - minX;
                     int dy = y - minY;
                     int dz = z - minZ;
@@ -375,10 +371,24 @@ public class ArenaTemplateManager {
             return false;
         }
 
-        playerPlacedBlocks.clear();
+        // 1. 테마 맵 잔여 블록 안전 공기화
+        for (Location loc : currentThemeBlocks) {
+            if (loc.getWorld() != null && isInArenaBounds(loc)) {
+                loc.getBlock().setType(Material.AIR, false);
+            }
+        }
         currentThemeBlocks.clear();
+
+        // 2. 플레이어 설치 블록 안전 공기화
+        for (Location loc : playerPlacedBlocks) {
+            if (loc.getWorld() != null && isInArenaBounds(loc)) {
+                loc.getBlock().setType(Material.AIR, false);
+            }
+        }
+        playerPlacedBlocks.clear();
         playerBrokenBlocks.clear();
 
+        // 3. 메인 기본 경기장 템플릿(공기 포함) 붙여넣기
         File mainFile = new File(templateFolder, "main.template");
         if (mainFile.exists()) {
             return pasteTemplate("main", false);

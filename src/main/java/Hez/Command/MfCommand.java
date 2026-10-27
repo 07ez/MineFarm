@@ -165,7 +165,7 @@ public class MfCommand implements CommandExecutor {
 
                         boolean ok = arena.saveTemplate("main", loc1, loc2);
                         if (ok) {
-                            sender.sendMessage("§a[아레나] 기본 경기장(main) 템플릿이 성공적으로 저장되었습니다! (Air 무시 저장 완료)");
+                            sender.sendMessage("§a[아레나] 기본 경기장(main) 템플릿이 성공적으로 저장되었습니다! (공기 블록 포함 저장 완료)");
                         } else {
                             sender.sendMessage("§c[아레나] 기본 경기장 저장 중 오류가 발생했습니다.");
                         }
